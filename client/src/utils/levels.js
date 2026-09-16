@@ -7,7 +7,7 @@ export const LEVELS_CONFIG = [
     level: 1,
     minCount: 0,
     maxCount: 4,
-    title: 'Новичок в гильдии',
+    title: 'Звёздное дитя',
     franchise: 'Ребёнок идола',
     iconName: 'OshiStar',
     barColor: 'bg-neutral-800 dark:bg-neutral-200',
@@ -15,9 +15,9 @@ export const LEVELS_CONFIG = [
     bgBadge: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800/80 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700',
     border: 'border-neutral-200 dark:border-neutral-800',
     accentColor: '#737373',
-    description: 'Ребёнок идола: Первые звёзды харизмы зажглись во взгляде. Ты только ступил на порог удивительного мира аниме!',
+    description: 'Ребёнок идола: Первые звёзды харизмы зажглись во взгляде. Твоё путешествие в захватывающий мир аниме только начинается!',
     rewards: [
-      'Базовый статус участника аниме-клуба',
+      'Статус «Звёздное дитя» в аниме-клубе',
       'Возможность оценивать тайтлы от 0 до 10',
       'Добавление тайтлов в избранное и поиск друзей'
     ]
@@ -26,6 +26,25 @@ export const LEVELS_CONFIG = [
     level: 2,
     minCount: 5,
     maxCount: 14,
+    title: 'Пешка Иманити',
+    franchise: 'Нет игры — нет жизни',
+    iconName: 'ChessPawn',
+    barColor: 'bg-neutral-800 dark:bg-neutral-200',
+    iconBg: 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-700',
+    bgBadge: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800/80 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700',
+    border: 'border-neutral-200 dark:border-neutral-800',
+    accentColor: '#737373',
+    description: 'Нет игры — нет жизни: «Пешка способна переломить ход всей партии». Твои первые уверенные ходы в мире историй!',
+    rewards: [
+      'Монотонный бейдж Пешки Иманити в профиле',
+      'Доступ к фильтрации каталога по личным оценкам',
+      'Открытие вкладки персональных рекомендаций'
+    ]
+  },
+  {
+    level: 3,
+    minCount: 15,
+    maxCount: 29,
     title: 'Проводник Душ',
     franchise: 'Шаман Кинг',
     iconName: 'SpiritFlame',
@@ -37,14 +56,14 @@ export const LEVELS_CONFIG = [
     description: 'Шаман Кинг: Твоя связь с миром духов крепнет. Дух-хранитель указывает путь к лучшим историям.',
     rewards: [
       'Специальный монотонный бейдж Проводника Душ',
-      'Доступ к фильтрации каталога по личным оценкам',
-      'Открытие вкладки персональных рекомендаций'
+      'Доступ к жанровой фильтрации в профиле друга',
+      'Повышенное доверие к твоим рецензиям'
     ]
   },
   {
-    level: 3,
-    minCount: 15,
-    maxCount: 29,
+    level: 4,
+    minCount: 30,
+    maxCount: 49,
     title: 'Ценитель классики',
     franchise: 'Магическая битва',
     iconName: 'CursedFlash',
@@ -56,25 +75,6 @@ export const LEVELS_CONFIG = [
     description: 'Магическая битва: Кокусэн! Вспышка концентрированной энергии. Ты мгновенно отличаешь золотую классику от проходных тайтлов.',
     rewards: [
       'Монотонный бейдж знатока в профиле и друзьях',
-      'Доступ к жанровой фильтрации в профиле друга',
-      'Повышенное доверие к твоим рецензиям'
-    ]
-  },
-  {
-    level: 4,
-    minCount: 30,
-    maxCount: 49,
-    title: 'Игрок 『　』',
-    franchise: 'Нет игры — нет жизни',
-    iconName: 'BlankBrackets',
-    barColor: 'bg-neutral-800 dark:bg-neutral-200',
-    iconBg: 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-700',
-    bgBadge: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800/80 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700',
-    border: 'border-neutral-200 dark:border-neutral-800',
-    accentColor: '#737373',
-    description: 'Нет игры — нет жизни: «Пустые никогда не проигрывают». Твой аналитический ум просчитывает сюжетные ходы на 20 шагов вперёд.',
-    rewards: [
-      'Легендарный титул «Игрок 『　』» рядом с никнеймом',
       'Приоритетный блок Топ любимых тайтлов в профиле',
       'Особый статус знатока запутанных сюжетов'
     ]
@@ -102,25 +102,6 @@ export const LEVELS_CONFIG = [
     level: 6,
     minCount: 100,
     maxCount: 199,
-    title: 'Король Иманити',
-    franchise: 'Нет игры — нет жизни',
-    iconName: 'ImanityCrown',
-    barColor: 'bg-neutral-800 dark:bg-neutral-200',
-    iconBg: 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-700',
-    bgBadge: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800/80 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700',
-    border: 'border-neutral-200 dark:border-neutral-800',
-    accentColor: '#737373',
-    description: 'Нет игры — нет жизни: Все 16 шахматных фигур рас собраны. Законы Дисборда подчиняются твоему непревзойдённому вкусу.',
-    rewards: [
-      'Корона Короля Иманити в профиле',
-      'VIP-ранг в списке друзей и рекомендациях',
-      'Доступ к эксклюзивной аналитике франшиз'
-    ]
-  },
-  {
-    level: 7,
-    minCount: 200,
-    maxCount: 349,
     title: 'Король Шаманов',
     franchise: 'Шаман Кинг',
     iconName: 'ShamanBlade',
@@ -131,9 +112,28 @@ export const LEVELS_CONFIG = [
     accentColor: '#737373',
     description: 'Шаман Кинг: Полный контроль фурёку и единение с великим духом. Ты завоевал титул Короля Шаманов.',
     rewards: [
-      'Бейдж Короля Шаманов в профиле',
-      'Отметка эксперта боевых сёнэнов в обсуждениях',
-      'Титул признанного мастера сообщества'
+      'Королевский бейдж Короля Шаманов в профиле',
+      'VIP-ранг в списке друзей и рекомендациях',
+      'Доступ к эксклюзивной аналитике франшиз'
+    ]
+  },
+  {
+    level: 7,
+    minCount: 200,
+    maxCount: 349,
+    title: 'Нет жизни',
+    franchise: 'Нет игры — нет жизни',
+    iconName: 'BlankBrackets',
+    barColor: 'bg-neutral-800 dark:bg-neutral-200',
+    iconBg: 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-700',
+    bgBadge: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800/80 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700',
+    border: 'border-neutral-200 dark:border-neutral-800',
+    accentColor: '#737373',
+    description: 'Нет игры — нет жизни: «Пустые никогда не проигрывают». В мире Дисборда для тебя больше не существует непреодолимых преград.',
+    rewards: [
+      'Легендарный титул «Нет жизни» в профиле',
+      'Отметка мастера сюжетов высшего класса',
+      'Титул признанного гроссмейстера сообщества'
     ]
   },
   {

@@ -26,6 +26,17 @@ function LevelIcon({ iconName, className = 'w-5 h-5' }) {
           <circle cx="12" cy="14" r="1.2" fill="currentColor" />
         </svg>
       );
+    case 'ChessPawn':
+      // Нет игры — нет жизни (Пешка Иманити)
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <circle cx="12" cy="6" r="3" />
+          <path d="M9 10a4 4 0 0 0 6 0" />
+          <path d="M10 10.5L9 16h6l-1-5.5" />
+          <path d="M7 19h10l1 2H6l1-2z" />
+          <path d="M6 21h12" strokeWidth="2" />
+        </svg>
+      );
     case 'CursedFlash':
     case 'Zap':
       // Магическая битва (Чёрная молния Кокусэн)
