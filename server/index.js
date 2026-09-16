@@ -35,7 +35,8 @@ const {
 const {
   scrapeAnimeGoUserList,
   parseAnimeGoHtml,
-  importUserRatings
+  importUserRatings,
+  findOrInsertAnime
 } = require('./animego_importer');
 const { scrapeShikimoriUserRates } = require('./shikimori_importer');
 const { parseAnimeLibContent, scrapeAnimeLibUserList } = require('./animelib_importer');
@@ -369,6 +370,89 @@ app.post('/api/user/import', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Import ratings error:', err);
     return res.status(500).json({ error: err.message || 'Ошибка импорта оценок' });
+  }
+});
+
+// Import arbitrary list of anime items directly (creating missing anime in catalog and rating them)
+app.post('/api/user/import-items', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { items = [] } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Список аниме пуст' });
+    }
+
+    const result = importUserRatings(userId, items);
+
+    // Fetch updated stats
+    const stats = db.prepare(`
+      SELECT COUNT(id) as rated_count, ROUND(AVG(score), 1) as avg_score
+      FROM ratings WHERE user_id = ?
+    `).get(userId);
+
+    return res.json({
+      success: true,
+      result,
+      stats: {
+        ratedCount: stats.rated_count || 0,
+        avgScore: stats.avg_score !== null ? Number(stats.avg_score) : null
+      }
+    });
+  } catch (err) {
+    console.error('Import items error:', err);
+    return res.status(500).json({ error: err.message || 'Ошибка импорта тайтлов' });
+  }
+});
+
+// Create/add single anime to catalog and rate for user
+app.post('/api/anime/create', authMiddleware, (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { title, originalTitle, image, score, type = 'Сериал' } = req.body;
+    if (!title || typeof title !== 'string' || !title.trim()) {
+      return res.status(400).json({ error: 'Укажите название аниме' });
+    }
+
+    const item = {
+      title: title.trim(),
+      originalTitle: (originalTitle || '').trim(),
+      image: (image || '').trim(),
+      type,
+      score: typeof score === 'number' ? score : 0
+    };
+
+    const anime = findOrInsertAnime(item);
+    if (!anime) {
+      return res.status(500).json({ error: 'Не удалось создать аниме' });
+    }
+
+    const numScore = (typeof score === 'number' && score >= 0 && score <= 10) ? score : null;
+    if (numScore !== null) {
+      db.prepare(`
+        INSERT INTO ratings (user_id, anime_id, score, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(user_id, anime_id) DO UPDATE SET
+          score = excluded.score,
+          updated_at = CURRENT_TIMESTAMP
+      `).run(userId, anime.id, numScore);
+
+      if (typeof db.saveAccountsBackup === 'function') {
+        db.saveAccountsBackup();
+      }
+    }
+
+    return res.json({
+      success: true,
+      anime: {
+        id: anime.id,
+        title: anime.title,
+        slug: anime.slug,
+        score: numScore
+      }
+    });
+  } catch (err) {
+    console.error('Create anime error:', err);
+    return res.status(500).json({ error: err.message || 'Ошибка создания аниме' });
   }
 });
 

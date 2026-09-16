@@ -107,3 +107,43 @@ export function hasCatalogChanged(cachedItems, newItems) {
   return false;
 }
 
+export function appendCachedAnimeItem(item) {
+  if (!item || !item.id) return;
+  try {
+    const numId = Number(item.id);
+    for (let i = 0; i < localStorage.length; i++) {
+      const storageKey = localStorage.key(i);
+      if (storageKey && storageKey.startsWith(CACHE_KEY_PREFIX)) {
+        try {
+          const raw = localStorage.getItem(storageKey);
+          if (!raw) continue;
+          const data = JSON.parse(raw);
+          if (data && Array.isArray(data.items)) {
+            const exists = data.items.some((x) => Number(x.id) === numId);
+            if (!exists) {
+              data.items.unshift({
+                id: numId,
+                title: item.title,
+                originalTitle: item.originalTitle || '',
+                imageUrl: item.imageUrl || item.image || 'https://placehold.co/300x450/1e293b/ffffff?text=' + encodeURIComponent((item.title || 'Anime').slice(0, 30)),
+                type: item.type || 'Сериал',
+                year: item.year || '',
+                genres: item.genres || [],
+                description: item.description || item.title,
+                myScore: item.score ?? item.myScore ?? null,
+                averageScore: item.score ?? item.averageScore ?? null,
+                ratingCount: 1,
+                isFavorite: false,
+                isHidden: false,
+                commentsCount: 0
+              });
+              data.total = (data.total || data.items.length) + 1;
+              localStorage.setItem(storageKey, JSON.stringify(data));
+            }
+          }
+        } catch (err) {}
+      }
+    }
+  } catch (e) {}
+}
+

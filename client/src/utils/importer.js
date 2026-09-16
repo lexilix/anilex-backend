@@ -1,5 +1,6 @@
 import { apiUrl } from '../api';
 import { getCachedUserRatings, updateCachedUserRating } from './profileCache';
+import { appendCachedAnimeItem } from './catalogCache';
 
 function getStoredCatalog() {
   try {
@@ -221,7 +222,20 @@ export function parseAnimeLibContent(rawText, catalog = []) {
     }
   }
 
-  // 6. Deduplicate by normalized title, preserving highest non-zero score
+  // 6. Multi-line block parser for copied profile text (e.g. Title \n Title \n Продлить \n 8/10)
+  const blockItems = parseCopiedProfileBlocks(text);
+  for (const bi of blockItems) {
+    rawItems.push({
+      slug: 'imported-' + bi.title.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-') + '-' + Math.floor(Math.random() * 10000),
+      title: bi.title,
+      originalTitle: '',
+      score: bi.score,
+      image: null,
+      type: 'Сериал'
+    });
+  }
+
+  // 7. Deduplicate by normalized title, preserving highest non-zero score
   const itemMap = new Map();
   for (const it of rawItems) {
     if (!it.title || it.title.length < 2) continue;
@@ -237,6 +251,78 @@ export function parseAnimeLibContent(rawText, catalog = []) {
   }
 
   return Array.from(itemMap.values());
+}
+
+/**
+ * Parses multi-line blocks of text copied from anime website profiles
+ */
+export function parseCopiedProfileBlocks(text) {
+  const UI_WORDS = new Set([
+    'продлить', 'просмотрено', 'смотрю', 'в планах', 'брошено', 'пересматриваю', 'отложено',
+    'любимое', 'закладки', 'профиль', 'пользователь', 'оценки', 'список', 'комментарии',
+    'друзья', 'статистика', 'главная', 'каталог', 'все', 'фильм', 'сериал', 'ova', 'ona'
+  ]);
+
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const items = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineLower = line.toLowerCase();
+
+    if (UI_WORDS.has(lineLower) || /^\d{1,2}(?:\s*\/\s*10)?$/.test(line)) continue;
+    if (line.length < 2) continue;
+
+    const singleMatch = line.match(/^([^—–\-:]{2,100})\s*[-—–:]\s*(\d{1,2})(?:\s*\/\s*10)?$/i);
+    if (singleMatch) {
+      const title = singleMatch[1].trim();
+      const score = parseInt(singleMatch[2], 10);
+      if (title.length >= 2 && !UI_WORDS.has(title.toLowerCase())) {
+        items.push({ title, score: Math.min(10, Math.max(0, score)) });
+        continue;
+      }
+    }
+
+    const candidateTitle = line;
+    if (UI_WORDS.has(candidateTitle.toLowerCase())) continue;
+
+    let score = 0;
+    for (let j = i + 1; j <= Math.min(lines.length - 1, i + 5); j++) {
+      const nextLine = lines[j];
+      const scoreMatch = nextLine.match(/(?:^|\s)(\d{1,2})\s*\/\s*10(?:\s|$)/) ||
+                         nextLine.match(/(?:оценка|рейтинг|score|rate)[:\s]*(\d{1,2})/i) ||
+                         nextLine.match(/^★?\s*(\d{1,2})$/);
+      if (scoreMatch) {
+        const val = parseInt(scoreMatch[1], 10);
+        if (val >= 1 && val <= 10) {
+          score = val;
+          break;
+        }
+      }
+      if (nextLine.length > 3 && !UI_WORDS.has(nextLine.toLowerCase()) && !/^\d/.test(nextLine)) {
+        if (nextLine.toLowerCase() === candidateTitle.toLowerCase()) continue;
+        break;
+      }
+    }
+
+    items.push({ title: candidateTitle, score });
+  }
+
+  const map = new Map();
+  for (const it of items) {
+    const key = it.title.toLowerCase().replace(/[^a-zа-я0-9]/gi, '');
+    if (!key || key.length < 2) continue;
+    if (!map.has(key)) {
+      map.set(key, it);
+    } else {
+      const prev = map.get(key);
+      if (it.score > prev.score) {
+        map.set(key, it);
+      }
+    }
+  }
+
+  return Array.from(map.values());
 }
 
 /**
@@ -312,7 +398,10 @@ export async function fetchShikimoriDirect(username) {
 export async function executeImportWorkflow({ platform, input, rawContent, token, userId }) {
   if (!token) throw new Error('Требуется авторизация в профиле');
 
-  const combinedContent = (rawContent || '').trim() || (input && (input.length > 200 || input.includes('\n') || input.includes('<') || input.includes('{"')) ? input.trim() : '');
+  const isLikelyUrl = /^(https?:\/\/|[a-z0-9.-]+\/(?:user|users|profile)\/)/i.test((input || '').trim());
+  const hasMultipleLinesOrMarkup = (input || '').length > 80 || (input || '').includes('\n') || (input || '').includes('<') || (input || '').includes('{"') || ((input || '').includes('/') && (input || '').includes(':'));
+
+  const combinedContent = (rawContent || '').trim() || ((input && (!isLikelyUrl || hasMultipleLinesOrMarkup)) ? input.trim() : '');
   let resolvedPlatform = platform;
 
   // Auto-detect platform from URL or content
@@ -372,7 +461,15 @@ export async function executeImportWorkflow({ platform, input, rawContent, token
       let data = null;
       try { data = JSON.parse(text); } catch {}
 
-      if (res.ok && data?.result) return data.result;
+      if (res.ok && data?.result) {
+        if (Array.isArray(data.result.importedAnime)) {
+          for (const it of data.result.importedAnime) {
+            updateCachedUserRating(userId, it.id, it.score, it);
+            appendCachedAnimeItem(it);
+          }
+        }
+        return data.result;
+      }
       if (data?.error) throw new Error(data.error);
     } catch (err) {
       if (err.message && !err.message.includes('<!DOCTYPE') && !err.message.includes('JSON')) {
@@ -400,7 +497,15 @@ export async function executeImportWorkflow({ platform, input, rawContent, token
     let data = null;
     try { data = JSON.parse(text); } catch {}
 
-    if (res.ok && data?.result) return data.result;
+    if (res.ok && data?.result) {
+      if (Array.isArray(data.result.importedAnime)) {
+        for (const it of data.result.importedAnime) {
+          updateCachedUserRating(userId, it.id, it.score, it);
+          appendCachedAnimeItem(it);
+        }
+      }
+      return data.result;
+    }
     if (res.status === 400 && data?.error) throw new Error(data.error);
   } catch (err) {
     if (err.message && !err.message.includes('<!DOCTYPE') && !err.message.includes('JSON')) {
@@ -422,14 +527,41 @@ export async function executeImportWorkflow({ platform, input, rawContent, token
 }
 
 /**
- * Saves an array of parsed anime rating items to user's profile
+ * Saves an array of parsed anime rating items to user's profile and catalog
  */
-async function saveItemsDirectlyToCatalog(items, token, userId) {
+export async function saveItemsDirectlyToCatalog(items, token, userId) {
   if (!items || items.length === 0) {
     throw new Error('Не найдено ни одного тайтла для импорта');
   }
 
-  // Load catalog to match titles
+  // 1. Send items to the server import-items endpoint (creates missing anime in DB and rates them)
+  try {
+    const res = await fetch(apiUrl('/api/user/import-items'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ items })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.result) {
+        if (Array.isArray(data.result.importedAnime)) {
+          for (const it of data.result.importedAnime) {
+            updateCachedUserRating(userId, it.id, it.score, it);
+            appendCachedAnimeItem(it);
+          }
+        }
+        return data.result;
+      }
+    }
+  } catch (err) {
+    console.warn('Direct server bulk import failed, falling back to per-item handling', err);
+  }
+
+  // 2. Client-side fallback: ensure ALL items are processed and added even if catalog lacked them
   let catalog = getStoredCatalog();
   if (!catalog || catalog.length === 0) {
     try {
@@ -451,6 +583,11 @@ async function saveItemsDirectlyToCatalog(items, token, userId) {
   let zeroRatedCount = 0;
 
   for (const item of items) {
+    const scoreToSet = typeof item.score === 'number' ? Math.min(10, Math.max(0, item.score)) : 0;
+    if (scoreToSet === 0) {
+      zeroRatedCount++;
+    }
+
     // Find matching anime in catalog by title or originalTitle
     const matched = catalog.find((c) => {
       if (c.title && item.title && c.title.trim().toLowerCase() === item.title.trim().toLowerCase()) return true;
@@ -458,32 +595,69 @@ async function saveItemsDirectlyToCatalog(items, token, userId) {
       return false;
     });
 
-    if (!matched) continue;
+    if (matched) {
+      // Preserve existing rating
+      if (existingMap.has(matched.id) && existingMap.get(matched.id) !== null) {
+        alreadyRatedCount++;
+        continue;
+      }
 
-    // Preserve existing rating
-    if (existingMap.has(matched.id) && existingMap.get(matched.id) !== null) {
-      alreadyRatedCount++;
-      continue;
-    }
+      try {
+        await fetch(apiUrl(`/api/anime/${matched.id}/rate`), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ score: scoreToSet })
+        });
+      } catch {}
 
-    const scoreToSet = typeof item.score === 'number' ? Math.min(10, Math.max(0, item.score)) : 0;
-    if (scoreToSet === 0) {
-      zeroRatedCount++;
-    }
-
-    try {
-      await fetch(apiUrl(`/api/anime/${matched.id}/rate`), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ score: scoreToSet })
-      });
-      updateCachedUserRating(userId, matched.id, scoreToSet);
+      updateCachedUserRating(userId, matched.id, scoreToSet, matched);
       newlyRatedCount++;
-    } catch {
-      // Ignore individual item rate errors
+    } else {
+      // Anime not in local catalog -> Create anime via API so it is added to the database and catalog!
+      let createdId = null;
+
+      try {
+        const createRes = await fetch(apiUrl('/api/anime/create'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            title: item.title,
+            originalTitle: item.originalTitle || '',
+            image: item.image || '',
+            score: scoreToSet,
+            type: item.type || 'Сериал'
+          })
+        });
+        if (createRes.ok) {
+          const createData = await createRes.json();
+          if (createData.anime) {
+            createdId = createData.anime.id;
+          }
+        }
+      } catch {}
+
+      const finalId = createdId || (Date.now() + Math.floor(Math.random() * 10000));
+      const animeData = {
+        id: finalId,
+        title: item.title,
+        originalTitle: item.originalTitle || '',
+        imageUrl: item.image || 'https://placehold.co/300x450/1e293b/ffffff?text=' + encodeURIComponent(item.title.slice(0, 30)),
+        type: item.type || 'Сериал',
+        description: item.title,
+        myScore: scoreToSet,
+        averageScore: scoreToSet,
+        ratingCount: 1
+      };
+
+      updateCachedUserRating(userId, finalId, scoreToSet, animeData);
+      appendCachedAnimeItem(animeData);
+      newlyRatedCount++;
     }
   }
 

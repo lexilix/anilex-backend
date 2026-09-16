@@ -90,24 +90,25 @@ export function updateCachedUserRating(userId, animeId, score, animeData = null)
           ...list[existingIdx],
           myScore: Number(score)
         };
-      } else if (animeData) {
+      } else {
+        // Insert newly rated anime into cached ratings list
         list.unshift({
           id: numId,
-          title: animeData.title,
-          originalTitle: animeData.originalTitle,
-          imageUrl: animeData.imageUrl,
-          type: animeData.type,
-          year: animeData.year,
-          genres: animeData.genres || [],
-          description: animeData.description,
+          title: animeData?.title || 'Аниме #' + numId,
+          originalTitle: animeData?.originalTitle || '',
+          imageUrl: animeData?.imageUrl || animeData?.image || 'https://placehold.co/300x450/1e293b/ffffff?text=Anime',
+          type: animeData?.type || 'Сериал',
+          year: animeData?.year || '',
+          genres: animeData?.genres || [],
+          description: animeData?.description || '',
           myScore: Number(score),
-          averageScore: animeData.averageScore,
-          ratingCount: animeData.ratingCount
+          averageScore: animeData?.averageScore || score,
+          ratingCount: animeData?.ratingCount || 1
         });
       }
     }
 
-    localStorage.setItem(key, JSON.stringify(list.slice(0, 500)));
+    localStorage.setItem(key, JSON.stringify(list.slice(0, 1000)));
   } catch (e) {
     console.warn('Failed to update cached rating in localStorage', e);
   }

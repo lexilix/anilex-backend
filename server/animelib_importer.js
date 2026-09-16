@@ -188,7 +188,20 @@ function parseAnimeLibContent(rawText) {
     }
   }
 
-  // 6. Deduplicate by title, preserving highest non-zero score
+  // 6. Multi-line block parser for copied profile text (e.g. Title \n Title \n Продлить \n 8/10)
+  const blockItems = parseCopiedProfileBlocks(text);
+  for (const bi of blockItems) {
+    rawItems.push({
+      slug: 'imported-' + bi.title.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-') + '-' + Math.floor(Math.random() * 10000),
+      title: bi.title,
+      originalTitle: '',
+      score: bi.score,
+      image: null,
+      type: 'Сериал'
+    });
+  }
+
+  // 7. Deduplicate by title, preserving highest non-zero score
   const itemMap = new Map();
   for (const it of rawItems) {
     if (!it.title || it.title.length < 2) continue;
@@ -204,6 +217,78 @@ function parseAnimeLibContent(rawText) {
   }
 
   return Array.from(itemMap.values());
+}
+
+/**
+ * Parses multi-line blocks of text copied from anime website profiles
+ */
+function parseCopiedProfileBlocks(text) {
+  const UI_WORDS = new Set([
+    'продлить', 'просмотрено', 'смотрю', 'в планах', 'брошено', 'пересматриваю', 'отложено',
+    'любимое', 'закладки', 'профиль', 'пользователь', 'оценки', 'список', 'комментарии',
+    'друзья', 'статистика', 'главная', 'каталог', 'все', 'фильм', 'сериал', 'ova', 'ona'
+  ]);
+
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const items = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineLower = line.toLowerCase();
+
+    if (UI_WORDS.has(lineLower) || /^\d{1,2}(?:\s*\/\s*10)?$/.test(line)) continue;
+    if (line.length < 2) continue;
+
+    const singleMatch = line.match(/^([^—–\-:]{2,100})\s*[-—–:]\s*(\d{1,2})(?:\s*\/\s*10)?$/i);
+    if (singleMatch) {
+      const title = singleMatch[1].trim();
+      const score = parseInt(singleMatch[2], 10);
+      if (title.length >= 2 && !UI_WORDS.has(title.toLowerCase())) {
+        items.push({ title, score: Math.min(10, Math.max(0, score)) });
+        continue;
+      }
+    }
+
+    const candidateTitle = line;
+    if (UI_WORDS.has(candidateTitle.toLowerCase())) continue;
+
+    let score = 0;
+    for (let j = i + 1; j <= Math.min(lines.length - 1, i + 5); j++) {
+      const nextLine = lines[j];
+      const scoreMatch = nextLine.match(/(?:^|\s)(\d{1,2})\s*\/\s*10(?:\s|$)/) ||
+                         nextLine.match(/(?:оценка|рейтинг|score|rate)[:\s]*(\d{1,2})/i) ||
+                         nextLine.match(/^★?\s*(\d{1,2})$/);
+      if (scoreMatch) {
+        const val = parseInt(scoreMatch[1], 10);
+        if (val >= 1 && val <= 10) {
+          score = val;
+          break;
+        }
+      }
+      if (nextLine.length > 3 && !UI_WORDS.has(nextLine.toLowerCase()) && !/^\d/.test(nextLine)) {
+        if (nextLine.toLowerCase() === candidateTitle.toLowerCase()) continue;
+        break;
+      }
+    }
+
+    items.push({ title: candidateTitle, score });
+  }
+
+  const map = new Map();
+  for (const it of items) {
+    const key = it.title.toLowerCase().replace(/[^a-zа-я0-9]/gi, '');
+    if (!key || key.length < 2) continue;
+    if (!map.has(key)) {
+      map.set(key, it);
+    } else {
+      const prev = map.get(key);
+      if (it.score > prev.score) {
+        map.set(key, it);
+      }
+    }
+  }
+
+  return Array.from(map.values());
 }
 
 /**

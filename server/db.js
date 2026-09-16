@@ -276,17 +276,19 @@ function restoreAccountsFromBackup() {
           email = COALESCE(users.email, excluded.email)
       `);
       for (const u of data.users) {
-        insertUserStmt.run(
-          u.id,
-          u.email,
-          u.nickname,
-          u.password_hash || 'RESTORED_ACCOUNT',
-          u.salt || 'RESTORED_SALT',
-          u.avatar_url || null,
-          u.banner_url || null,
-          u.allow_password_set !== undefined ? u.allow_password_set : 0,
-          u.created_at || new Date().toISOString()
-        );
+        try {
+          insertUserStmt.run(
+            u.id,
+            u.email,
+            u.nickname,
+            u.password_hash || 'RESTORED_ACCOUNT',
+            u.salt || 'RESTORED_SALT',
+            u.avatar_url || null,
+            u.banner_url || null,
+            u.allow_password_set !== undefined ? u.allow_password_set : 0,
+            u.created_at || new Date().toISOString()
+          );
+        } catch (e) {}
       }
     }
 
@@ -297,7 +299,9 @@ function restoreAccountsFromBackup() {
         VALUES (?, ?, ?, ?, ?, ?)
       `);
       for (const f of data.friendRequests) {
-        insertFriendStmt.run(f.id, f.from_user_id, f.to_user_id, f.status, f.created_at, f.updated_at);
+        try {
+          insertFriendStmt.run(f.id, f.from_user_id, f.to_user_id, f.status, f.created_at, f.updated_at);
+        } catch (e) {}
       }
     }
 
@@ -308,7 +312,24 @@ function restoreAccountsFromBackup() {
         VALUES (?, ?, ?, ?, ?, ?)
       `);
       for (const r of data.ratings) {
-        insertRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
+        try {
+          const animeExists = db.prepare('SELECT id FROM anime WHERE id = ?').get(r.anime_id);
+          if (!animeExists) {
+            db.prepare(`
+              INSERT OR IGNORE INTO anime (id, slug, title, title_lower, image_url, type, description, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            `).run(
+              r.anime_id,
+              `restored-anime-${r.anime_id}`,
+              `Аниме #${r.anime_id}`,
+              `аниме #${r.anime_id}`,
+              'https://placehold.co/300x450/1e293b/ffffff?text=Anime',
+              'Сериал',
+              'Восстановленное аниме'
+            );
+          }
+          insertRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
+        } catch (e) {}
       }
     }
 
@@ -319,7 +340,9 @@ function restoreAccountsFromBackup() {
         VALUES (?, ?, ?, ?, ?, ?)
       `);
       for (const c of data.comments) {
-        insertCommentStmt.run(c.id, c.anime_id, c.user_id, c.content, c.parent_id || null, c.created_at);
+        try {
+          insertCommentStmt.run(c.id, c.anime_id, c.user_id, c.content, c.parent_id || null, c.created_at);
+        } catch (e) {}
       }
     }
 
@@ -330,7 +353,9 @@ function restoreAccountsFromBackup() {
         VALUES (?, ?, ?, ?)
       `);
       for (const h of data.hiddenAnime) {
-        insertHiddenStmt.run(h.id, h.user_id, h.anime_id, h.created_at || new Date().toISOString());
+        try {
+          insertHiddenStmt.run(h.id, h.user_id, h.anime_id, h.created_at || new Date().toISOString());
+        } catch (e) {}
       }
     }
 

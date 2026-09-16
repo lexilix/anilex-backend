@@ -73,13 +73,20 @@ function isSameAnime(existing, item) {
 
 // Save anime items safely into database (with strict deduplication)
 function insertOrUpdateAnime(item) {
-  if (!item.title || !item.slug || !item.image) return;
+  if (!item || !item.title) return;
 
   const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
   const cleanTitle = item.title.trim();
   const cleanOriginal = (item.originalTitle || '').trim();
   const normTitle = normalize(cleanTitle);
   const normOriginal = normalize(cleanOriginal);
+
+  if (!item.slug) {
+    item.slug = 'anime-' + normTitle.replace(/[^a-zа-я0-9]+/gi, '-') + '-' + Math.floor(Math.random() * 100000);
+  }
+  if (!item.image) {
+    item.image = 'https://placehold.co/300x450/1e293b/ffffff?text=' + encodeURIComponent(cleanTitle.slice(0, 30));
+  }
 
   // 1. Check if an anime with this exact slug exists
   let existing = db.prepare('SELECT id, slug, title, original_title, image_url, type, year, genres, description FROM anime WHERE slug = ?').get(item.slug);

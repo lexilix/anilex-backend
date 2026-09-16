@@ -86,22 +86,23 @@ async function scrapeAnimeGoUserList(userIdOrUrl) {
  * Finds matching anime in local DB, or creates record if missing.
  */
 function findOrInsertAnime(item) {
+  if (!item || !item.title) return null;
   const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
   const normTitle = normalize(item.title);
   const normOriginal = normalize(item.originalTitle);
 
   // 1. Direct slug match
-  let anime = db.prepare('SELECT id, title, slug FROM anime WHERE slug = ?').get(item.slug);
+  let anime = item.slug ? db.prepare('SELECT id, title, original_title, slug, image_url, type, year, genres, description FROM anime WHERE slug = ?').get(item.slug) : null;
 
   // 2. Normalized title match
   if (!anime) {
-    anime = db.prepare('SELECT id, title, slug FROM anime WHERE title_lower = ?').get(normTitle);
+    anime = db.prepare('SELECT id, title, original_title, slug, image_url, type, year, genres, description FROM anime WHERE title_lower = ?').get(normTitle);
   }
 
   // 3. Original title match
   if (!anime && normOriginal && normOriginal.length > 3) {
     anime = db.prepare(`
-      SELECT id, title, slug FROM anime
+      SELECT id, title, original_title, slug, image_url, type, year, genres, description FROM anime
       WHERE original_title_lower = ?
          OR (original_title_lower IS NOT NULL AND original_title_lower LIKE ?)
     `).get(normOriginal, `%${normOriginal}%`);
@@ -109,17 +110,24 @@ function findOrInsertAnime(item) {
 
   // 4. Insert into anime table if missing
   if (!anime) {
+    const slug = (item.slug && item.slug.trim())
+      ? item.slug.trim()
+      : 'imported-' + normTitle.replace(/[^a-zа-я0-9]+/gi, '-') + '-' + Math.floor(Math.random() * 100000);
+    const image = (item.image && item.image.trim())
+      ? item.image.trim()
+      : 'https://placehold.co/300x450/1e293b/ffffff?text=' + encodeURIComponent(item.title.slice(0, 30));
+
     insertOrUpdateAnime({
-      slug: item.slug,
+      slug,
       title: item.title,
       originalTitle: item.originalTitle || '',
-      image: item.image || 'https://placehold.co/250x350?text=No+Image',
-      genres: [],
-      year: null,
+      image,
+      genres: item.genres || [],
+      year: item.year || null,
       description: item.title,
-      type: 'Сериал'
+      type: item.type || 'Сериал'
     });
-    anime = db.prepare('SELECT id, title, slug FROM anime WHERE slug = ? OR title_lower = ?').get(item.slug, normTitle);
+    anime = db.prepare('SELECT id, title, original_title, slug, image_url, type, year, genres, description FROM anime WHERE slug = ? OR title_lower = ?').get(slug, normTitle);
   }
 
   return anime;
@@ -129,10 +137,11 @@ function findOrInsertAnime(item) {
  * Imports list of items with ratings into the target user profile.
  */
 function importUserRatings(targetUserId, items) {
-  console.log('[AnimeGO Importer] Importing ratings for user_id:', targetUserId, 'total items:', items.length);
+  console.log('[Importer] Importing ratings for user_id:', targetUserId, 'total items:', items.length);
   let alreadyRatedCount = 0;
   let newlyRatedCount = 0;
   let zeroRatedCount = 0;
+  const importedAnime = [];
 
   const checkStmt = db.prepare('SELECT score FROM ratings WHERE user_id = ? AND anime_id = ?');
   const insertStmt = db.prepare(`
@@ -143,17 +152,42 @@ function importUserRatings(targetUserId, items) {
   db.exec('BEGIN TRANSACTION;');
   try {
     for (const item of items) {
+      if (!item || !item.title) continue;
       const anime = findOrInsertAnime(item);
       if (!anime) continue;
 
       const existing = checkStmt.get(targetUserId, anime.id);
       if (existing) {
         alreadyRatedCount++;
+        importedAnime.push({
+          id: anime.id,
+          title: anime.title,
+          originalTitle: anime.original_title || '',
+          slug: anime.slug,
+          image: anime.image_url,
+          imageUrl: anime.image_url,
+          type: anime.type || 'Сериал',
+          year: anime.year || '',
+          score: existing.score,
+          isNew: false
+        });
       } else {
         const scoreToSet = (typeof item.score === 'number' && item.score >= 0 && item.score <= 10) ? item.score : 0;
         if (scoreToSet === 0) zeroRatedCount++;
         insertStmt.run(targetUserId, anime.id, scoreToSet);
         newlyRatedCount++;
+        importedAnime.push({
+          id: anime.id,
+          title: anime.title,
+          originalTitle: anime.original_title || '',
+          slug: anime.slug,
+          image: anime.image_url,
+          imageUrl: anime.image_url,
+          type: anime.type || 'Сериал',
+          year: anime.year || '',
+          score: scoreToSet,
+          isNew: true
+        });
       }
     }
     db.exec('COMMIT;');
@@ -170,7 +204,8 @@ function importUserRatings(targetUserId, items) {
     total: items.length,
     newlyRatedCount,
     alreadyRatedCount,
-    zeroRatedCount
+    zeroRatedCount,
+    importedAnime
   };
 }
 
