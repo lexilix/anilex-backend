@@ -44,6 +44,16 @@ app.use(cors({
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
+// Health & Version check
+app.get('/api/version', (req, res) => {
+  res.json({
+    status: 'ok',
+    version: '1.0.4',
+    nodeVersion: process.version,
+    hasLowerUtf8: Boolean(db.hasLowerUtf8)
+  });
+});
+
 // ----------------------------------------------------
 // IMAGE PROXY (Bypasses Referer & hotlink restrictions)
 // ----------------------------------------------------
