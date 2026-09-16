@@ -8,5 +8,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Temporary SQLite lock/wal files
+*.db-shm
+*.db-wal
+
 # Preserve SQLite database with 3000+ anime titles for cloud deployment
 !data/anime_ratings.db
