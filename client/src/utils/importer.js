@@ -515,7 +515,17 @@ export async function executeImportWorkflow({ platform, input, rawContent, token
     }
   }
 
-  // 5. AnimeLib specific link guidance if direct fetch was blocked by DDoS-Guard
+  // 5. Fallback: Parse locally from input or combinedContent if backend endpoint was unavailable
+  const textToExtract = combinedContent || input || '';
+  if (textToExtract.trim()) {
+    let items = parseAnimeLibContent(textToExtract);
+    if (!items || items.length === 0) items = parseAnimeGoHtml(textToExtract);
+    if (items && items.length > 0) {
+      return await saveItemsDirectlyToCatalog(items, token, userId);
+    }
+  }
+
+  // 6. AnimeLib specific link guidance if direct fetch was blocked by DDoS-Guard
   if (resolvedPlatform === 'animelib') {
     throw new Error(
       'Сайт AnimeLib защищён проверкой браузера от автоматических запросов. ' +
@@ -558,7 +568,46 @@ export async function saveItemsDirectlyToCatalog(items, token, userId) {
       }
     }
   } catch (err) {
-    console.warn('Direct server bulk import failed, falling back to per-item handling', err);
+    console.warn('Direct server bulk import failed, falling back to synthetic handler', err);
+  }
+
+  // 1b. Fallback to /api/user/import-animego with synthetic HTML entries
+  // This endpoint works on all server versions, creates missing anime in DB and rates them
+  try {
+    const syntheticHtml = items.map((item, idx) => {
+      const slug = item.slug || ('imported-' + (item.title || 'anime').toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-') + '-' + idx);
+      const img = item.image || item.imageUrl || `https://placehold.co/300x450/1e293b/ffffff?text=${encodeURIComponent((item.title || 'Anime').slice(0, 30))}`;
+      const score = typeof item.score === 'number' ? Math.min(10, Math.max(0, item.score)) : 0;
+      return `
+        <div id="profile-my-list-entry-${idx + 1000}">
+          <div class="user-mylist__title"><a href="/anime/${slug}">${item.title}</a></div>
+          <span data-rating-value="${score}">${score}</span>
+          <img src="${img}" alt="${item.title}" />
+        </div>
+      `;
+    }).join('\n');
+
+    const animegoRes = await fetch(apiUrl('/api/user/import-animego'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ rawHtml: syntheticHtml })
+    });
+
+    if (animegoRes.ok) {
+      const data = await animegoRes.json();
+      if (data && data.result) {
+        for (const it of items) {
+          updateCachedUserRating(userId, it.id || Date.now(), it.score, it);
+          appendCachedAnimeItem(it);
+        }
+        return data.result;
+      }
+    }
+  } catch (err) {
+    console.warn('AnimeGO synthetic fallback error:', err);
   }
 
   // 2. Client-side fallback: ensure ALL items are processed and added even if catalog lacked them
