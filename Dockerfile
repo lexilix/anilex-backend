@@ -17,4 +17,4 @@ COPY data/ ./data/
 ENV PORT=10000
 EXPOSE 10000
 
-CMD ["node", "server/index.js"]
+CMD ["node", "--experimental-sqlite", "server/index.js"]

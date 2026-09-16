@@ -7,11 +7,11 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "server": "node server/index.js",
+    "server": "node --experimental-sqlite server/index.js",
     "client": "npm run dev --prefix client",
     "build:client": "npm run build --prefix client",
-    "dev": "node server/index.js",
-    "start": "node server/index.js"
+    "dev": "node --experimental-sqlite server/index.js",
+    "start": "node --experimental-sqlite server/index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
