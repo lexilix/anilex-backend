@@ -201,6 +201,10 @@ export default function App() {
         setRecommendationCount(data.recommendationGenresCount || 0);
       } catch (err) {
         console.error('Error loading anime catalog:', err);
+        if (!isAppend) {
+          setAnimeList([]);
+          setTotalCount(0);
+        }
       } finally {
         setLoading(false);
         setLoadingMore(false);
