@@ -5,6 +5,7 @@ import { apiUrl, getImageUrl } from '../api';
 import { getUserLevel, LEVELS_CONFIG } from '../utils/levels';
 import { getStoredHiddenAnimeList, setAnimeHiddenLocally, toggleHiddenAnime } from '../utils/hiddenStorage';
 import { getCachedUserRatings, setCachedUserRatings, updateCachedUserRating } from '../utils/profileCache';
+import { executeImportWorkflow } from '../utils/importer';
 
 function LevelIcon({ iconName, className = 'w-5 h-5' }) {
   switch (iconName) {
@@ -242,34 +243,26 @@ export default function ProfilePage({
 
     try {
       const token = localStorage.getItem('anime_auth_token');
-      if (!token) throw new Error('Требуется авторизация');
+      if (!token) throw new Error('Требуется авторизация в профиле');
 
       const isRawMode = importActiveSubTab === 'raw' || importPlatform === 'raw';
-      const payload = {
+      const result = await executeImportWorkflow({
         platform: isRawMode ? 'raw' : importPlatform,
         input: importInput.trim(),
-        rawContent: importRawContent.trim()
-      };
-
-      const res = await fetch(apiUrl('/api/user/import'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
+        rawContent: importRawContent.trim(),
+        token,
+        userId: user?.id
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Ошибка при импорте оценок');
-      }
-
-      setImportResult(data.result);
+      setImportResult(result);
       fetchRated();
     } catch (err) {
       console.error('Import error:', err);
-      setImportError(err.message || 'Ошибка импорта оценок');
+      let msg = err.message || 'Ошибка импорта оценок';
+      if (msg.includes('Unexpected token') || msg.includes('<!DOCTYPE') || msg.includes('is not valid JSON')) {
+        msg = 'Сервер обновляется или не смог обработать ссылку напрямую. Пожалуйста, проверьте введённые данные или вставьте список вручную.';
+      }
+      setImportError(msg);
     } finally {
       setImportLoading(false);
     }
@@ -2476,14 +2469,20 @@ export default function ProfilePage({
 
             <div className="space-y-2">
               <h3 className="text-lg font-bold text-neutral-900 dark:text-white">
-                Подтверждение импорта
+                Подтверждение переноса
               </h3>
               <p className="text-sm text-neutral-600 dark:text-neutral-300">
-                Вы уверены, что хотите начать импорт оценок из <strong>{getPlatformLabel(importPlatform)}</strong>?
+                Вы уверены, что хотите перенести оценки из <strong>{getPlatformLabel(importPlatform)}</strong>?
               </p>
-              <div className="p-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 text-xs text-neutral-500 dark:text-neutral-400 text-left space-y-1 mt-3">
-                <p>✓ Ваши текущие оценки не будут удалены или перезаписаны.</p>
+              {importInput.trim() && importActiveSubTab === 'link' && (
+                <div className="p-2 rounded-xl bg-neutral-100 dark:bg-neutral-900 text-xs font-mono text-neutral-700 dark:text-neutral-300 break-all border border-neutral-200 dark:border-neutral-800">
+                  {importInput.trim()}
+                </div>
+              )}
+              <div className="p-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 text-xs text-neutral-500 dark:text-neutral-400 text-left space-y-1 mt-2">
+                <p>✓ Ваши текущие оценки останутся в сохранности.</p>
                 <p>✓ Новые тайтлы добавятся в ваш профиль и учтутся в ранге Отаку.</p>
+                <p className="text-[11px] opacity-75">При отказе (нажатии «Отмена») ничего не будет перенесено.</p>
               </div>
             </div>
 
@@ -2494,7 +2493,7 @@ export default function ProfilePage({
                 onClick={() => setShowConfirmModal(false)}
                 className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 transition-colors flex-1"
               >
-                Отмена
+                Отмена (не переносить)
               </button>
               <button
                 type="button"
@@ -2508,7 +2507,7 @@ export default function ProfilePage({
                     <span>Импорт...</span>
                   </>
                 ) : (
-                  <span>Да, начать импорт</span>
+                  <span>Да, подтверждаю</span>
                 )}
               </button>
             </div>
