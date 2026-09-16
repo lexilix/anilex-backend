@@ -52,6 +52,7 @@ export default function ProfilePage({
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [friendRatings, setFriendRatings] = useState([]);
   const [friendScoreFilter, setFriendScoreFilter] = useState('top5');
+  const [friendGenreFilter, setFriendGenreFilter] = useState('all');
 
   // Fetch rated anime
   const fetchRated = useCallback(async () => {
@@ -254,6 +255,7 @@ export default function ProfilePage({
         setSelectedFriend(data.user);
         setFriendRatings(data.ratings || []);
         setFriendScoreFilter('top5');
+        setFriendGenreFilter('all');
       }
     } catch (err) {
       console.error('Error loading friend profile:', err);
@@ -1153,14 +1155,25 @@ export default function ProfilePage({
                         new Set(friendRatings.map((item) => item.score))
                       ).sort((a, b) => b - a);
 
+                      const availableGenres = Array.from(
+                        new Set(friendRatings.flatMap((item) => (Array.isArray(item.genres) ? item.genres : [])))
+                      ).sort((a, b) => a.localeCompare(b, 'ru'));
+
+                      let filteredByGenre = sortedFriendRatings;
+                      if (friendGenreFilter !== 'all') {
+                        filteredByGenre = filteredByGenre.filter((item) =>
+                          Array.isArray(item.genres) && item.genres.includes(friendGenreFilter)
+                        );
+                      }
+
                       let displayedRatings = [];
                       if (friendScoreFilter === 'top5') {
-                        displayedRatings = sortedFriendRatings.slice(0, 5);
+                        displayedRatings = filteredByGenre.slice(0, 5);
                       } else if (friendScoreFilter === 'all') {
-                        displayedRatings = sortedFriendRatings;
+                        displayedRatings = filteredByGenre;
                       } else {
                         const targetScore = parseInt(friendScoreFilter, 10);
-                        displayedRatings = sortedFriendRatings.filter(
+                        displayedRatings = filteredByGenre.filter(
                           (item) => item.score === targetScore
                         );
                       }
@@ -1168,21 +1181,26 @@ export default function ProfilePage({
                       return (
                         <>
                           <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                              {friendScoreFilter === 'top5'
-                                ? 'Топ-5 лучших тайтлов'
-                                : friendScoreFilter === 'all'
-                                ? `Все оценки (${friendRatings.length})`
-                                : `Оценка ${friendScoreFilter} / 10 (${displayedRatings.length})`}
-                            </h4>
-                            {friendScoreFilter === 'top5' && friendRatings.length > 5 && (
-                              <span className="text-[11px] text-neutral-400">
-                                Показано 5 из {friendRatings.length}
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                                {friendScoreFilter === 'top5'
+                                  ? 'Топ-5 лучших тайтлов'
+                                  : friendScoreFilter === 'all'
+                                  ? `Все оценки (${filteredByGenre.length})`
+                                  : `Оценка ${friendScoreFilter} / 10 (${displayedRatings.length})`}
+                              </h4>
+                              {friendGenreFilter !== 'all' && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-lg bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 font-semibold">
+                                  {friendGenreFilter}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-neutral-400">
+                              Показано {displayedRatings.length} из {filteredByGenre.length}
+                            </span>
                           </div>
 
-                          {/* Filter Chips */}
+                          {/* Filter Chips by Score */}
                           {friendRatings.length > 0 && (
                             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                               <button
@@ -1205,10 +1223,11 @@ export default function ProfilePage({
                                     : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
                                 }`}
                               >
-                                Все ({friendRatings.length})
+                                Все ({filteredByGenre.length})
                               </button>
                               {availableScores.map((sc) => {
-                                const count = friendRatings.filter((it) => it.score === sc).length;
+                                const count = filteredByGenre.filter((it) => it.score === sc).length;
+                                if (count === 0 && friendGenreFilter !== 'all') return null;
                                 return (
                                   <button
                                     key={sc}
@@ -1229,13 +1248,51 @@ export default function ProfilePage({
                             </div>
                           )}
 
+                          {/* Filter Chips by Genre */}
+                          {availableGenres.length > 0 && (
+                            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pt-0.5">
+                              <span className="text-[11px] font-medium text-neutral-400 pl-0.5 shrink-0">Жанры:</span>
+                              <button
+                                type="button"
+                                onClick={() => setFriendGenreFilter('all')}
+                                className={`px-2.5 py-0.5 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors ${
+                                  friendGenreFilter === 'all'
+                                    ? 'bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-900'
+                                    : 'bg-neutral-100 dark:bg-neutral-800/80 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                                }`}
+                              >
+                                Все
+                              </button>
+                              {availableGenres.map((genre) => {
+                                const count = friendRatings.filter((it) =>
+                                  Array.isArray(it.genres) && it.genres.includes(genre)
+                                ).length;
+                                return (
+                                  <button
+                                    key={genre}
+                                    type="button"
+                                    onClick={() => setFriendGenreFilter(genre === friendGenreFilter ? 'all' : genre)}
+                                    className={`px-2 py-0.5 rounded-lg text-[11px] font-medium whitespace-nowrap flex items-center gap-1 transition-colors ${
+                                      friendGenreFilter === genre
+                                        ? 'bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-900 shadow-xs'
+                                        : 'bg-neutral-100 dark:bg-neutral-800/80 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                                    }`}
+                                  >
+                                    <span>{genre}</span>
+                                    <span className="text-[9px] opacity-70">{count}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
                           {friendRatings.length === 0 ? (
                             <p className="text-xs text-neutral-400 py-6 text-center">
                               У этого пользователя пока нет оценок.
                             </p>
                           ) : displayedRatings.length === 0 ? (
                             <p className="text-xs text-neutral-400 py-6 text-center">
-                              Тайтлы с оценкой {friendScoreFilter} не найдены.
+                              Тайтлы с выбранными фильтрами не найдены.
                             </p>
                           ) : (
                             <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
@@ -1263,11 +1320,22 @@ export default function ProfilePage({
                                       <span className="text-xs font-semibold text-neutral-900 dark:text-white truncate block">
                                         {item.title}
                                       </span>
-                                      {item.year && (
-                                        <span className="text-[11px] text-neutral-400">
-                                          {item.year}
-                                        </span>
-                                      )}
+                                      <div className="flex items-center gap-1.5 text-[11px] text-neutral-400 mt-0.5 flex-wrap">
+                                        {item.year && <span>{item.year}</span>}
+                                        {Array.isArray(item.genres) &&
+                                          item.genres.slice(0, 2).map((g) => (
+                                            <span
+                                              key={g}
+                                              className={`text-[10px] px-1 py-0.2 rounded ${
+                                                friendGenreFilter === g
+                                                  ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 font-semibold'
+                                                  : 'text-neutral-400'
+                                              }`}
+                                            >
+                                              • {g}
+                                            </span>
+                                          ))}
+                                      </div>
                                     </div>
                                   </div>
 
