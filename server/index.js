@@ -1028,13 +1028,19 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       const countCheckSql = `SELECT COUNT(id) as cnt FROM anime WHERE ${andConditions.join(' AND ')}`;
       const countCheck = db.prepare(countCheckSql).get(...andParams);
 
-      if (!countCheck || countCheck.cnt === 0) {
-        console.log(`[Search Fallback] No local results for "${cleanSearch}". Searching AnimeGO & Shikimori...`);
+      // Check if exact title exists locally
+      const hasExactMatch = db.prepare('SELECT id FROM anime WHERE title_lower = ? OR original_title_lower = ?').get(normSearch, normSearch);
+
+      // If no local results, few results, or missing the exact base title, search online!
+      if (!countCheck || countCheck.cnt < 6 || !hasExactMatch) {
+        console.log(`[Search Live Sync] Searching online sources for "${cleanSearch}" (local cnt: ${countCheck ? countCheck.cnt : 0}, exactMatch: ${!!hasExactMatch})...`);
         try {
-          await searchAnimeGo(cleanSearch);
-          await searchShikimori(cleanSearch);
+          await Promise.allSettled([
+            searchAnimeGo(cleanSearch),
+            searchShikimori(cleanSearch)
+          ]);
         } catch (e) {
-          console.error('[Search Fallback] Error fetching online anime sources:', e);
+          console.error('[Search Live Sync] Error fetching online anime sources:', e);
         }
       }
 

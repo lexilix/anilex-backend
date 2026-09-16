@@ -13,6 +13,64 @@ function setLastScrapedPage(page) {
   `).run(String(page));
 }
 
+// Helper to detect season, part, movie, or special indicators
+function getSeasonFeatures(title, origTitle, type) {
+  const combined = `${title || ''} ${origTitle || ''}`.toLowerCase();
+  const isSeason2 = /2-й сезон|\b2\b|\bii\b|сезон 2|season 2|part 2|часть 2/i.test(combined);
+  const isSeason3 = /3-й сезон|\b3\b|\biii\b|сезон 3|season 3|part 3|часть 3/i.test(combined);
+  const isSeason4 = /4-й сезон|\b4\b|\biv\b|сезон 4|season 4|part 4|часть 4|финал|final/i.test(combined);
+  const isMovie = /фильм|movie/i.test(combined) || type === 'Фильм';
+  const isOVA = /ova|ona|спешл|special|клип|music/i.test(combined) || ['OVA', 'ONA', 'Спешл', 'Клип'].includes(type);
+  return { isSeason2, isSeason3, isSeason4, isMovie, isOVA };
+}
+
+// Strict check whether two anime items represent the EXACT SAME release (and not a prequel/sequel)
+function isSameAnime(existing, item) {
+  const normTitle = (item.title || '').toLowerCase().trim();
+  const normOrig = (item.originalTitle || '').toLowerCase().trim();
+  const exTitle = (existing.title || '').toLowerCase().trim();
+  const exOrig = (existing.original_title || '').toLowerCase().trim();
+
+  // If season or media type indicators differ, they are distinct titles (e.g. Season 1 vs Season 2)
+  const featItem = getSeasonFeatures(item.title, item.originalTitle, item.type);
+  const featEx = getSeasonFeatures(existing.title, existing.original_title, existing.type);
+
+  if (featItem.isSeason2 !== featEx.isSeason2) return false;
+  if (featItem.isSeason3 !== featEx.isSeason3) return false;
+  if (featItem.isSeason4 !== featEx.isSeason4) return false;
+  if (featItem.isMovie !== featEx.isMovie) return false;
+  if (featItem.isOVA !== featEx.isOVA) return false;
+
+  // If both have 4-digit release years, ensure years are close (within 1 year)
+  if (item.year && existing.year && /^\d{4}$/.test(item.year) && /^\d{4}$/.test(existing.year)) {
+    const diff = Math.abs(parseInt(item.year, 10) - parseInt(existing.year, 10));
+    if (diff > 1) return false;
+  }
+
+  // 1. Exact Russian title match
+  if (normTitle && normTitle === exTitle) return true;
+
+  // 2. Exact original title match
+  if (normOrig && normOrig === exOrig) return true;
+
+  // 3. Match against slash-separated alternate titles (e.g. "Spy x Family / SPY×FAMILY")
+  if (normOrig && exOrig.includes('/')) {
+    const parts = exOrig.split('/').map(p => p.trim().toLowerCase());
+    if (parts.includes(normOrig)) return true;
+  }
+  if (exOrig && normOrig.includes('/')) {
+    const parts = normOrig.split('/').map(p => p.trim().toLowerCase());
+    if (parts.includes(exOrig)) return true;
+  }
+
+  // 4. Poster image URL match (non-placeholder)
+  if (item.image && existing.image_url && item.image === existing.image_url && !item.image.includes('placeholder')) {
+    return true;
+  }
+
+  return false;
+}
+
 // Save anime items safely into database (with strict deduplication)
 function insertOrUpdateAnime(item) {
   if (!item.title || !item.slug || !item.image) return;
@@ -26,51 +84,34 @@ function insertOrUpdateAnime(item) {
   // 1. Check if an anime with this exact slug exists
   let existing = db.prepare('SELECT id, slug, title, original_title, image_url, type, year, genres, description FROM anime WHERE slug = ?').get(item.slug);
 
-  // 2. Check by normalized Russian title (+ year or title alone)
+  // 2. Find potential candidate rows in DB
   if (!existing) {
-    if (item.year) {
-      existing = db.prepare(`
-        SELECT id, slug, title, original_title, image_url, type, year, genres, description
-        FROM anime
-        WHERE title_lower = ? AND year = ?
-      `).get(normTitle, item.year);
+    const candidates = db.prepare(`
+      SELECT id, slug, title, original_title, image_url, type, year, genres, description
+      FROM anime
+      WHERE title_lower = ?
+         OR (original_title_lower IS NOT NULL AND (
+             original_title_lower = ?
+             OR original_title_lower LIKE ?
+             OR original_title_lower LIKE ?
+             OR original_title_lower LIKE ?
+         ))
+         OR (image_url IS NOT NULL AND image_url = ?)
+    `).all(
+      normTitle,
+      normOriginal,
+      `${normOriginal} / %`,
+      `% / ${normOriginal} / %`,
+      `% / ${normOriginal}`,
+      item.image
+    );
+
+    for (const cand of candidates) {
+      if (isSameAnime(cand, item)) {
+        existing = cand;
+        break;
+      }
     }
-    if (!existing) {
-      existing = db.prepare(`
-        SELECT id, slug, title, original_title, image_url, type, year, genres, description
-        FROM anime
-        WHERE title_lower = ?
-      `).get(normTitle);
-    }
-  }
-
-  // 3. Check by original/romaji/English title
-  if (!existing && normOriginal && normOriginal.length > 3) {
-    existing = db.prepare(`
-      SELECT id, slug, title, original_title, image_url, type, year, genres, description
-      FROM anime
-      WHERE original_title_lower = ?
-         OR (original_title_lower IS NOT NULL AND original_title_lower LIKE ?)
-         OR (title_lower = ?)
-    `).get(normOriginal, `%${normOriginal}%`, normOriginal);
-  }
-
-  // 4. Check by exact poster image URL
-  if (!existing && item.image && !item.image.includes('placeholder') && !item.image.includes('404')) {
-    existing = db.prepare(`
-      SELECT id, slug, title, original_title, image_url, type, year, genres, description
-      FROM anime
-      WHERE image_url = ?
-    `).get(item.image);
-  }
-
-  // 5. Check by identical non-empty description
-  if (!existing && item.description && item.description.length > 50) {
-    existing = db.prepare(`
-      SELECT id, slug, title, original_title, image_url, type, year, genres, description
-      FROM anime
-      WHERE description = ?
-    `).get(item.description);
   }
 
   if (existing) {
@@ -502,6 +543,40 @@ async function searchShikimori(query) {
               if (!item.originalTitle || !item.originalTitle.toLowerCase().includes(et.toLowerCase())) {
                 item.originalTitle = item.originalTitle ? `${item.originalTitle} / ${et}` : et;
               }
+            }
+
+            // Also check related anime for prequels / first parts
+            try {
+              const relRes = await fetch(`https://shikimori.one/api/animes/${detailId}/related`, {
+                headers: { 'User-Agent': 'Mozilla/5.0' }
+              });
+              if (relRes.ok) {
+                const relData = await relRes.json();
+                if (Array.isArray(relData)) {
+                  for (const r of relData) {
+                    if (r.anime && (r.relation_russian === 'Предыстория' || r.relation === 'prequel' || r.relation_russian === 'Основная история' || r.relation_russian === 'Продолжение' || r.relation === 'sequel')) {
+                      const relA = r.anime;
+                      const relSlug = `shiki-${relA.id}`;
+                      const relTitle = relA.russian || relA.name;
+                      const relImg = relA.image?.original ? (relA.image.original.startsWith('http') ? relA.image.original : `https://shikimori.one${relA.image.original}`) : '';
+                      if (relTitle && relSlug && relImg && !items.some(it => it.slug === relSlug)) {
+                        items.push({
+                          slug: relSlug,
+                          title: relTitle,
+                          originalTitle: relA.name || '',
+                          image: relImg,
+                          type: typeMap[relA.kind] || 'Сериал',
+                          year: relA.aired_on ? relA.aired_on.slice(0, 4) : '',
+                          genres: [],
+                          description: ''
+                        });
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (re) {
+              // ignore related fetch error
             }
           }
         } catch (e) {

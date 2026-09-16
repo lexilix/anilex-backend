@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Moon, Sun, User, LogOut, Settings, Bookmark, Bell } from 'lucide-react';
+import { Search, Moon, Sun, User, LogOut, Settings, Bookmark, Bell, Loader2 } from 'lucide-react';
 import NotificationDropdown from './NotificationDropdown';
 
 export default function Header({
@@ -8,6 +8,7 @@ export default function Header({
   onLogout,
   searchQuery,
   onSearchChange,
+  isSearching = false,
   darkMode,
   setDarkMode,
   onNavigate,
@@ -67,18 +68,25 @@ export default function Header({
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={(e) => {
+              onSearchChange(e.target.value);
+              if (onNavigate && e.target.value.trim()) {
+                onNavigate('catalog');
+              }
+            }}
             placeholder="Поиск по названию аниме..."
-            className="w-full pl-10 pr-4 py-2 text-sm rounded-xl bg-neutral-200/70 dark:bg-neutral-800/80 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:bg-white dark:focus:bg-neutral-800 transition-colors"
+            className="w-full pl-10 pr-9 py-2 text-sm rounded-xl bg-neutral-200/70 dark:bg-neutral-800/80 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:bg-white dark:focus:bg-neutral-800 transition-colors"
           />
-          {searchQuery && (
+          {isSearching ? (
+            <Loader2 className="w-4 h-4 text-neutral-400 animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          ) : searchQuery ? (
             <button
               onClick={() => onSearchChange('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
             >
               ✕
             </button>
-          )}
+          ) : null}
         </div>
 
         {/* Right Actions */}
@@ -240,10 +248,25 @@ export default function Header({
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={(e) => {
+              onSearchChange(e.target.value);
+              if (onNavigate && e.target.value.trim()) {
+                onNavigate('catalog');
+              }
+            }}
             placeholder="Поиск аниме..."
-            className="w-full pl-9 pr-4 py-2 text-sm rounded-xl bg-neutral-200/70 dark:bg-neutral-800/80 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400"
+            className="w-full pl-9 pr-8 py-2 text-sm rounded-xl bg-neutral-200/70 dark:bg-neutral-800/80 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400"
           />
+          {isSearching ? (
+            <Loader2 className="w-4 h-4 text-neutral-400 animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          ) : searchQuery ? (
+            <button
+              onClick={() => onSearchChange('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+            >
+              ✕
+            </button>
+          ) : null}
         </div>
       </div>
     </header>

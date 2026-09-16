@@ -30,6 +30,7 @@ export default function App() {
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeSort, setActiveSort] = useState('newest'); // 'newest' | 'rating' | 'recommendations'
   const [activeGenres, setActiveGenres] = useState([]);
   const [activeType, setActiveType] = useState('all');
@@ -37,6 +38,14 @@ export default function App() {
   const [profileInitialTab, setProfileInitialTab] = useState('ratings');
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'friends_rated' | 'my_rated' | 'my_unrated'
   const [page, setPage] = useState(1);
+
+  // Debounce search query input to smoothly fetch as user types
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Data states
   const [animeList, setAnimeList] = useState([]);
@@ -329,7 +338,7 @@ export default function App() {
 
       try {
         const params = new URLSearchParams();
-        if (searchQuery.trim()) params.append('search', searchQuery.trim());
+        if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
         if (activeSort) params.append('sort', activeSort);
         if (activeType !== 'all') params.append('type', activeType);
         if (activeYear && activeYear !== 'all') params.append('year', activeYear);
@@ -388,7 +397,7 @@ export default function App() {
         setLoadingMore(false);
       }
     },
-    [searchQuery, activeSort, activeType, activeYear, filterStatus, activeGenres, token]
+    [debouncedSearch, activeSort, activeType, activeYear, filterStatus, activeGenres, token]
   );
 
   // Reset to page 1 on filter or search change
@@ -400,7 +409,7 @@ export default function App() {
   useEffect(() => {
     if (view !== 'catalog') return;
 
-    const isGeneralCatalog = !searchQuery.trim() && activeGenres.length === 0 && activeType === 'all' && (!activeYear || activeYear === 'all') && filterStatus === 'all';
+    const isGeneralCatalog = !debouncedSearch.trim() && activeGenres.length === 0 && activeType === 'all' && (!activeYear || activeYear === 'all') && filterStatus === 'all';
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -420,7 +429,7 @@ export default function App() {
     return () => {
       if (currentTarget) observer.unobserve(currentTarget);
     };
-  }, [view, loading, loadingMore, page, totalPages, fetchAnime, searchQuery, activeGenres, activeType, activeYear, filterStatus]);
+  }, [view, loading, loadingMore, page, totalPages, fetchAnime, debouncedSearch, activeGenres, activeType, activeYear, filterStatus]);
 
   // Toggle Favorite handler
   const handleToggleFavorite = async (animeId) => {
@@ -454,8 +463,11 @@ export default function App() {
   // Logo click handler (resets everything to clean homepage)
   const handleLogoClick = () => {
     setSearchQuery('');
+    setDebouncedSearch('');
     setActiveGenres([]);
     setActiveType('all');
+    setActiveYear('all');
+    setActiveSort('newest');
     setFilterStatus('all');
     setSelectedAnimeId(null);
     window.location.hash = '#/';
@@ -566,6 +578,7 @@ export default function App() {
     setFilterStatus('all');
     setActiveSort('newest');
     setSearchQuery('');
+    setDebouncedSearch('');
   };
 
   // Open friends tab in profile
@@ -588,6 +601,7 @@ export default function App() {
         onLogout={handleLogout}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        isSearching={(loading || searchQuery !== debouncedSearch) && searchQuery.trim().length > 0}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         onNavigate={navigateTo}
@@ -739,6 +753,14 @@ export default function App() {
                     >
                       Сбросить фильтры
                     </button>
+                  </div>
+                )}
+
+                {/* Live searching indicator bar */}
+                {(loading || searchQuery !== debouncedSearch) && searchQuery.trim().length > 0 && animeList.length > 0 && (
+                  <div className="flex items-center gap-2 mb-4 px-3 py-1.5 rounded-xl bg-neutral-200/60 dark:bg-neutral-800/60 text-neutral-600 dark:text-neutral-300 text-xs w-fit animate-pulse">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-500 dark:text-neutral-400" />
+                    <span>Поиск «{searchQuery}»...</span>
                   </div>
                 )}
 
