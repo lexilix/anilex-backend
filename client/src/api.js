@@ -1,7 +1,9 @@
-// Base URL for the backend API.
-// In production, VITE_API_URL points to the cloud backend (e.g. Render / Railway).
+// In production, VITE_API_URL points to the cloud backend (Render).
 // In development, it defaults to empty string to use Vite's proxy (/api -> localhost:3001).
-export const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+export const API_BASE = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? 'https://anilex-backend.onrender.com' : '')
+).replace(/\/+$/, '');
 
 /**
  * Builds a full API URL given a relative or absolute path.
