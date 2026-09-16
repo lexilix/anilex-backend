@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Settings, Star, Search, Filter, X, ArrowLeft, Film, Users, Calendar, Bookmark, Trash2, Check, UserPlus, UserCheck, Lock, Trophy, Sparkles, Award, ChevronRight, Download, RefreshCw, ExternalLink, HelpCircle, Ghost, Swords, Gamepad2, Crown, Zap, Eye, EyeOff, Infinity } from 'lucide-react';
+import { User, Settings, Star, Search, Filter, X, ArrowLeft, Film, Users, Calendar, Bookmark, Trash2, Check, UserPlus, UserCheck, Lock, Trophy, Sparkles, Award, ChevronRight, Download, RefreshCw, ExternalLink, HelpCircle, AlertCircle, Ghost, Swords, Gamepad2, Crown, Zap, Eye, EyeOff, Infinity } from 'lucide-react';
 import { getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
 import { getUserLevel, LEVELS_CONFIG } from '../utils/levels';
@@ -196,21 +196,46 @@ export default function ProfilePage({
   const [friendGenreFilter, setFriendGenreFilter] = useState('all');
   const [showLevelsModal, setShowLevelsModal] = useState(false);
 
-  // AnimeGO Import state
-  const [showAnimeGoModal, setShowAnimeGoModal] = useState(false);
-  const [animegoInput, setAnimegoInput] = useState('');
-  const [animegoRawHtml, setAnimegoRawHtml] = useState('');
-  const [showHtmlTab, setShowHtmlTab] = useState(false);
+  // Multi-Platform Import state (Shikimori, AnimeLib, AnimeGO, raw list)
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [importPlatform, setImportPlatform] = useState('shikimori'); // 'shikimori' | 'animelib' | 'animego' | 'raw'
+  const [importInput, setImportInput] = useState('');
+  const [importRawContent, setImportRawContent] = useState('');
+  const [importActiveSubTab, setImportActiveSubTab] = useState('link'); // 'link' | 'raw'
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [importError, setImportError] = useState(null);
 
-  const handleImportAnimeGo = async () => {
-    if (!animegoInput.trim() && !animegoRawHtml.trim()) {
-      setImportError('Укажите ссылку/ID профиля AnimeGO или вставьте HTML');
-      return;
+  const getPlatformLabel = (p) => {
+    switch (p) {
+      case 'shikimori': return 'Shikimori';
+      case 'animelib': return 'AnimeLib';
+      case 'animego': return 'AnimeGO';
+      default: return 'Свой список';
+    }
+  };
+
+  const handleInitiateImport = () => {
+    setImportError(null);
+    if (importActiveSubTab === 'raw') {
+      if (!importRawContent.trim()) {
+        setImportError('Пожалуйста, вставьте HTML, JSON или текст списка оценок');
+        return;
+      }
+    } else {
+      if (!importInput.trim()) {
+        setImportError(`Укажите ссылку на профиль или никнейм ${getPlatformLabel(importPlatform)}`);
+        return;
+      }
     }
 
+    // Ask user confirmation before starting import (Photo 1)
+    setShowConfirmModal(true);
+  };
+
+  const handleExecuteImport = async () => {
+    setShowConfirmModal(false);
     setImportLoading(true);
     setImportError(null);
     setImportResult(null);
@@ -219,11 +244,14 @@ export default function ProfilePage({
       const token = localStorage.getItem('anime_auth_token');
       if (!token) throw new Error('Требуется авторизация');
 
-      const payload = showHtmlTab && animegoRawHtml.trim()
-        ? { rawHtml: animegoRawHtml.trim() }
-        : { animegoUrlOrId: animegoInput.trim() };
+      const isRawMode = importActiveSubTab === 'raw' || importPlatform === 'raw';
+      const payload = {
+        platform: isRawMode ? 'raw' : importPlatform,
+        input: importInput.trim(),
+        rawContent: importRawContent.trim()
+      };
 
-      const res = await fetch(apiUrl('/api/user/import-animego'), {
+      const res = await fetch(apiUrl('/api/user/import'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -234,7 +262,7 @@ export default function ProfilePage({
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Ошибка при импорте');
+        throw new Error(data.error || 'Ошибка при импорте оценок');
       }
 
       setImportResult(data.result);
@@ -710,14 +738,14 @@ export default function ProfilePage({
                   <button
                     type="button"
                     onClick={() => {
-                      setShowAnimeGoModal(true);
+                      setShowImportModal(true);
                       setImportResult(null);
                       setImportError(null);
                     }}
                     className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white transition-all shadow-md flex items-center gap-1.5 justify-center flex-1 md:flex-initial"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>Импорт с AnimeGO</span>
+                    <span>Импорт оценок</span>
                   </button>
                 </div>
               </div>
@@ -1568,57 +1596,81 @@ export default function ProfilePage({
               onClick={() => setSelectedFriend(null)}
             >
               <div
-                className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151518] p-6 sm:p-8 shadow-2xl relative space-y-6"
+                className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151518] shadow-2xl relative border border-neutral-200/60 dark:border-neutral-800"
                 onClick={(e) => e.stopPropagation()}
               >
-                <button
-                  onClick={() => setSelectedFriend(null)}
-                  className="absolute right-5 top-5 w-8 h-8 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 hover:text-neutral-900 dark:hover:text-white flex items-center justify-center"
-                >
-                  ✕
-                </button>
+                {/* Friend Custom Banner */}
+                <div className="relative h-36 sm:h-48 w-full bg-neutral-200 dark:bg-neutral-800 shrink-0 overflow-hidden">
+                  {selectedFriend.bannerUrl ? (
+                    <img
+                      src={selectedFriend.bannerUrl}
+                      alt="Баннер профиля"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-r from-neutral-800 via-neutral-900 to-neutral-800 flex items-center justify-center text-neutral-600">
+                      <span className="text-xs font-medium uppercase tracking-widest opacity-40">
+                        Томодачи Профиль
+                      </span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/25 pointer-events-none" />
 
-                {/* Friend Header */}
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl overflow-hidden bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-bold text-2xl flex items-center justify-center shrink-0 shadow-md">
-                    {selectedFriend.avatarUrl ? (
-                      <img src={selectedFriend.avatarUrl} alt={selectedFriend.nickname} className="w-full h-full object-cover" />
-                    ) : (
-                      <span>{selectedFriend.nickname ? selectedFriend.nickname.charAt(0).toUpperCase() : 'U'}</span>
-                    )}
-                  </div>
-
-                  <div>
-                    <h3 className="text-xl font-bold text-neutral-900 dark:text-white">
-                      {selectedFriend.nickname}
-                    </h3>
-                    {(() => {
-                      const fl = getUserLevel(selectedFriend.ratedCount || 0);
-                      return (
-                        <div className="flex items-center gap-2.5 text-xs text-neutral-400 mt-1 flex-wrap">
-                          <span className={`px-2 py-0.5 rounded-lg text-[11px] font-bold border ${fl.currentLevel.bgBadge} flex items-center gap-1.5`}>
-                            <LevelIcon iconName={fl.currentLevel.iconName} className="w-3.5 h-3.5" />
-                            <span>{fl.currentLevel.title}</span>
-                            <span className="opacity-75">· Ур. {fl.currentLevel.level}</span>
-                          </span>
-                          <span>{selectedFriend.ratedCount || 0} оценок</span>
-                          {selectedFriend.isFriend && selectedFriend.avgScore !== null && (
-                            <span className="flex items-center gap-1 font-semibold text-neutral-700 dark:text-neutral-300">
-                              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                              {selectedFriend.avgScore} средняя
-                            </span>
-                          )}
-                          {!selectedFriend.isFriend && (
-                            <span className="text-[11px] text-amber-500 font-medium flex items-center gap-1">
-                              <Lock className="w-3 h-3" />
-                              <span>Оценки скрыты</span>
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
+                  {/* Close button inside banner */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFriend(null)}
+                    className="absolute right-4 top-4 w-8 h-8 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-md text-white flex items-center justify-center transition-colors z-10"
+                  >
+                    ✕
+                  </button>
                 </div>
+
+                {/* Friend Content */}
+                <div className="p-6 sm:p-8 pt-0 space-y-6">
+                  {/* Friend Header with Avatar overlapping banner */}
+                  <div className="flex items-end justify-between gap-4 -mt-10 sm:-mt-12">
+                    <div className="flex items-end gap-4">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl overflow-hidden bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-bold text-2xl flex items-center justify-center shrink-0 shadow-xl ring-4 ring-white dark:ring-[#151518]">
+                        {selectedFriend.avatarUrl ? (
+                          <img src={selectedFriend.avatarUrl} alt={selectedFriend.nickname} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{selectedFriend.nickname ? selectedFriend.nickname.charAt(0).toUpperCase() : 'U'}</span>
+                        )}
+                      </div>
+
+                      <div className="mb-1">
+                        <h3 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">
+                          {selectedFriend.nickname}
+                        </h3>
+                        {(() => {
+                          const fl = getUserLevel(selectedFriend.ratedCount || 0);
+                          return (
+                            <div className="flex items-center gap-2.5 text-xs text-neutral-400 mt-1 flex-wrap">
+                              <span className={`px-2 py-0.5 rounded-lg text-[11px] font-bold border ${fl.currentLevel.bgBadge} flex items-center gap-1.5`}>
+                                <LevelIcon iconName={fl.currentLevel.iconName} className="w-3.5 h-3.5" />
+                                <span>{fl.currentLevel.title}</span>
+                                <span className="opacity-75">· Ур. {fl.currentLevel.level}</span>
+                              </span>
+                              <span>{selectedFriend.ratedCount || 0} оценок</span>
+                              {selectedFriend.isFriend && selectedFriend.avgScore !== null && (
+                                <span className="flex items-center gap-1 font-semibold text-neutral-700 dark:text-neutral-300">
+                                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                  {selectedFriend.avgScore} средняя
+                                </span>
+                              )}
+                              {!selectedFriend.isFriend && (
+                                <span className="text-[11px] text-amber-500 font-medium flex items-center gap-1">
+                                  <Lock className="w-3 h-3" />
+                                  <span>Оценки скрыты</span>
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
 
                 {/* Friend Otaku Level Card */}
                 {(() => {
@@ -1923,6 +1975,7 @@ export default function ProfilePage({
                     })()}
                   </div>
                 )}
+                </div>
               </div>
             </div>
           )}
@@ -2102,8 +2155,8 @@ export default function ProfilePage({
         </div>
       )}
 
-      {/* AnimeGO Import Modal */}
-      {showAnimeGoModal && (
+      {/* Multi-Platform Import Modal (Shikimori, AnimeLib, AnimeGO, Custom) */}
+      {showImportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
           <div className="bg-white dark:bg-[#18181b] border border-neutral-200 dark:border-neutral-800 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
             {/* Modal Header */}
@@ -2114,16 +2167,16 @@ export default function ProfilePage({
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-neutral-900 dark:text-white">
-                    Импорт оценок с AnimeGO
+                    Импорт оценок
                   </h3>
                   <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                    Перенос просмотренных тайтлов и оценок в ваш профиль
+                    Перенос оценок и списков со сторонних сайтов в ваш профиль
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowAnimeGoModal(false)}
+                onClick={() => setShowImportModal(false)}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -2132,97 +2185,222 @@ export default function ProfilePage({
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-5">
+              {/* Platform Selector Tabs */}
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+                  Выберите источник:
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImportPlatform('shikimori');
+                      setImportError(null);
+                      setImportResult(null);
+                    }}
+                    className={`p-2.5 rounded-2xl text-xs font-bold border transition-all text-center flex flex-col items-center gap-1 ${
+                      importPlatform === 'shikimori'
+                        ? 'bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'bg-neutral-50 dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                    }`}
+                  >
+                    <span className="font-extrabold text-[13px]">Shikimori</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-blue-500/20 text-blue-600 dark:text-blue-300 font-medium">
+                      API прямой
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImportPlatform('animelib');
+                      setImportError(null);
+                      setImportResult(null);
+                    }}
+                    className={`p-2.5 rounded-2xl text-xs font-bold border transition-all text-center flex flex-col items-center gap-1 ${
+                      importPlatform === 'animelib'
+                        ? 'bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'bg-neutral-50 dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                    }`}
+                  >
+                    <span className="font-extrabold text-[13px]">AnimeLib</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-neutral-200 dark:bg-neutral-800 text-neutral-500 font-medium">
+                      v5.animelib
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImportPlatform('animego');
+                      setImportError(null);
+                      setImportResult(null);
+                    }}
+                    className={`p-2.5 rounded-2xl text-xs font-bold border transition-all text-center flex flex-col items-center gap-1 ${
+                      importPlatform === 'animego'
+                        ? 'bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'bg-neutral-50 dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                    }`}
+                  >
+                    <span className="font-extrabold text-[13px]">AnimeGO</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-neutral-200 dark:bg-neutral-800 text-neutral-500 font-medium">
+                      animego.me
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImportPlatform('raw');
+                      setImportActiveSubTab('raw');
+                      setImportError(null);
+                      setImportResult(null);
+                    }}
+                    className={`p-2.5 rounded-2xl text-xs font-bold border transition-all text-center flex flex-col items-center gap-1 ${
+                      importPlatform === 'raw'
+                        ? 'bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'bg-neutral-50 dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                    }`}
+                  >
+                    <span className="font-extrabold text-[13px]">Свой список</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-neutral-200 dark:bg-neutral-800 text-neutral-500 font-medium">
+                      Текст / HTML
+                    </span>
+                  </button>
+                </div>
+              </div>
+
               {/* Rules info */}
-              <div className="p-4 rounded-2xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-xs space-y-1.5 text-blue-900 dark:text-blue-200">
+              <div className="p-3.5 rounded-2xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-xs space-y-1 text-blue-900 dark:text-blue-200">
                 <div className="font-bold flex items-center gap-1.5 text-blue-700 dark:text-blue-300">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Правила переноса оценок:</span>
+                  <span>Правила безопасного переноса:</span>
                 </div>
-                <p>• Если на тайтле уже есть оценка в вашем профиле — она останется неизменной.</p>
-                <p>• Если оценки нет — будет выставлен балл из AnimeGO (от 1 до 10).</p>
-                <p>• Если тайтл в вашем списке AnimeGO без оценки — будет выставлен 0.</p>
+                <p>• Уже оценённые тайтлы в вашем профиле не перезаписываются и не удаляются.</p>
+                <p>• Новые тайтлы получат оценку из стороннего сервиса (1–10, если без оценки — 0).</p>
+                <p>• Перед началом импорта система запросит подтверждение.</p>
               </div>
 
-              {/* Tabs */}
-              <div className="flex rounded-2xl bg-neutral-100 dark:bg-neutral-900 p-1">
-                <button
-                  type="button"
-                  onClick={() => setShowHtmlTab(false)}
-                  className={`flex-1 py-2 text-xs font-semibold rounded-xl transition-colors ${
-                    !showHtmlTab
-                      ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
-                      : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
-                  }`}
-                >
-                  По ссылке / ID профиля
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowHtmlTab(true)}
-                  className={`flex-1 py-2 text-xs font-semibold rounded-xl transition-colors ${
-                    showHtmlTab
-                      ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
-                      : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
-                  }`}
-                >
-                  Вставить HTML страницы
-                </button>
-              </div>
+              {/* Subtabs for Link vs Raw Text (except when platform is 'raw') */}
+              {importPlatform !== 'raw' && (
+                <div className="flex rounded-2xl bg-neutral-100 dark:bg-neutral-900 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setImportActiveSubTab('link')}
+                    className={`flex-1 py-2 text-xs font-semibold rounded-xl transition-colors ${
+                      importActiveSubTab === 'link'
+                        ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
+                        : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                    }`}
+                  >
+                    По ссылке / профилю
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImportActiveSubTab('raw')}
+                    className={`flex-1 py-2 text-xs font-semibold rounded-xl transition-colors ${
+                      importActiveSubTab === 'raw'
+                        ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
+                        : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Вставить код страницы / текст
+                  </button>
+                </div>
+              )}
 
-              {!showHtmlTab ? (
+              {/* Inputs based on platform and subtab */}
+              {importPlatform !== 'raw' && importActiveSubTab === 'link' ? (
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
-                      Ссылка на профиль AnimeGO или цифровой ID:
+                      {importPlatform === 'shikimori' && 'Ссылка на профиль Shikimori или никнейм:'}
+                      {importPlatform === 'animelib' && 'Ссылка на профиль AnimeLib или цифровой ID:'}
+                      {importPlatform === 'animego' && 'Ссылка на профиль AnimeGO или цифровой ID:'}
                     </label>
                     <input
                       type="text"
-                      value={animegoInput}
-                      onChange={(e) => setAnimegoInput(e.target.value)}
-                      placeholder="Например: https://animego.me/user/1659989 или 1659989"
+                      value={importInput}
+                      onChange={(e) => setImportInput(e.target.value)}
+                      placeholder={
+                        importPlatform === 'shikimori'
+                          ? 'Например: https://shikimori.one/username или shiki'
+                          : importPlatform === 'animelib'
+                          ? 'Например: https://v5.animelib.org/ru/user/12345/profile или 12345'
+                          : 'Например: https://animego.me/user/1659989 или 1659989'
+                      }
                       className="w-full px-4 py-2.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
                   <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/60 dark:border-neutral-800 text-xs text-neutral-500 dark:text-neutral-400 space-y-1">
-                    <span className="font-semibold text-neutral-700 dark:text-neutral-300 block">
-                      💡 Как узнать свой ID на AnimeGO:
-                    </span>
-                    <p>
-                      1. Откройте сайт <a href="https://animego.me/profile/" target="_blank" rel="noreferrer" className="text-blue-500 underline">animego.me/profile/</a>.
-                    </p>
-                    <p>
-                      2. Нажмите на свою аватарку или никнейм — адрес в браузере станет вида <code className="text-neutral-700 dark:text-neutral-300 bg-neutral-200/70 dark:bg-neutral-800 px-1 py-0.5 rounded">https://animego.me/user/НОМЕР</code>.
-                    </p>
-                    <p>
-                      3. Скопируйте эту ссылку или номер и вставьте в поле выше.
-                    </p>
+                    {importPlatform === 'shikimori' && (
+                      <>
+                        <span className="font-semibold text-neutral-700 dark:text-neutral-300 block">
+                          ✨ Быстрый импорт через API Shikimori:
+                        </span>
+                        <p>
+                          Просто введите ваш никнейм на Shikimori. Все ваши оценки будут напрямую получены и сопоставлены с каталогом без каких-либо блокировок.
+                        </p>
+                      </>
+                    )}
+                    {importPlatform === 'animelib' && (
+                      <>
+                        <span className="font-semibold text-neutral-700 dark:text-neutral-300 block">
+                          💡 Совет по AnimeLib:
+                        </span>
+                        <p>
+                          Вставьте ссылку на профиль или ID. Если сайт AnimeLib возвращает проверку Cloudflare, перейдите на вкладку «Вставить код страницы» и вставьте HTML ваших закладок (Ctrl+U).
+                        </p>
+                      </>
+                    )}
+                    {importPlatform === 'animego' && (
+                      <>
+                        <span className="font-semibold text-neutral-700 dark:text-neutral-300 block">
+                          💡 Как найти свой ID на AnimeGO:
+                        </span>
+                        <p>
+                          Перейдите в свой профиль на <a href="https://animego.me/profile/" target="_blank" rel="noreferrer" className="text-blue-500 underline">animego.me/profile/</a> — адрес в браузере сменится на <code className="text-neutral-700 dark:text-neutral-300 bg-neutral-200/70 dark:bg-neutral-800 px-1 py-0.5 rounded">https://animego.me/user/НОМЕР</code>. Скопируйте ссылку или номер.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
-                      Исходный HTML код страницы https://animego.me/profile/?type=2:
+                      {importPlatform === 'animelib'
+                        ? 'Исходный HTML страницы закладок https://v5.animelib.org/ru/user/.../bookmarks или текст:'
+                        : importPlatform === 'animego'
+                        ? 'Исходный HTML страницы https://animego.me/profile/?type=2 (Ctrl+U):'
+                        : 'Вставьте список оценок (например: Атака титанов - 10) или HTML/JSON:'}
                     </label>
                     <textarea
-                      rows={5}
-                      value={animegoRawHtml}
-                      onChange={(e) => setAnimegoRawHtml(e.target.value)}
-                      placeholder="Нажмите Ctrl+U на странице своего профиля AnimeGO, скопируйте и вставьте сюда..."
+                      rows={6}
+                      value={importRawContent}
+                      onChange={(e) => setImportRawContent(e.target.value)}
+                      placeholder={
+                        importPlatform === 'animelib'
+                          ? 'Нажмите Ctrl+U на странице закладок AnimeLib, скопируйте весь код и вставьте сюда...'
+                          : importPlatform === 'animego'
+                          ? 'Нажмите Ctrl+U на странице своего профиля AnimeGO, скопируйте код и вставьте сюда...'
+                          : 'Название тайтла 1 - 10\nНазвание тайтла 2 - 8\nНазвание тайтла 3 - 9\n\nИли скопированный HTML код страницы'
+                      }
                       className="w-full px-4 py-2.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-xs font-mono text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <p className="text-[11px] text-neutral-400">
-                    Используйте этот вариант, если ваш профиль на AnimeGO закрыт от публичного просмотра.
+                    Парсер автоматически определит названия аниме и ваши оценки.
                   </p>
                 </div>
               )}
 
               {/* Error Message */}
               {importError && (
-                <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 text-xs text-rose-700 dark:text-rose-300">
-                  {importError}
+                <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{importError}</span>
                 </div>
               )}
 
@@ -2249,7 +2427,7 @@ export default function ProfilePage({
                   </div>
                   {importResult.zeroRatedCount > 0 && (
                     <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                      * {importResult.zeroRatedCount} тайтлов без оценки на AnimeGO сохранены со счётом 0.
+                      * {importResult.zeroRatedCount} тайтлов без оценки сохранены со счётом 0.
                     </p>
                   )}
                 </div>
@@ -2260,7 +2438,7 @@ export default function ProfilePage({
             <div className="px-6 py-4 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-end gap-3 shrink-0 bg-neutral-50/50 dark:bg-neutral-900/50">
               <button
                 type="button"
-                onClick={() => setShowAnimeGoModal(false)}
+                onClick={() => setShowImportModal(false)}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition-colors"
               >
                 {importResult ? 'Закрыть' : 'Отмена'}
@@ -2268,7 +2446,7 @@ export default function ProfilePage({
               <button
                 type="button"
                 disabled={importLoading}
-                onClick={handleImportAnimeGo}
+                onClick={handleInitiateImport}
                 className="px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
               >
                 {importLoading ? (
@@ -2279,8 +2457,58 @@ export default function ProfilePage({
                 ) : (
                   <>
                     <Download className="w-3.5 h-3.5" />
-                    <span>{importResult ? 'Повторить импорт' : 'Начать импорт'}</span>
+                    <span>{importResult ? 'Повторить импорт' : 'Импортировать'}</span>
                   </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog Before Import (Photo 1 requirement) */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+          <div className="bg-white dark:bg-[#18181b] border border-neutral-200 dark:border-neutral-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-5 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-7 h-7" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-neutral-900 dark:text-white">
+                Подтверждение импорта
+              </h3>
+              <p className="text-sm text-neutral-600 dark:text-neutral-300">
+                Вы уверены, что хотите начать импорт оценок из <strong>{getPlatformLabel(importPlatform)}</strong>?
+              </p>
+              <div className="p-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 text-xs text-neutral-500 dark:text-neutral-400 text-left space-y-1 mt-3">
+                <p>✓ Ваши текущие оценки не будут удалены или перезаписаны.</p>
+                <p>✓ Новые тайтлы добавятся в ваш профиль и учтутся в ранге Отаку.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                disabled={importLoading}
+                onClick={() => setShowConfirmModal(false)}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 transition-colors flex-1"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                disabled={importLoading}
+                onClick={handleExecuteImport}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white transition-all shadow-md flex items-center justify-center gap-2 flex-1 disabled:opacity-50"
+              >
+                {importLoading ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Импорт...</span>
+                  </>
+                ) : (
+                  <span>Да, начать импорт</span>
                 )}
               </button>
             </div>

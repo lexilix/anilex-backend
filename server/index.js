@@ -37,6 +37,8 @@ const {
   parseAnimeGoHtml,
   importUserRatings
 } = require('./animego_importer');
+const { scrapeShikimoriUserRates } = require('./shikimori_importer');
+const { parseAnimeLibContent, scrapeAnimeLibUserList } = require('./animelib_importer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -299,6 +301,74 @@ app.put('/api/auth/profile', authMiddleware, (req, res) => {
   } catch (err) {
     console.error('Update profile error:', err);
     return res.status(500).json({ error: 'Ошибка обновления профиля' });
+  }
+});
+
+// Multi-platform import ratings (Shikimori, AnimeLib, AnimeGO, raw text/HTML)
+app.post('/api/user/import', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { platform = 'shikimori', input, rawContent } = req.body;
+
+    let items = [];
+
+    if (platform === 'shikimori') {
+      if (!input || typeof input !== 'string' || !input.trim()) {
+        return res.status(400).json({ error: 'Укажите никнейм или ссылку на профиль Shikimori' });
+      }
+      items = await scrapeShikimoriUserRates(input.trim());
+    } else if (platform === 'animelib') {
+      if (rawContent && typeof rawContent === 'string' && rawContent.trim()) {
+        items = parseAnimeLibContent(rawContent);
+      } else if (input && typeof input === 'string' && input.trim()) {
+        items = await scrapeAnimeLibUserList(input.trim());
+      } else {
+        return res.status(400).json({ error: 'Укажите ссылку на профиль AnimeLib или вставьте HTML/список' });
+      }
+    } else if (platform === 'animego') {
+      if (rawContent && typeof rawContent === 'string' && rawContent.trim()) {
+        items = parseAnimeGoHtml(rawContent);
+      } else if (input && typeof input === 'string' && input.trim()) {
+        items = await scrapeAnimeGoUserList(input.trim());
+      } else {
+        return res.status(400).json({ error: 'Укажите ссылку/ID профиля AnimeGO или вставьте HTML страницы' });
+      }
+    } else if (platform === 'raw') {
+      if (!rawContent || typeof rawContent !== 'string' || !rawContent.trim()) {
+        return res.status(400).json({ error: 'Вставьте список аниме или JSON' });
+      }
+      items = parseAnimeLibContent(rawContent);
+      if (items.length === 0) {
+        items = parseAnimeGoHtml(rawContent);
+      }
+    } else {
+      return res.status(400).json({ error: 'Неизвестная платформа для импорта' });
+    }
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'Не удалось найти оценки аниме в указанном источнике' });
+    }
+
+    const result = importUserRatings(userId, items);
+
+    // Fetch updated stats
+    const stats = db.prepare(`
+      SELECT COUNT(id) as rated_count, ROUND(AVG(score), 1) as avg_score
+      FROM ratings WHERE user_id = ?
+    `).get(userId);
+
+    return res.json({
+      success: true,
+      platform,
+      result,
+      stats: {
+        ratedCount: stats.rated_count || 0,
+        avgScore: stats.avg_score !== null ? Number(stats.avg_score) : null
+      }
+    });
+  } catch (err) {
+    console.error('Import ratings error:', err);
+    return res.status(500).json({ error: err.message || 'Ошибка импорта оценок' });
   }
 });
 
