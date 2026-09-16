@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Filter, X, RefreshCw, Users } from 'lucide-react';
+import { Filter, X, Film, Star, Users, Calendar, RotateCcw, RefreshCw, Lock } from 'lucide-react';
 
 export default function FilterSidebar({
   genres = [],
@@ -269,53 +269,71 @@ export default function FilterSidebar({
           )}
         </div>
 
-        {friends && friends.length > 0 ? (
-          <div className="space-y-2">
-            {friends.map((friend) => (
-              <div
-                key={friend.id}
-                className="flex items-center justify-between text-xs p-2.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full overflow-hidden bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-bold flex items-center justify-center shrink-0">
-                    {friend.avatarUrl ? (
-                      <img src={friend.avatarUrl} alt={friend.nickname} className="w-full h-full object-cover" />
-                    ) : (
-                      <span>{friend.nickname ? friend.nickname.charAt(0).toUpperCase() : 'U'}</span>
-                    )}
-                  </div>
-                  <div>
-                    <span className="font-semibold text-neutral-900 dark:text-white block">
-                      {friend.nickname}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="font-bold text-neutral-900 dark:text-white">
-                    {friend.rated_count || 0}
-                  </span>
-                  <span className="text-neutral-400 ml-1 text-[11px]">оценок</span>
-                </div>
-              </div>
-            ))}
+        {!user ? (
+          <div className="p-3.5 text-center rounded-2xl bg-neutral-50 dark:bg-neutral-900/40 space-y-2.5">
+            <Lock className="w-5 h-5 mx-auto text-neutral-400" />
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-snug">
+              Войдите или зарегистрируйтесь, чтобы добавлять друзей и видеть их оценки.
+            </p>
+            <button
+              type="button"
+              onClick={onOpenFriendsSearch}
+              className="w-full py-2 px-3 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-white text-xs font-semibold transition-colors"
+            >
+              Войти в аккаунт
+            </button>
           </div>
         ) : (
-          <div className="p-3 text-center rounded-2xl bg-neutral-50 dark:bg-neutral-900/40">
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              Пока нет друзей.
-            </p>
-          </div>
-        )}
+          <>
+            {friends && friends.length > 0 ? (
+              <div className="space-y-2">
+                {friends.map((friend) => (
+                  <div
+                    key={friend.id}
+                    className="flex items-center justify-between text-xs p-2.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full overflow-hidden bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-bold flex items-center justify-center shrink-0">
+                        {friend.avatarUrl ? (
+                          <img src={friend.avatarUrl} alt={friend.nickname} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{friend.nickname ? friend.nickname.charAt(0).toUpperCase() : 'U'}</span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-semibold text-neutral-900 dark:text-white block">
+                          {friend.nickname}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-bold text-neutral-900 dark:text-white">
+                        {friend.rated_count || 0}
+                      </span>
+                      <span className="text-neutral-400 ml-1 text-[11px]">оценок</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-3 text-center rounded-2xl bg-neutral-50 dark:bg-neutral-900/40">
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  Пока нет друзей.
+                </p>
+              </div>
+            )}
 
-        {onOpenFriendsSearch && (
-          <button
-            type="button"
-            onClick={onOpenFriendsSearch}
-            className="w-full py-2 px-3 rounded-2xl bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>Найти друзей</span>
-          </button>
+            {onOpenFriendsSearch && (
+              <button
+                type="button"
+                onClick={onOpenFriendsSearch}
+                className="w-full py-2 px-3 rounded-2xl bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Найти друзей</span>
+              </button>
+            )}
+          </>
         )}
       </div>
     </aside>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Moon, Sun, User, LogOut, Settings, Bookmark } from 'lucide-react';
+import { Search, Moon, Sun, User, LogOut, Settings, Bookmark, Bell } from 'lucide-react';
+import NotificationDropdown from './NotificationDropdown';
 
 export default function Header({
   user,
@@ -10,9 +11,18 @@ export default function Header({
   darkMode,
   setDarkMode,
   onNavigate,
-  onLogoClick
+  onLogoClick,
+  notifications = [],
+  unreadNotificationsCount = 0,
+  onMarkNotificationAsRead,
+  onMarkAllNotificationsAsRead,
+  onDeleteNotification,
+  onAcceptFriendNotification,
+  onRejectFriendNotification,
+  onNavigateAnimeNotification
 }) {
   const [showMenu, setShowMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   return (
     <header className="sticky top-0 z-30 bg-[#f5f5f7]/90 dark:bg-[#0e0e11]/90 backdrop-blur-md transition-colors">
@@ -81,6 +91,48 @@ export default function Header({
           >
             {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
+
+          {/* Notifications Bell */}
+          {user && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNotifications(!showNotifications);
+                  setShowMenu(false);
+                }}
+                className="relative p-2 rounded-xl text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 transition-colors"
+                title="Уведомления"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadNotificationsCount > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                    {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+                  </span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowNotifications(false)}
+                  />
+                  <NotificationDropdown
+                    notifications={notifications}
+                    unreadCount={unreadNotificationsCount}
+                    onClose={() => setShowNotifications(false)}
+                    onMarkAsRead={onMarkNotificationAsRead}
+                    onMarkAllAsRead={onMarkAllNotificationsAsRead}
+                    onDeleteNotification={onDeleteNotification}
+                    onAcceptFriend={onAcceptFriendNotification}
+                    onRejectFriend={onRejectFriendNotification}
+                    onNavigateAnime={onNavigateAnimeNotification}
+                  />
+                </>
+              )}
+            </div>
+          )}
 
           {/* User auth or profile */}
           {user ? (

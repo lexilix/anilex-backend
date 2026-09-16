@@ -8,6 +8,7 @@ import AnimeDetailPage from './components/AnimeDetailPage';
 import ProfilePage from './components/ProfilePage';
 import ProfileEditPage from './components/ProfileEditPage';
 import FeaturedCarousel from './components/FeaturedCarousel';
+import NotificationToast from './components/NotificationToast';
 import { Sparkles, Film, Loader2 } from 'lucide-react';
 import { apiUrl } from './api';
 
@@ -45,6 +46,12 @@ export default function App() {
   const [types, setTypes] = useState([]);
   const [friends, setFriends] = useState([]);
   const [recommendationCount, setRecommendationCount] = useState(0);
+
+  // Notifications state
+  const [notifications, setNotifications] = useState([]);
+  const [toasts, setToasts] = useState([]);
+  const seenNotificationIdsRef = useRef(new Set());
+  const isFirstNotificationFetchRef = useRef(true);
 
   // Loading states
   const [loading, setLoading] = useState(true);
@@ -152,6 +159,146 @@ export default function App() {
   useEffect(() => {
     fetchMetadata();
   }, [fetchMetadata]);
+
+  // Fetch user notifications
+  const fetchNotifications = useCallback(async () => {
+    if (!token) {
+      setNotifications([]);
+      return;
+    }
+    try {
+      const res = await fetch(apiUrl('/api/notifications'), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const items = data.notifications || [];
+        setNotifications(items);
+
+        // Toast trigger for new unread notifications received in background
+        if (isFirstNotificationFetchRef.current) {
+          items.forEach((it) => seenNotificationIdsRef.current.add(it.id));
+          isFirstNotificationFetchRef.current = false;
+        } else {
+          const newUnread = items.filter(
+            (it) => !it.isRead && !seenNotificationIdsRef.current.has(it.id)
+          );
+          if (newUnread.length > 0) {
+            newUnread.forEach((it) => seenNotificationIdsRef.current.add(it.id));
+            setToasts((prev) => [...newUnread, ...prev]);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    }
+  }, [token]);
+
+  // Notifications polling (every 10s when authenticated)
+  useEffect(() => {
+    if (!token) return;
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 10000);
+    return () => clearInterval(interval);
+  }, [token, fetchNotifications]);
+
+  const unreadNotificationsCount = notifications.filter((n) => !n.isRead).length;
+
+  const handleDismissToast = (id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const handleMarkNotificationAsRead = async (id) => {
+    if (!token) return;
+    try {
+      await fetch(apiUrl(`/api/notifications/${id}/read`), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: 1 } : n))
+      );
+      handleDismissToast(id);
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
+  };
+
+  const handleMarkAllNotificationsAsRead = async () => {
+    if (!token) return;
+    try {
+      await fetch(apiUrl('/api/notifications/read-all'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: 1 })));
+      setToasts([]);
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err);
+    }
+  };
+
+  const handleDeleteNotification = async (id) => {
+    if (!token) return;
+    try {
+      await fetch(apiUrl(`/api/notifications/${id}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      handleDismissToast(id);
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+    }
+  };
+
+  const handleAcceptFriendNotification = async (notif) => {
+    const requestId = notif.data?.requestId;
+    if (!requestId || !token) return;
+    try {
+      const res = await fetch(apiUrl(`/api/friends/respond/${requestId}`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ action: 'accept' })
+      });
+      if (res.ok) {
+        handleMarkNotificationAsRead(notif.id);
+        fetchMetadata();
+      }
+    } catch (err) {
+      console.error('Error accepting friend request from notification:', err);
+    }
+  };
+
+  const handleRejectFriendNotification = async (notif) => {
+    const requestId = notif.data?.requestId;
+    if (!requestId || !token) return;
+    try {
+      const res = await fetch(apiUrl(`/api/friends/respond/${requestId}`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ action: 'reject' })
+      });
+      if (res.ok) {
+        handleMarkNotificationAsRead(notif.id);
+      }
+    } catch (err) {
+      console.error('Error rejecting friend request from notification:', err);
+    }
+  };
+
+  const handleNavigateAnimeNotification = (notif) => {
+    handleMarkNotificationAsRead(notif.id);
+    if (notif.data?.animeId) {
+      navigateTo('anime-detail', notif.data.animeId);
+    }
+  };
 
   // Fetch initial or refreshed anime list
   const fetchAnime = useCallback(
@@ -363,6 +510,8 @@ export default function App() {
     setUser(newUser);
     setToken(newToken);
     localStorage.setItem('anime_auth_token', newToken);
+    isFirstNotificationFetchRef.current = true;
+    seenNotificationIdsRef.current.clear();
     fetchMetadata();
   };
 
@@ -370,6 +519,10 @@ export default function App() {
   const handleLogout = () => {
     setUser(null);
     setToken('');
+    setNotifications([]);
+    setToasts([]);
+    seenNotificationIdsRef.current.clear();
+    isFirstNotificationFetchRef.current = true;
     localStorage.removeItem('anime_auth_token');
     navigateTo('catalog');
   };
@@ -408,6 +561,14 @@ export default function App() {
         setDarkMode={setDarkMode}
         onNavigate={navigateTo}
         onLogoClick={handleLogoClick}
+        notifications={notifications}
+        unreadNotificationsCount={unreadNotificationsCount}
+        onMarkNotificationAsRead={handleMarkNotificationAsRead}
+        onMarkAllNotificationsAsRead={handleMarkAllNotificationsAsRead}
+        onDeleteNotification={handleDeleteNotification}
+        onAcceptFriendNotification={handleAcceptFriendNotification}
+        onRejectFriendNotification={handleRejectFriendNotification}
+        onNavigateAnimeNotification={handleNavigateAnimeNotification}
       />
 
       {/* Main Content Area */}
@@ -601,6 +762,15 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Floating Frosted Toast Notifications */}
+      <NotificationToast
+        toasts={toasts}
+        onDismiss={handleDismissToast}
+        onAcceptFriend={handleAcceptFriendNotification}
+        onRejectFriend={handleRejectFriendNotification}
+        onNavigateAnime={handleNavigateAnimeNotification}
+      />
 
       {/* Auth Modal (Clean, no mocks) */}
       <AuthModal

@@ -276,10 +276,45 @@ app.put('/api/auth/profile', authMiddleware, (req, res) => {
   }
 });
 
-// Search users by nickname (for friend search in profile)
+// Helper: Get list of confirmed friend IDs for a user
+function getConfirmedFriendIds(userId) {
+  if (!userId) return [];
+  try {
+    const rows = db.prepare(`
+      SELECT (CASE WHEN from_user_id = ? THEN to_user_id ELSE from_user_id END) as friend_id
+      FROM friend_requests
+      WHERE (from_user_id = ? OR to_user_id = ?) AND status = 'accepted'
+    `).all(userId, userId, userId);
+    return rows.map(r => r.friend_id);
+  } catch (err) {
+    console.error('Error getting friend ids:', err);
+    return [];
+  }
+}
+
+// Helper: Create a persistent notification for a user
+function createNotification(userId, type, title, message, data = {}) {
+  try {
+    db.prepare(`
+      INSERT INTO notifications (user_id, type, title, message, data)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(userId, type, title, message, JSON.stringify(data));
+  } catch (err) {
+    console.error('Error creating notification:', err);
+  }
+}
+
+// Search users by nickname (Strictly for authenticated users; strangers cannot see ratings)
 app.get('/api/users/search', optionalAuthMiddleware, (req, res) => {
   try {
     const currentUserId = req.user ? req.user.id : null;
+    if (!currentUserId) {
+      return res.status(401).json({
+        error: 'Для просмотра аккаунтов и поиска друзей необходимо войти в аккаунт',
+        users: []
+      });
+    }
+
     const { q = '' } = req.query;
     const term = `%${q.trim().toLowerCase()}%`;
     const nickCol = db.lowerSql ? db.lowerSql('u.nickname') : 'LOWER(u.nickname)';
@@ -326,21 +361,23 @@ app.get('/api/users/search', optionalAuthMiddleware, (req, res) => {
       users: users.map(u => {
         let friendshipStatus = 'none';
         let requestId = null;
-        if (currentUserId) {
-          if (u.id === currentUserId) {
-            friendshipStatus = 'self';
-          } else if (friendMap[u.id]) {
-            friendshipStatus = friendMap[u.id].status;
-            requestId = friendMap[u.id].requestId;
-          }
+        if (u.id === currentUserId) {
+          friendshipStatus = 'self';
+        } else if (friendMap[u.id]) {
+          friendshipStatus = friendMap[u.id].status;
+          requestId = friendMap[u.id].requestId;
         }
+
+        // Ratings are visible ONLY to confirmed friends or the user themself
+        const canSeeScore = (u.id === currentUserId || friendshipStatus === 'accepted');
+
         return {
           id: u.id,
           nickname: u.nickname,
           avatarUrl: u.avatar_url,
           bannerUrl: u.banner_url,
-          ratedCount: u.rated_count || 0,
-          avgScore: u.avg_score !== null ? Number(u.avg_score) : null,
+          ratedCount: canSeeScore ? (u.rated_count || 0) : null,
+          avgScore: canSeeScore && u.avg_score !== null ? Number(u.avg_score) : null,
           friendshipStatus,
           requestId
         };
@@ -401,7 +438,22 @@ app.post('/api/friends/request/:targetUserId', authMiddleware, (req, res) => {
       VALUES (?, ?, 'pending')
     `).run(currentUserId, targetUserId);
 
-    return res.json({ success: true, status: 'pending_sent', requestId: Number(insertResult.lastInsertRowid) });
+    const newRequestId = Number(insertResult.lastInsertRowid);
+    const sender = db.prepare('SELECT id, nickname, avatar_url FROM users WHERE id = ?').get(currentUserId);
+    createNotification(
+      targetUserId,
+      'friend_request',
+      'Заявка в друзья',
+      `${sender ? sender.nickname : 'Пользователь'} хочет добавить вас в друзья`,
+      {
+        fromUserId: currentUserId,
+        fromNickname: sender ? sender.nickname : '',
+        fromAvatar: sender ? sender.avatar_url : null,
+        requestId: newRequestId
+      }
+    );
+
+    return res.json({ success: true, status: 'pending_sent', requestId: newRequestId });
   } catch (err) {
     console.error('Send friend request error:', err);
     return res.status(500).json({ error: 'Ошибка отправки заявки в друзья' });
@@ -524,27 +576,63 @@ app.get('/api/friends/my', authMiddleware, (req, res) => {
   }
 });
 
-// Friend public profile and their ratings
-app.get('/api/users/:id/profile', (req, res) => {
+// Friend public profile and their ratings (Ratings visible ONLY to confirmed friends)
+app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
   try {
-    const friendId = parseInt(req.params.id, 10);
-    const user = db.prepare('SELECT id, nickname, avatar_url, banner_url, created_at FROM users WHERE id = ?').get(friendId);
+    const currentUserId = req.user ? req.user.id : null;
+    if (!currentUserId) {
+      return res.status(401).json({ error: 'Войдите в аккаунт, чтобы просматривать профили пользователей' });
+    }
+
+    const targetUserId = parseInt(req.params.id, 10);
+    const user = db.prepare('SELECT id, nickname, avatar_url, banner_url, created_at FROM users WHERE id = ?').get(targetUserId);
     if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    // Check friendship
+    let isFriend = false;
+    let friendshipStatus = 'none';
+    let requestId = null;
+
+    if (targetUserId === currentUserId) {
+      isFriend = true;
+      friendshipStatus = 'self';
+    } else {
+      const relation = db.prepare(`
+        SELECT id, from_user_id, to_user_id, status
+        FROM friend_requests
+        WHERE (from_user_id = ? AND to_user_id = ?)
+           OR (to_user_id = ? AND from_user_id = ?)
+      `).get(currentUserId, targetUserId, currentUserId, targetUserId);
+
+      if (relation) {
+        if (relation.status === 'accepted') {
+          isFriend = true;
+          friendshipStatus = 'accepted';
+        } else if (relation.status === 'pending') {
+          friendshipStatus = relation.from_user_id === currentUserId ? 'pending_sent' : 'pending_received';
+          requestId = relation.id;
+        }
+      }
     }
 
     const stats = db.prepare(`
       SELECT COUNT(id) as rated_count, ROUND(AVG(score), 1) as avg_score
       FROM ratings WHERE user_id = ?
-    `).get(friendId);
+    `).get(targetUserId);
 
-    const ratings = db.prepare(`
-      SELECT a.id, a.slug, a.title, a.image_url, a.type, a.year, a.genres, r.score, r.updated_at
-      FROM ratings r
-      JOIN anime a ON r.anime_id = a.id
-      WHERE r.user_id = ?
-      ORDER BY r.score DESC, r.updated_at DESC
-    `).all(friendId);
+    // Ratings list is sent ONLY if isFriend is true!
+    let ratings = [];
+    if (isFriend) {
+      ratings = db.prepare(`
+        SELECT a.id, a.slug, a.title, a.image_url, a.type, a.year, a.genres, r.score, r.updated_at
+        FROM ratings r
+        JOIN anime a ON r.anime_id = a.id
+        WHERE r.user_id = ?
+        ORDER BY r.score DESC, r.updated_at DESC
+      `).all(targetUserId);
+    }
 
     return res.json({
       user: {
@@ -553,8 +641,11 @@ app.get('/api/users/:id/profile', (req, res) => {
         avatarUrl: user.avatar_url,
         bannerUrl: user.banner_url,
         createdAt: user.created_at,
-        ratedCount: stats.rated_count || 0,
-        avgScore: stats.avg_score !== null ? Number(stats.avg_score) : null
+        ratedCount: isFriend ? (stats.rated_count || 0) : null,
+        avgScore: isFriend && stats.avg_score !== null ? Number(stats.avg_score) : null,
+        isFriend,
+        friendshipStatus,
+        requestId
       },
       ratings: ratings.map(r => ({
         id: r.id,
@@ -566,7 +657,9 @@ app.get('/api/users/:id/profile', (req, res) => {
         genres: JSON.parse(r.genres || '[]'),
         score: r.score,
         updatedAt: r.updated_at
-      }))
+      })),
+      isRestricted: !isFriend,
+      message: !isFriend ? 'Оценки пользователя доступны только взаимным друзьям' : null
     });
   } catch (err) {
     return res.status(500).json({ error: 'Ошибка загрузки профиля друга' });
@@ -952,26 +1045,30 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
 
     const animeIds = items.map(it => it.id);
     let friendsMap = {};
-    if (animeIds.length > 0) {
-      const placeholders = animeIds.map(() => '?').join(',');
-      const ratingsRows = db.prepare(`
-        SELECT r.anime_id, r.score, r.updated_at, u.id as user_id, u.nickname
-        FROM ratings r
-        JOIN users u ON r.user_id = u.id
-        WHERE r.anime_id IN (${placeholders})
-        ORDER BY r.updated_at DESC
-      `).all(...animeIds);
+    if (currentUserId && animeIds.length > 0) {
+      const friendIds = getConfirmedFriendIds(currentUserId);
+      if (friendIds.length > 0) {
+        const friendPlaceholders = friendIds.map(() => '?').join(',');
+        const animePlaceholders = animeIds.map(() => '?').join(',');
+        const ratingsRows = db.prepare(`
+          SELECT r.anime_id, r.score, r.updated_at, u.id as user_id, u.nickname
+          FROM ratings r
+          JOIN users u ON r.user_id = u.id
+          WHERE r.anime_id IN (${animePlaceholders}) AND r.user_id IN (${friendPlaceholders})
+          ORDER BY r.updated_at DESC
+        `).all(...animeIds, ...friendIds);
 
-      for (const row of ratingsRows) {
-        if (!friendsMap[row.anime_id]) {
-          friendsMap[row.anime_id] = [];
+        for (const row of ratingsRows) {
+          if (!friendsMap[row.anime_id]) {
+            friendsMap[row.anime_id] = [];
+          }
+          friendsMap[row.anime_id].push({
+            userId: row.user_id,
+            nickname: row.nickname,
+            score: row.score,
+            updatedAt: row.updated_at
+          });
         }
-        friendsMap[row.anime_id].push({
-          userId: row.user_id,
-          nickname: row.nickname,
-          score: row.score,
-          updatedAt: row.updated_at
-        });
       }
     }
 
@@ -1035,13 +1132,20 @@ app.get('/api/anime/:id', optionalAuthMiddleware, (req, res) => {
       if (favRow) isFavorite = true;
     }
 
-    const friendsRatings = db.prepare(`
-      SELECT r.score, r.updated_at, u.id as user_id, u.nickname
-      FROM ratings r
-      JOIN users u ON r.user_id = u.id
-      WHERE r.anime_id = ?
-      ORDER BY r.updated_at DESC
-    `).all(animeId);
+    let friendsRatings = [];
+    if (currentUserId) {
+      const friendIds = getConfirmedFriendIds(currentUserId);
+      if (friendIds.length > 0) {
+        const friendPlaceholders = friendIds.map(() => '?').join(',');
+        friendsRatings = db.prepare(`
+          SELECT r.score, r.updated_at, u.id as user_id, u.nickname
+          FROM ratings r
+          JOIN users u ON r.user_id = u.id
+          WHERE r.anime_id = ? AND r.user_id IN (${friendPlaceholders})
+          ORDER BY r.updated_at DESC
+        `).all(animeId, ...friendIds);
+      }
+    }
 
     return res.json({
       id: anime.id,
@@ -1306,13 +1410,18 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
       WHERE anime_id = ?
     `).get(animeId);
 
-    const friendsRatings = db.prepare(`
-      SELECT r.score, r.updated_at, u.id as user_id, u.nickname
-      FROM ratings r
-      JOIN users u ON r.user_id = u.id
-      WHERE r.anime_id = ?
-      ORDER BY r.updated_at DESC
-    `).all(animeId);
+    let friendsRatings = [];
+    const friendIds = getConfirmedFriendIds(userId);
+    if (friendIds.length > 0) {
+      const friendPlaceholders = friendIds.map(() => '?').join(',');
+      friendsRatings = db.prepare(`
+        SELECT r.score, r.updated_at, u.id as user_id, u.nickname
+        FROM ratings r
+        JOIN users u ON r.user_id = u.id
+        WHERE r.anime_id = ? AND r.user_id IN (${friendPlaceholders})
+        ORDER BY r.updated_at DESC
+      `).all(animeId, ...friendIds);
+    }
 
     return res.json({
       success: true,
@@ -1338,6 +1447,14 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
 app.get('/api/anime/:id/comments', optionalAuthMiddleware, (req, res) => {
   try {
     const currentUserId = req.user ? req.user.id : null;
+    if (!currentUserId) {
+      return res.status(401).json({
+        comments: [],
+        requiresAuth: true,
+        message: 'Для просмотра комментариев и аккаунтов участников необходимо войти в аккаунт'
+      });
+    }
+
     const animeId = parseInt(req.params.id, 10);
 
     const comments = db.prepare(`
@@ -1422,14 +1539,14 @@ app.post('/api/anime/:id/comments', authMiddleware, (req, res) => {
       return res.status(400).json({ error: 'Комментарий слишком длинный' });
     }
 
-    const anime = db.prepare('SELECT id FROM anime WHERE id = ?').get(animeId);
+    const anime = db.prepare('SELECT id, title FROM anime WHERE id = ?').get(animeId);
     if (!anime) {
       return res.status(404).json({ error: 'Аниме не найдено' });
     }
 
     let validParentId = null;
     if (parentId) {
-      const parent = db.prepare('SELECT id FROM comments WHERE id = ? AND anime_id = ?').get(parentId, animeId);
+      const parent = db.prepare('SELECT id, user_id FROM comments WHERE id = ? AND anime_id = ?').get(parentId, animeId);
       if (parent) {
         validParentId = parent.id;
       }
@@ -1441,7 +1558,29 @@ app.post('/api/anime/:id/comments', authMiddleware, (req, res) => {
     `);
     const result = stmt.run(userId, animeId, validParentId, cleanContent);
 
-    const user = db.prepare('SELECT avatar_url FROM users WHERE id = ?').get(userId);
+    const user = db.prepare('SELECT avatar_url, nickname FROM users WHERE id = ?').get(userId);
+
+    // If this is a reply to another user's comment, send a notification
+    if (validParentId) {
+      const parentComment = db.prepare('SELECT user_id FROM comments WHERE id = ?').get(validParentId);
+      if (parentComment && parentComment.user_id !== userId) {
+        createNotification(
+          parentComment.user_id,
+          'comment_reply',
+          'Ответ на комментарий',
+          `${user ? user.nickname : 'Пользователь'} ответил(а) на ваш комментарий к аниме «${anime.title}»`,
+          {
+            fromUserId: userId,
+            fromNickname: user ? user.nickname : '',
+            fromAvatar: user ? user.avatar_url : null,
+            animeId,
+            animeTitle: anime.title,
+            commentId: Number(result.lastInsertRowid),
+            parentCommentId: validParentId
+          }
+        );
+      }
+    }
 
     const newComment = {
       id: Number(result.lastInsertRowid),
@@ -1549,6 +1688,79 @@ app.post('/api/anime/sync', async (req, res) => {
     return res.json({ success: true, count: addedCount });
   } catch (err) {
     return res.status(500).json({ error: 'Ошибка синхронизации: ' + err.message });
+  }
+});
+
+// ----------------------------------------------------
+// NOTIFICATIONS API
+// ----------------------------------------------------
+
+// Get user notifications + unread count
+app.get('/api/notifications', authMiddleware, (req, res) => {
+  try {
+    const userId = req.user.id;
+    const notifications = db.prepare(`
+      SELECT id, type, title, message, data, is_read, created_at
+      FROM notifications
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT 30
+    `).all(userId);
+
+    const unreadRow = db.prepare(`
+      SELECT COUNT(id) as count FROM notifications WHERE user_id = ? AND is_read = 0
+    `).get(userId);
+
+    return res.json({
+      notifications: notifications.map(n => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        data: JSON.parse(n.data || '{}'),
+        isRead: Boolean(n.is_read),
+        createdAt: n.created_at
+      })),
+      unreadCount: unreadRow ? unreadRow.count : 0
+    });
+  } catch (err) {
+    console.error('Get notifications error:', err);
+    return res.status(500).json({ error: 'Ошибка получения уведомлений' });
+  }
+});
+
+// Mark single notification as read
+app.post('/api/notifications/:id/read', authMiddleware, (req, res) => {
+  try {
+    const userId = req.user.id;
+    const id = parseInt(req.params.id, 10);
+    db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?').run(id, userId);
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка обновления уведомления' });
+  }
+});
+
+// Mark all notifications as read
+app.post('/api/notifications/read-all', authMiddleware, (req, res) => {
+  try {
+    const userId = req.user.id;
+    db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ?').run(userId);
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка обновления уведомлений' });
+  }
+});
+
+// Delete notification
+app.delete('/api/notifications/:id', authMiddleware, (req, res) => {
+  try {
+    const userId = req.user.id;
+    const id = parseInt(req.params.id, 10);
+    db.prepare('DELETE FROM notifications WHERE id = ? AND user_id = ?').run(id, userId);
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка удаления уведомления' });
   }
 });
 

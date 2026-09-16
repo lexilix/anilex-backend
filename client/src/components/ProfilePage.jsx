@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Settings, Star, Search, Filter, X, ArrowLeft, Film, Users, Calendar, Bookmark, Trash2, Check, UserPlus, UserCheck } from 'lucide-react';
+import { User, Settings, Star, Search, Filter, X, ArrowLeft, Film, Users, Calendar, Bookmark, Trash2, Check, UserPlus, UserCheck, Lock } from 'lucide-react';
 import { getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
 
@@ -245,7 +245,9 @@ export default function ProfilePage({
   // Load friend public profile
   const handleOpenFriend = async (friendId) => {
     try {
-      const res = await fetch(apiUrl(`/api/users/${friendId}/profile`));
+      const token = localStorage.getItem('anime_auth_token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(apiUrl(`/api/users/${friendId}/profile`), { headers });
       if (res.ok) {
         const data = await res.json();
         setSelectedFriend(data.user);
@@ -1058,63 +1060,133 @@ export default function ProfilePage({
                     <h3 className="text-xl font-bold text-neutral-900 dark:text-white">
                       {selectedFriend.nickname}
                     </h3>
-                    <div className="flex items-center gap-3 text-xs text-neutral-400 mt-1">
-                      <span>{selectedFriend.ratedCount} оценок</span>
-                      {selectedFriend.avgScore !== null && (
-                        <span className="flex items-center gap-1 font-semibold text-neutral-700 dark:text-neutral-300">
-                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                          {selectedFriend.avgScore} средняя
-                        </span>
-                      )}
-                    </div>
+                    {selectedFriend.isFriend ? (
+                      <div className="flex items-center gap-3 text-xs text-neutral-400 mt-1">
+                        <span>{selectedFriend.ratedCount} оценок</span>
+                        {selectedFriend.avgScore !== null && (
+                          <span className="flex items-center gap-1 font-semibold text-neutral-700 dark:text-neutral-300">
+                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                            {selectedFriend.avgScore} средняя
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-xs text-amber-500 font-medium mt-1">
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Профиль скрыт</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Friend Ratings list */}
-                <div>
-                  <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">
-                    Оценки друга ({friendRatings.length})
-                  </h4>
-
-                  {friendRatings.length === 0 ? (
-                    <p className="text-xs text-neutral-400 py-6 text-center">
-                      У этого пользователя пока нет оценок.
-                    </p>
-                  ) : (
-                    <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
-                      {friendRatings.map((item) => (
-                        <div
-                          key={item.id}
-                          onClick={() => {
-                            setSelectedFriend(null);
-                            onSelectAnime(item.id);
+                {/* Friend Ratings list or Privacy Lock */}
+                {!selectedFriend.isFriend ? (
+                  <div className="py-8 px-6 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/50 dark:border-neutral-800/50 text-center space-y-4">
+                    <div className="w-12 h-12 rounded-2xl bg-neutral-200/60 dark:bg-neutral-800/80 flex items-center justify-center mx-auto text-neutral-500">
+                      <Lock className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-neutral-900 dark:text-white">
+                        Оценки доступны только взаимным друзьям
+                      </p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-sm mx-auto">
+                        Добавьте {selectedFriend.nickname} в друзья. Как только запрос будет подтверждён, откроются все оценки и статистика.
+                      </p>
+                    </div>
+                    <div className="pt-2 flex justify-center">
+                      {selectedFriend.friendshipStatus === 'accepted' ? (
+                        <span className="px-4 py-2 rounded-2xl bg-emerald-500/10 text-emerald-500 text-xs font-semibold flex items-center gap-1.5">
+                          <UserCheck className="w-4 h-4" />
+                          В друзьях
+                        </span>
+                      ) : selectedFriend.friendshipStatus === 'pending_sent' ? (
+                        <span className="px-4 py-2 rounded-2xl bg-neutral-200 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-xs font-semibold">
+                          Запрос отправлен
+                        </span>
+                      ) : selectedFriend.friendshipStatus === 'pending_received' ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await handleRespondFriendRequest(selectedFriend.requestId, 'accept');
+                              handleOpenFriend(selectedFriend.id);
+                            }}
+                            className="px-4 py-2 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors"
+                          >
+                            Принять запрос
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await handleRespondFriendRequest(selectedFriend.requestId, 'reject');
+                              setSelectedFriend(null);
+                            }}
+                            className="px-4 py-2 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold transition-colors"
+                          >
+                            Отклонить
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await handleSendFriendRequest(selectedFriend.id);
+                            setSelectedFriend((prev) => ({ ...prev, friendshipStatus: 'pending_sent' }));
                           }}
-                          className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 flex items-center justify-between gap-3 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                          className="px-5 py-2.5 rounded-2xl bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-2 shadow-sm"
                         >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 aspect-[5/7] rounded-lg overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0">
-                              <img
-                                src={getImageUrl(item.imageUrl)}
-                                alt={item.title}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                }}
-                              />
+                          <UserPlus className="w-4 h-4" />
+                          <span>Добавить в друзья</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">
+                      Оценки друга ({friendRatings.length})
+                    </h4>
+
+                    {friendRatings.length === 0 ? (
+                      <p className="text-xs text-neutral-400 py-6 text-center">
+                        У этого пользователя пока нет оценок.
+                      </p>
+                    ) : (
+                      <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+                        {friendRatings.map((item) => (
+                          <div
+                            key={item.id}
+                            onClick={() => {
+                              setSelectedFriend(null);
+                              onSelectAnime(item.id);
+                            }}
+                            className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 flex items-center justify-between gap-3 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-10 aspect-[5/7] rounded-lg overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0">
+                                <img
+                                  src={getImageUrl(item.imageUrl)}
+                                  alt={item.title}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                              <span className="text-xs font-semibold text-neutral-900 dark:text-white truncate">
+                                {item.title}
+                              </span>
                             </div>
-                            <span className="text-xs font-semibold text-neutral-900 dark:text-white truncate">
-                              {item.title}
+
+                            <span className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 ${getScoreBadgeClass(item.score)}`}>
+                              {item.score} / 10
                             </span>
                           </div>
-
-                          <span className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 ${getScoreBadgeClass(item.score)}`}>
-                            {item.score} / 10
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

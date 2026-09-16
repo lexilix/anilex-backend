@@ -134,6 +134,18 @@ db.exec(`
     UNIQUE(from_user_id, to_user_id)
   );
 
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT NOT NULL CHECK(type IN ('friend_request', 'comment_reply')),
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    data TEXT NOT NULL DEFAULT '{}',
+    is_read INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
   CREATE INDEX IF NOT EXISTS idx_ratings_anime ON ratings(anime_id);
   CREATE INDEX IF NOT EXISTS idx_ratings_user ON ratings(user_id);
   CREATE INDEX IF NOT EXISTS idx_anime_slug ON anime(slug);
@@ -145,6 +157,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_comment_reactions_user ON comment_reactions(user_id);
   CREATE INDEX IF NOT EXISTS idx_friend_requests_from ON friend_requests(from_user_id);
   CREATE INDEX IF NOT EXISTS idx_friend_requests_to ON friend_requests(to_user_id);
+  CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, is_read);
+  CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at);
 `);
 
 // Migration for avatar_url and banner_url if table was created without them

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Star, MessageSquare, Send, Trash2, Calendar, Film, User, Bookmark, ThumbsUp, ThumbsDown, CornerDownRight } from 'lucide-react';
+import { ArrowLeft, Star, MessageSquare, Send, Trash2, Calendar, Film, User, Bookmark, ThumbsUp, ThumbsDown, CornerDownRight, Lock } from 'lucide-react';
 import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
 
@@ -479,8 +479,22 @@ export default function AnimeDetailPage({
               )}
             </div>
 
-            {/* Friends ratings list */}
-            {anime.friendsRatings && anime.friendsRatings.length > 0 && (
+            {/* Friends ratings list (Strictly confirmed friends only) */}
+            {!user ? (
+              <div className="mt-4 pt-3 border-t border-neutral-200/50 dark:border-neutral-800/60 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400">
+                  <Lock className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                  <span>Оценки пользователей видны только взаимным друзьям</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={onRequireAuth}
+                  className="text-xs font-semibold text-neutral-900 dark:text-white hover:underline shrink-0"
+                >
+                  Войти
+                </button>
+              </div>
+            ) : anime.friendsRatings && anime.friendsRatings.length > 0 ? (
               <div className="mt-4 pt-3 border-t border-transparent">
                 <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">
                   Оценки друзей:
@@ -501,6 +515,10 @@ export default function AnimeDetailPage({
                   ))}
                 </div>
               </div>
+            ) : (
+              <div className="mt-4 pt-3 border-t border-neutral-200/40 dark:border-neutral-800/40 text-xs text-neutral-400">
+                <span>Никто из ваших друзей пока не оценил этот тайтл.</span>
+              </div>
             )}
           </div>
         </div>
@@ -517,40 +535,45 @@ export default function AnimeDetailPage({
           </div>
         </div>
 
-        {/* Comment Form */}
-        {user ? (
-          <form onSubmit={handleAddComment} className="space-y-3">
-            <textarea
-              rows={3}
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Поделитесь вашим мнением об этом аниме..."
-              className="w-full p-4 rounded-2xl bg-neutral-100 dark:bg-neutral-800/80 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:bg-neutral-200/70 dark:focus:bg-neutral-700/60 transition-colors resize-none"
-            />
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={commentLoading || !newComment.trim()}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>{commentLoading ? 'Отправка...' : 'Отправить комментарий'}</span>
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="p-4 rounded-2xl bg-neutral-100 dark:bg-neutral-800/60 text-center">
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">
-              Чтобы оставить комментарий, войдите в свой профиль.
+        {!user ? (
+          <div className="py-10 px-4 text-center rounded-2xl bg-neutral-50 dark:bg-neutral-900/40 space-y-3">
+            <Lock className="w-8 h-8 mx-auto text-neutral-400" />
+            <h3 className="text-sm font-bold text-neutral-900 dark:text-white">
+              Комментарии и аккаунты участников клуба скрыты
+            </h3>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-sm mx-auto leading-relaxed">
+              Зарегистрируйтесь и добавляйте участников в друзья, чтобы просматривать обсуждения и делиться мнением.
             </p>
             <button
+              type="button"
               onClick={onRequireAuth}
-              className="px-4 py-2 rounded-xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-semibold"
+              className="px-5 py-2 rounded-xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-semibold hover:opacity-90 transition-opacity"
             >
-              Войти
+              Войти или зарегистрироваться
             </button>
           </div>
-        )}
+        ) : (
+          <>
+            {/* Comment Form */}
+            <form onSubmit={handleAddComment} className="space-y-3">
+              <textarea
+                rows={3}
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Поделитесь вашим мнением об этом аниме..."
+                className="w-full p-4 rounded-2xl bg-neutral-100 dark:bg-neutral-800/80 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:bg-neutral-200/70 dark:focus:bg-neutral-700/60 transition-colors resize-none"
+              />
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={commentLoading || !newComment.trim()}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{commentLoading ? 'Отправка...' : 'Отправить комментарий'}</span>
+                </button>
+              </div>
+            </form>
 
         {/* Comments List */}
         <div className="space-y-4 pt-2">
@@ -775,6 +798,8 @@ export default function AnimeDetailPage({
             })
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );
