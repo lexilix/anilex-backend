@@ -41,6 +41,7 @@ export default function ProfilePage({
   // Friends state
   const [friendsTab, setFriendsTab] = useState('my'); // 'my' | 'requests' | 'search'
   const [friendsList, setFriendsList] = useState([]);
+  const [myFriends, setMyFriends] = useState([]);
   const [incomingRequests, setIncomingRequests] = useState([]);
   const [outgoingRequests, setOutgoingRequests] = useState([]);
   const [friendsQuery, setFriendsQuery] = useState('');
