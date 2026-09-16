@@ -30,12 +30,22 @@ const db = new DatabaseSync(dbPath);
 db.exec('PRAGMA foreign_keys = ON;');
 db.exec('PRAGMA journal_mode = WAL;');
 
-// Custom Unicode / Cyrillic lowercase function for SQLite
+// Custom Unicode / Cyrillic lowercase function for SQLite (supported in Node >= 22.13.0)
+let hasLowerUtf8 = false;
 try {
-  db.function('lower_utf8', (str) => typeof str === 'string' ? str.toLowerCase() : '');
+  if (typeof db.function === 'function') {
+    db.function('lower_utf8', (str) => typeof str === 'string' ? str.toLowerCase() : '');
+    hasLowerUtf8 = true;
+    console.log('[Database] Custom lower_utf8 function registered successfully.');
+  }
 } catch (e) {
-  console.log('Custom lower_utf8 function note:', e.message);
+  console.log('[Database] Custom lower_utf8 function note:', e.message);
 }
+
+db.hasLowerUtf8 = hasLowerUtf8;
+db.lowerSql = function (col) {
+  return hasLowerUtf8 ? `lower_utf8(${col})` : `LOWER(${col})`;
+};
 
 // Initialize tables
 db.exec(`

@@ -272,6 +272,7 @@ app.get('/api/users/search', optionalAuthMiddleware, (req, res) => {
     const currentUserId = req.user ? req.user.id : null;
     const { q = '' } = req.query;
     const term = `%${q.trim().toLowerCase()}%`;
+    const nickCol = db.lowerSql ? db.lowerSql('u.nickname') : 'LOWER(u.nickname)';
 
     const users = db.prepare(`
       SELECT u.id, u.nickname, u.avatar_url, u.banner_url,
@@ -279,7 +280,7 @@ app.get('/api/users/search', optionalAuthMiddleware, (req, res) => {
              ROUND(AVG(r.score), 1) as avg_score
       FROM users u
       LEFT JOIN ratings r ON u.id = r.user_id
-      WHERE lower_utf8(u.nickname) LIKE ?
+      WHERE ${nickCol} LIKE ?
       GROUP BY u.id
       ORDER BY rated_count DESC, u.nickname ASC
       LIMIT 20
@@ -736,10 +737,11 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       const words = cleanSearch.toLowerCase().split(/\s+/).filter(w => w.length > 0);
 
       // Check if we have exact/all-words matches in local DB
+      const lSql = (c) => (db.lowerSql ? db.lowerSql(c) : `LOWER(${c})`);
       let andConditions = [];
       let andParams = [];
       for (const w of words) {
-        andConditions.push('(lower_utf8(title) LIKE ? OR lower_utf8(original_title) LIKE ? OR lower_utf8(description) LIKE ?)');
+        andConditions.push(`(${lSql('title')} LIKE ? OR ${lSql('original_title')} LIKE ? OR ${lSql('description')} LIKE ?)`);
         andParams.push(`%${w}%`, `%${w}%`, `%${w}%`);
       }
       const countCheckSql = `SELECT COUNT(id) as cnt FROM anime WHERE ${andConditions.join(' AND ')}`;
@@ -759,14 +761,14 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       const recheck = db.prepare(countCheckSql).get(...andParams);
       if (recheck && recheck.cnt > 0) {
         for (const w of words) {
-          whereClauses.push('(lower_utf8(a.title) LIKE ? OR lower_utf8(a.original_title) LIKE ? OR lower_utf8(a.description) LIKE ?)');
+          whereClauses.push(`(${lSql('a.title')} LIKE ? OR ${lSql('a.original_title')} LIKE ? OR ${lSql('a.description')} LIKE ?)`);
           params.push(`%${w}%`, `%${w}%`, `%${w}%`);
         }
       } else {
         // Fallback: match ANY word
         let orConditions = [];
         for (const w of words) {
-          orConditions.push('(lower_utf8(a.title) LIKE ? OR lower_utf8(a.original_title) LIKE ? OR lower_utf8(a.description) LIKE ?)');
+          orConditions.push(`(${lSql('a.title')} LIKE ? OR ${lSql('a.original_title')} LIKE ? OR ${lSql('a.description')} LIKE ?)`);
           params.push(`%${w}%`, `%${w}%`, `%${w}%`);
         }
         if (orConditions.length > 0) {
@@ -775,7 +777,7 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       }
 
       // Add relevance scoring for search ordering: exact title matches first, then description
-      const rankCases = words.map(() => '(CASE WHEN lower_utf8(a.title) LIKE ? THEN 5 WHEN lower_utf8(a.original_title) LIKE ? THEN 3 WHEN lower_utf8(a.description) LIKE ? THEN 1 ELSE 0 END)').join(' + ');
+      const rankCases = words.map(() => `(CASE WHEN ${lSql('a.title')} LIKE ? THEN 5 WHEN ${lSql('a.original_title')} LIKE ? THEN 3 WHEN ${lSql('a.description')} LIKE ? THEN 1 ELSE 0 END)`).join(' + ');
       searchRankSql = `(${rankCases}) DESC, `;
       for (const w of words) {
         searchRankParams.push(`%${w}%`, `%${w}%`, `%${w}%`);
@@ -1099,7 +1101,9 @@ app.get('/api/user/favorites', authMiddleware, (req, res) => {
     let whereClauses = ['f.user_id = ?'];
 
     if (search && search.trim()) {
-      whereClauses.push('(lower_utf8(a.title) LIKE ? OR lower_utf8(a.original_title) LIKE ?)');
+      const tCol = db.lowerSql ? db.lowerSql('a.title') : 'LOWER(a.title)';
+      const otCol = db.lowerSql ? db.lowerSql('a.original_title') : 'LOWER(a.original_title)';
+      whereClauses.push(`(${tCol} LIKE ? OR ${otCol} LIKE ?)`);
       const term = `%${search.trim().toLowerCase()}%`;
       params.push(term, term);
     }
@@ -1183,7 +1187,9 @@ app.get('/api/user/rated-anime', authMiddleware, (req, res) => {
     let whereClauses = ['r.user_id = ?'];
 
     if (search && search.trim()) {
-      whereClauses.push('(lower_utf8(a.title) LIKE ? OR lower_utf8(a.original_title) LIKE ?)');
+      const tCol = db.lowerSql ? db.lowerSql('a.title') : 'LOWER(a.title)';
+      const otCol = db.lowerSql ? db.lowerSql('a.original_title') : 'LOWER(a.original_title)';
+      whereClauses.push(`(${tCol} LIKE ? OR ${otCol} LIKE ?)`);
       const term = `%${search.trim().toLowerCase()}%`;
       params.push(term, term);
     }

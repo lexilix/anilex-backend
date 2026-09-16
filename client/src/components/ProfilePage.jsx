@@ -176,9 +176,12 @@ export default function ProfilePage({
       if (res.ok) {
         const data = await res.json();
         setFriendsList(data.users || []);
+      } else {
+        setFriendsList([]);
       }
     } catch (err) {
       console.error('Error searching friends:', err);
+      setFriendsList([]);
     } finally {
       setFriendsLoading(false);
     }
