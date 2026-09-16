@@ -479,6 +479,18 @@ app.post('/api/friends/respond/:requestId', authMiddleware, (req, res) => {
 
     if (action === 'accept') {
       db.prepare("UPDATE friend_requests SET status = 'accepted', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(requestId);
+      const responder = db.prepare('SELECT id, nickname, avatar_url FROM users WHERE id = ?').get(currentUserId);
+      createNotification(
+        request.from_user_id,
+        'friend_accepted',
+        'Заявка в друзья принята',
+        `${responder ? responder.nickname : 'Пользователь'} принял(а) вашу заявку в друзья!`,
+        {
+          fromUserId: currentUserId,
+          fromNickname: responder ? responder.nickname : '',
+          fromAvatar: responder ? responder.avatar_url : null
+        }
+      );
       return res.json({ success: true, status: 'accepted', message: 'Заявка в друзья принята' });
     } else {
       // Upon rejection, delete or set to rejected so user can request again in future
@@ -793,6 +805,50 @@ app.get('/api/anime/featured', optionalAuthMiddleware, async (req, res) => {
       }
 
       return res.json({ items: formatted.slice(0, 15) });
+    }
+
+    if (tab === 'my') {
+      if (!currentUserId) {
+        return res.json({ items: [] });
+      }
+
+      const items = db.prepare(`
+        SELECT
+          a.id,
+          a.slug,
+          a.title,
+          a.original_title,
+          a.image_url,
+          a.type,
+          a.year,
+          a.genres,
+          a.description,
+          r.score as my_score,
+          ROUND((SELECT AVG(score) FROM ratings WHERE anime_id = a.id), 1) as avg_score,
+          (SELECT COUNT(id) FROM ratings WHERE anime_id = a.id) as rating_count
+        FROM ratings r
+        JOIN anime a ON r.anime_id = a.id
+        WHERE r.user_id = ?
+        ORDER BY r.score DESC, r.updated_at DESC
+        LIMIT ?
+      `).all(currentUserId, limitNum);
+
+      const formatted = items.map(item => ({
+        id: item.id,
+        slug: item.slug,
+        title: item.title,
+        originalTitle: item.original_title,
+        imageUrl: item.image_url,
+        type: item.type,
+        year: item.year,
+        genres: JSON.parse(item.genres || '[]'),
+        description: item.description,
+        myScore: item.my_score,
+        averageScore: item.rating_count > 0 && item.avg_score !== null ? Number(item.avg_score) : null,
+        ratingCount: Number(item.rating_count)
+      }));
+
+      return res.json({ items: formatted });
     }
 
     // Top rated: strictly ONLY anime that have at least 1 user rating!

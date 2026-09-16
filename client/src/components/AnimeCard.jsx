@@ -11,7 +11,8 @@ export default function AnimeCard({
   activeGenres = [],
   onRequireAuth,
   onSelectAnime,
-  onToggleFavorite
+  onToggleFavorite,
+  friends = []
 }) {
   const [expandedDesc, setExpandedDesc] = useState(false);
   const [showFriendsScores, setShowFriendsScores] = useState(false);
@@ -95,8 +96,8 @@ export default function AnimeCard({
             </div>
           )}
 
-          {/* Average Rating Badge (Only if real users rated!) */}
-          {averageScore !== null && ratingCount > 0 && (
+          {/* Average Rating Badge (Visible only to authenticated users with friends) */}
+          {user && friends.length > 0 && averageScore !== null && ratingCount > 0 && (
             <div className="absolute top-2 left-2 px-2 py-1 rounded-xl bg-neutral-900/85 dark:bg-neutral-100/90 backdrop-blur-md text-white dark:text-neutral-900 text-[11px] font-bold flex items-center gap-1 shadow-sm">
               <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
               <span>{averageScore}</span>
@@ -237,34 +238,37 @@ export default function AnimeCard({
                     {myScore} / 10
                   </span>
                 ) : (
-                  <span className="text-xs text-neutral-400">не оценено</span>
+                  <span className="text-xs text-neutral-400 font-medium">тут будут ваши оценки</span>
                 )
               ) : (
                 <button
+                  type="button"
                   onClick={onRequireAuth}
-                  className="text-xs text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 underline decoration-dotted"
+                  className="text-xs text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 underline decoration-dotted transition-colors"
                 >
-                  войдите для оценки
+                  тут будут ваши оценки
                 </button>
               )}
             </div>
 
-            {/* Community stats */}
+            {/* Community stats: strictly visible only to authenticated users with friends */}
             <div className="flex items-center gap-3">
-              {averageScore !== null && ratingCount > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setShowFriendsScores(!showFriendsScores)}
-                  className="flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors"
-                >
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  <span className="font-bold">{averageScore}</span>
-                  <span className="text-neutral-400">({ratingCount} {ratingCount === 1 ? 'оценка' : 'оценок'})</span>
-                  <span className="text-[10px] text-neutral-400">▼</span>
-                </button>
-              ) : (
-                <span className="text-xs text-neutral-400 font-medium">Нет оценок</span>
-              )}
+              {user && friends.length > 0 ? (
+                averageScore !== null && ratingCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowFriendsScores(!showFriendsScores)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors"
+                  >
+                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    <span className="font-bold">{averageScore}</span>
+                    <span className="text-neutral-400">({ratingCount} {ratingCount === 1 ? 'оценка' : 'оценок'})</span>
+                    <span className="text-[10px] text-neutral-400">▼</span>
+                  </button>
+                ) : (
+                  <span className="text-xs text-neutral-400 font-medium">Нет оценок друзей</span>
+                )
+              ) : null}
             </div>
           </div>
 

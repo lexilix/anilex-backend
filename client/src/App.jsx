@@ -641,8 +641,16 @@ export default function App() {
         {/* VIEW 4: CATALOG (MAIN SCREEN) */}
         {view === 'catalog' && (
           <div>
-            {/* Top Horizontal Carousel: Top Rated / Newest Switcher (User Requirement 2) */}
-            <FeaturedCarousel onSelectAnime={(id) => navigateTo('anime-detail', id)} />
+            {/* Top Horizontal Carousel: Top Rated / My Ratings / Newest Switcher (Hidden during active search) */}
+            {!searchQuery.trim() && (
+              <FeaturedCarousel
+                user={user}
+                token={token}
+                friends={friends}
+                onRequireAuth={() => setAuthModalOpen(true)}
+                onSelectAnime={(id) => navigateTo('anime-detail', id)}
+              />
+            )}
 
             <div className="flex flex-col lg:flex-row gap-8 items-start">
               {/* LEFT / CENTER: Anime List */}
@@ -741,6 +749,7 @@ export default function App() {
                         key={anime.id}
                         anime={anime}
                         user={user}
+                        friends={friends}
                         onRate={handleRate}
                         onGenreClick={handleGenreClick}
                         activeGenres={activeGenres}

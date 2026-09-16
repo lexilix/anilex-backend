@@ -532,8 +532,12 @@ async function fetchOngoingAnime(limit = 15) {
             .trim()
         : '';
 
-      // Skip invalid or placeholder 404 posters
-      if (title && slug && image && !image.includes('404')) {
+      // Skip invalid, future unreleased announcements (e.g. 2027, 2028), or placeholder 404 posters
+      const parsedYear = parseInt(year, 10);
+      const isFuture = !isNaN(parsedYear) && parsedYear > 2026;
+      const isBadImage = image.includes('404') || image.includes('placeholder') || image.includes('no-image');
+
+      if (title && slug && image && !isBadImage && !isFuture) {
         const itemObj = {
           slug,
           title,

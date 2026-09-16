@@ -2,8 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
 
-export default function FeaturedCarousel({ onSelectAnime }) {
-  const [activeTab, setActiveTab] = useState('top'); // 'top' | 'newest'
+export default function FeaturedCarousel({
+  onSelectAnime,
+  user,
+  token,
+  friends = [],
+  onRequireAuth
+}) {
+  const [activeTab, setActiveTab] = useState('top'); // 'top' | 'my' | 'newest'
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef(null);
@@ -12,7 +18,35 @@ export default function FeaturedCarousel({ onSelectAnime }) {
     let isMounted = true;
     setLoading(true);
 
-    fetch(apiUrl(`/api/anime/featured?tab=${activeTab}&limit=15`))
+    if (activeTab === 'my') {
+      if (!user || !token) {
+        setItems([]);
+        setLoading(false);
+        return;
+      }
+
+      fetch(apiUrl('/api/user/rated-anime?sort=my_score_desc&limit=15'), {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (isMounted) {
+            setItems(data.items || []);
+            setLoading(false);
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching my rated anime for carousel:', err);
+          if (isMounted) setLoading(false);
+        });
+
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    fetch(apiUrl(`/api/anime/featured?tab=${activeTab}&limit=15`), { headers })
       .then(res => res.json())
       .then(data => {
         if (isMounted) {
@@ -30,7 +64,7 @@ export default function FeaturedCarousel({ onSelectAnime }) {
     return () => {
       isMounted = false;
     };
-  }, [activeTab]);
+  }, [activeTab, user, token]);
 
   const scroll = (direction) => {
     if (scrollRef.current) {
@@ -47,10 +81,10 @@ export default function FeaturedCarousel({ onSelectAnime }) {
       {/* Header & Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         <div className="flex items-center gap-3">
-          <div className="flex items-center p-1 bg-neutral-950 rounded-xl">
+          <div className="flex items-center p-1 bg-neutral-950 rounded-xl overflow-x-auto">
             <button
               onClick={() => setActiveTab('top')}
-              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
+              className={`px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold rounded-lg whitespace-nowrap transition-colors ${
                 activeTab === 'top'
                   ? 'bg-neutral-800 text-white shadow-sm'
                   : 'text-neutral-400 hover:text-white'
@@ -59,8 +93,18 @@ export default function FeaturedCarousel({ onSelectAnime }) {
               ★ Топ по оценкам
             </button>
             <button
+              onClick={() => setActiveTab('my')}
+              className={`px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold rounded-lg whitespace-nowrap transition-colors ${
+                activeTab === 'my'
+                  ? 'bg-neutral-800 text-white shadow-sm'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              ★ Мои оценки
+            </button>
+            <button
               onClick={() => setActiveTab('newest')}
-              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
+              className={`px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold rounded-lg whitespace-nowrap transition-colors ${
                 activeTab === 'newest'
                   ? 'bg-neutral-800 text-white shadow-sm'
                   : 'text-neutral-400 hover:text-white'
@@ -103,9 +147,30 @@ export default function FeaturedCarousel({ onSelectAnime }) {
         </div>
       ) : items.length === 0 ? (
         <div className="py-8 text-center text-neutral-400 text-xs sm:text-sm">
-          {activeTab === 'top'
-            ? 'Пока нет оценённых тайтлов. Поставьте оценку любому аниме, чтобы сформировать топ!'
-            : 'Нет данных для отображения'}
+          {activeTab === 'my' ? (
+            !user ? (
+              <div className="space-y-2 py-2">
+                <p className="font-semibold text-neutral-300">Тут будут ваши оценки</p>
+                <p className="text-xs text-neutral-500">Войдите в профиль и оцените аниме, чтобы сформировать свою коллекцию</p>
+                <button
+                  type="button"
+                  onClick={onRequireAuth}
+                  className="mt-2 px-4 py-1.5 rounded-xl bg-neutral-100 text-neutral-900 text-xs font-semibold hover:opacity-90 transition-opacity"
+                >
+                  Войти в профиль
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-1 py-2">
+                <p className="font-semibold text-neutral-300">Тут будут ваши оценки</p>
+                <p className="text-xs text-neutral-500">Вы пока не поставили ни одной оценки. Оцените тайтлы в каталоге ниже!</p>
+              </div>
+            )
+          ) : activeTab === 'top' ? (
+            'Пока нет оценённых тайтлов. Поставьте оценку любому аниме, чтобы сформировать топ!'
+          ) : (
+            'Нет данных для отображения'
+          )}
         </div>
       ) : (
         <div
@@ -141,7 +206,13 @@ export default function FeaturedCarousel({ onSelectAnime }) {
                   )}
 
                   {/* Score badge */}
-                  {hasScore ? (
+                  {activeTab === 'my' ? (
+                    (anime.myScore !== null && anime.myScore !== undefined) || (anime.score !== null && anime.score !== undefined) ? (
+                      <div className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-md ${getScoreBadgeClass(anime.myScore || anime.score)}`}>
+                        ★ {anime.myScore || anime.score}
+                      </div>
+                    ) : null
+                  ) : activeTab === 'top' && user && friends.length > 0 && hasScore ? (
                     <div className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-md ${getScoreBadgeClass(anime.averageScore)}`}>
                       ★ {anime.averageScore}
                     </div>
