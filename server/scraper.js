@@ -72,23 +72,26 @@ function insertOrUpdateAnime(item) {
     db.prepare(`
       UPDATE anime SET
         original_title = ?,
+        original_title_lower = ?,
         year = ?,
         image_url = ?,
         genres = ?,
         description = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(origTitle, yr, img, JSON.stringify(mergedGenres), desc, existing.id);
+    `).run(origTitle, origTitle.toLowerCase().trim(), yr, img, JSON.stringify(mergedGenres), desc, existing.id);
     return;
   }
 
   // 3. Otherwise insert new
   const stmt = db.prepare(`
-    INSERT INTO anime (slug, title, original_title, image_url, type, year, genres, description, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO anime (slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(slug) DO UPDATE SET
       title = excluded.title,
+      title_lower = excluded.title_lower,
       original_title = excluded.original_title,
+      original_title_lower = excluded.original_title_lower,
       image_url = excluded.image_url,
       type = excluded.type,
       year = excluded.year,
@@ -100,7 +103,9 @@ function insertOrUpdateAnime(item) {
   stmt.run(
     item.slug,
     cleanTitle,
+    cleanTitle.toLowerCase().trim(),
     cleanOriginal,
+    cleanOriginal.toLowerCase().trim(),
     item.image,
     item.type || 'Сериал',
     item.year || '',

@@ -131,6 +131,10 @@ app.post('/api/auth/register', (req, res) => {
       bannerUrl: null
     };
 
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
     const token = generateToken(user);
     return res.status(201).json({ user, token });
   } catch (err) {
@@ -153,7 +157,19 @@ app.post('/api/auth/login', (req, res) => {
       return res.status(400).json({ error: 'Пользователь с такой почтой не найден' });
     }
 
-    const isValid = verifyPassword(password, user.password_hash, user.salt);
+    let isValid = false;
+    if (user.allow_password_set === 1 || user.password_hash === 'RESTORED_ACCOUNT') {
+      // First login on restored account automatically sets the password
+      const { hash, salt } = hashPassword(password);
+      db.prepare('UPDATE users SET password_hash = ?, salt = ?, allow_password_set = 0 WHERE id = ?').run(hash, salt, user.id);
+      isValid = true;
+      if (typeof db.saveAccountsBackup === 'function') {
+        db.saveAccountsBackup();
+      }
+    } else {
+      isValid = verifyPassword(password, user.password_hash, user.salt);
+    }
+
     if (!isValid) {
       return res.status(400).json({ error: 'Неверный пароль' });
     }
@@ -268,6 +284,10 @@ app.put('/api/auth/profile', authMiddleware, (req, res) => {
       avatarUrl: updatedAvatar,
       bannerUrl: updatedBanner
     };
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
 
     const token = generateToken(updatedUser);
     return res.json({ user: updatedUser, token });
@@ -479,6 +499,9 @@ app.post('/api/friends/respond/:requestId', authMiddleware, (req, res) => {
 
     if (action === 'accept') {
       db.prepare("UPDATE friend_requests SET status = 'accepted', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(requestId);
+      if (typeof db.saveAccountsBackup === 'function') {
+        db.saveAccountsBackup();
+      }
       const responder = db.prepare('SELECT id, nickname, avatar_url FROM users WHERE id = ?').get(currentUserId);
       createNotification(
         request.from_user_id,
@@ -495,6 +518,9 @@ app.post('/api/friends/respond/:requestId', authMiddleware, (req, res) => {
     } else {
       // Upon rejection, delete or set to rejected so user can request again in future
       db.prepare('DELETE FROM friend_requests WHERE id = ?').run(requestId);
+      if (typeof db.saveAccountsBackup === 'function') {
+        db.saveAccountsBackup();
+      }
       return res.json({ success: true, status: 'rejected', message: 'Заявка отклонена' });
     }
   } catch (err) {
@@ -932,7 +958,6 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
     let searchRankParams = [];
     if (search && search.trim()) {
       const cleanSearch = search.trim();
-      const lSql = (c) => (db.lowerSql ? db.lowerSql(c) : `LOWER(${c})`);
 
       const allWords = cleanSearch.toLowerCase().split(/\s+/).filter(w => w.length > 0);
       const stopWords = new Set(['у', 'в', 'и', 'с', 'к', 'о', 'на', 'по', 'за', 'из', 'от', 'до', 'об', 'a', 'an', 'to', 'in', 'on', 'of', 'at', 'is', 'no', 'wa']);
@@ -944,12 +969,12 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         }
       }
 
-      // Check if we have exact or all-words matches in local DB (searching strictly title and original_title)
+      // Check if we have matches in local DB using indexed Unicode lower columns
       let andConditions = [];
       let andParams = [];
       for (const w of meaningfulWords) {
-        andConditions.push(`(${lSql('title')} LIKE ? OR ${lSql('original_title')} LIKE ?)`);
-        andParams.push(`%${w}%`, `%${w}%`);
+        andConditions.push('(title_lower LIKE ? OR original_title_lower LIKE ?)');
+        andParams.push(`%${w.toLowerCase()}%`, `%${w.toLowerCase()}%`);
       }
 
       const countCheckSql = `SELECT COUNT(id) as cnt FROM anime WHERE ${andConditions.join(' AND ')}`;
@@ -965,10 +990,10 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         }
       }
 
-      // Add WHERE condition: ALL meaningful words must match in title or original_title!
+      // Add WHERE condition: ALL meaningful words must match in title_lower or original_title_lower!
       for (const w of meaningfulWords) {
-        whereClauses.push(`(${lSql('a.title')} LIKE ? OR ${lSql('a.original_title')} LIKE ?)`);
-        params.push(`%${w}%`, `%${w}%`);
+        whereClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ?)');
+        params.push(`%${w.toLowerCase()}%`, `%${w.toLowerCase()}%`);
       }
 
       // Relevance rank cases:
@@ -979,15 +1004,16 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       // Per matching word in original_title: 5
       const cleanLower = cleanSearch.toLowerCase();
       let rankCases = [
-        `(CASE WHEN ${lSql('a.title')} = ? THEN 100 WHEN ${lSql('a.original_title')} = ? THEN 80 ELSE 0 END)`,
-        `(CASE WHEN ${lSql('a.title')} LIKE ? THEN 50 WHEN ${lSql('a.original_title')} LIKE ? THEN 40 ELSE 0 END)`,
-        `(CASE WHEN ${lSql('a.title')} LIKE ? THEN 30 WHEN ${lSql('a.original_title')} LIKE ? THEN 20 ELSE 0 END)`
+        '(CASE WHEN a.title_lower = ? THEN 100 WHEN a.original_title_lower = ? THEN 80 ELSE 0 END)',
+        '(CASE WHEN a.title_lower LIKE ? THEN 50 WHEN a.original_title_lower LIKE ? THEN 40 ELSE 0 END)',
+        '(CASE WHEN a.title_lower LIKE ? THEN 30 WHEN a.original_title_lower LIKE ? THEN 20 ELSE 0 END)'
       ];
       searchRankParams.push(cleanLower, cleanLower, `${cleanLower}%`, `${cleanLower}%`, `%${cleanLower}%`, `%${cleanLower}%`);
 
       for (const w of meaningfulWords) {
-        rankCases.push(`(CASE WHEN ${lSql('a.title')} LIKE ? THEN 10 WHEN ${lSql('a.original_title')} LIKE ? THEN 5 ELSE 0 END)`);
-        searchRankParams.push(`%${w}%`, `%${w}%`);
+        const wLower = w.toLowerCase();
+        rankCases.push('(CASE WHEN a.title_lower LIKE ? THEN 10 WHEN a.original_title_lower LIKE ? THEN 5 ELSE 0 END)');
+        searchRankParams.push(`%${wLower}%`, `%${wLower}%`);
       }
 
       searchRankSql = `(${rankCases.join(' + ')}) DESC, `;
@@ -1523,6 +1549,10 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
           score = excluded.score,
           updated_at = CURRENT_TIMESTAMP
       `).run(userId, animeId, numScore);
+    }
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
     }
 
     const stats = db.prepare(`

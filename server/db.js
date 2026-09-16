@@ -161,15 +161,18 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at);
 `);
 
-// Migration for avatar_url and banner_url if table was created without them
+// Migrations for users and anime schema
 try {
-  const tableInfo = db.prepare('PRAGMA table_info(users)').all();
-  const columnNames = tableInfo.map(c => c.name);
-  if (!columnNames.includes('avatar_url')) {
+  const userTableInfo = db.prepare('PRAGMA table_info(users)').all();
+  const userColNames = userTableInfo.map(c => c.name);
+  if (!userColNames.includes('avatar_url')) {
     db.exec('ALTER TABLE users ADD COLUMN avatar_url TEXT;');
   }
-  if (!columnNames.includes('banner_url')) {
+  if (!userColNames.includes('banner_url')) {
     db.exec('ALTER TABLE users ADD COLUMN banner_url TEXT;');
+  }
+  if (!userColNames.includes('allow_password_set')) {
+    db.exec('ALTER TABLE users ADD COLUMN allow_password_set INTEGER DEFAULT 0;');
   }
 
   const commentsInfo = db.prepare('PRAGMA table_info(comments)').all();
@@ -177,26 +180,137 @@ try {
   if (!commentColNames.includes('parent_id')) {
     db.exec('ALTER TABLE comments ADD COLUMN parent_id INTEGER DEFAULT NULL REFERENCES comments(id) ON DELETE CASCADE;');
   }
+
+  // Anime table Unicode lower search columns
+  const animeInfo = db.prepare('PRAGMA table_info(anime)').all();
+  const animeColNames = animeInfo.map(c => c.name);
+  if (!animeColNames.includes('title_lower')) {
+    db.exec('ALTER TABLE anime ADD COLUMN title_lower TEXT;');
+  }
+  if (!animeColNames.includes('original_title_lower')) {
+    db.exec('ALTER TABLE anime ADD COLUMN original_title_lower TEXT;');
+  }
+
+  // Create indexes for fast search
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_anime_title_lower ON anime(title_lower);
+    CREATE INDEX IF NOT EXISTS idx_anime_orig_lower ON anime(original_title_lower);
+  `);
+
+  // Backfill any missing title_lower / original_title_lower using JavaScript toLowerCase()
+  const unindexedRows = db.prepare('SELECT id, title, original_title FROM anime WHERE title_lower IS NULL OR title_lower = \'\'').all();
+  if (unindexedRows.length > 0) {
+    console.log(`[Database] Indexing ${unindexedRows.length} anime titles for instant Unicode search...`);
+    const updateLowerStmt = db.prepare('UPDATE anime SET title_lower = ?, original_title_lower = ? WHERE id = ?');
+    db.exec('BEGIN TRANSACTION;');
+    for (const row of unindexedRows) {
+      const tl = (row.title || '').trim().toLowerCase();
+      const otl = (row.original_title || '').trim().toLowerCase();
+      updateLowerStmt.run(tl, otl, row.id);
+    }
+    db.exec('COMMIT;');
+    console.log('[Database] Anime search index ready.');
+  }
 } catch (e) {
   console.log('Migration note:', e.message);
 }
 
-// Purge any test users and mock data (keep ONLY genuine users registered by the user)
-try {
-  // Delete mock or test users (e.g. НовыйНикОтаку, ОтакуКлуб, test emails, demo emails)
-  db.exec(`
-    DELETE FROM ratings WHERE user_id IN (
-      SELECT id FROM users WHERE email LIKE '%@test.com' OR email LIKE '%@example.com' OR nickname IN ('НовыйНикОтаку', 'ОтакуКлуб', 'ТестовыйДруг', 'Алексей', 'Мария', 'Дмитрий')
-    );
-    DELETE FROM comments WHERE user_id IN (
-      SELECT id FROM users WHERE email LIKE '%@test.com' OR email LIKE '%@example.com' OR nickname IN ('НовыйНикОтаку', 'ОтакуКлуб', 'ТестовыйДруг', 'Алексей', 'Мария', 'Дмитрий')
-    );
-    DELETE FROM users WHERE email LIKE '%@test.com' OR email LIKE '%@example.com' OR nickname IN ('НовыйНикОтаку', 'ОтакуКлуб', 'ТестовыйДруг', 'Алексей', 'Мария', 'Дмитрий');
-  `);
-  console.log('[Database] Purged test users. Only real user accounts remain.');
-} catch (e) {
-  console.error('Error purging test accounts:', e.message);
+// Auto-restore registered accounts, ratings, friendships, and comments from persistent backup
+function restoreAccountsFromBackup() {
+  const backupFile = path.join(dataDir, 'accounts_backup.json');
+  if (!fs.existsSync(backupFile)) return;
+
+  try {
+    const raw = fs.readFileSync(backupFile, 'utf8');
+    const data = JSON.parse(raw);
+
+    // Restore users
+    if (Array.isArray(data.users)) {
+      const insertUserStmt = db.prepare(`
+        INSERT OR IGNORE INTO users (id, email, nickname, password_hash, salt, avatar_url, banner_url, allow_password_set, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (const u of data.users) {
+        insertUserStmt.run(
+          u.id,
+          u.email,
+          u.nickname,
+          u.password_hash || 'RESTORED_ACCOUNT',
+          u.salt || 'RESTORED_SALT',
+          u.avatar_url || null,
+          u.banner_url || null,
+          u.allow_password_set !== undefined ? u.allow_password_set : 0,
+          u.created_at || new Date().toISOString()
+        );
+      }
+    }
+
+    // Restore friend requests
+    if (Array.isArray(data.friendRequests)) {
+      const insertFriendStmt = db.prepare(`
+        INSERT OR IGNORE INTO friend_requests (id, from_user_id, to_user_id, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      for (const f of data.friendRequests) {
+        insertFriendStmt.run(f.id, f.from_user_id, f.to_user_id, f.status, f.created_at, f.updated_at);
+      }
+    }
+
+    // Restore ratings
+    if (Array.isArray(data.ratings)) {
+      const insertRatingStmt = db.prepare(`
+        INSERT OR IGNORE INTO ratings (id, user_id, anime_id, score, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      for (const r of data.ratings) {
+        insertRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
+      }
+    }
+
+    // Restore comments
+    if (Array.isArray(data.comments)) {
+      const insertCommentStmt = db.prepare(`
+        INSERT OR IGNORE INTO comments (id, anime_id, user_id, content, parent_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      for (const c of data.comments) {
+        insertCommentStmt.run(c.id, c.anime_id, c.user_id, c.content, c.parent_id || null, c.created_at);
+      }
+    }
+
+    console.log('[Database] Auto-restored accounts, friendships, and ratings from accounts_backup.json.');
+  } catch (err) {
+    console.error('[Database] Failed to restore from accounts_backup.json:', err.message);
+  }
 }
+
+restoreAccountsFromBackup();
+
+// Helper to snapshot current accounts state to accounts_backup.json
+function saveAccountsBackup() {
+  try {
+    const backupFile = path.join(dataDir, 'accounts_backup.json');
+    const users = db.prepare('SELECT * FROM users').all();
+    const ratings = db.prepare('SELECT * FROM ratings').all();
+    const friendRequests = db.prepare('SELECT * FROM friend_requests').all();
+    const comments = db.prepare('SELECT * FROM comments').all();
+
+    const snapshot = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      users,
+      ratings,
+      friendRequests,
+      comments
+    };
+
+    fs.writeFileSync(backupFile, JSON.stringify(snapshot, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[Database] Failed to snapshot accounts_backup.json:', err.message);
+  }
+}
+
+db.saveAccountsBackup = saveAccountsBackup;
 
 // Auto-deduplicate anime records on startup
 function deduplicateAnimeDatabase() {
