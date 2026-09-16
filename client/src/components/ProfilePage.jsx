@@ -6,24 +6,101 @@ import { getUserLevel, LEVELS_CONFIG } from '../utils/levels';
 
 function LevelIcon({ iconName, className = 'w-5 h-5' }) {
   switch (iconName) {
-    case 'Ghost':
-      return <Ghost className={className} />;
-    case 'Swords':
-      return <Swords className={className} />;
+    case 'OshiStar':
     case 'Star':
-      return <Star className={className} />;
-    case 'Sparkles':
-      return <Sparkles className={className} />;
-    case 'Gamepad2':
-      return <Gamepad2 className={className} />;
-    case 'Crown':
-      return <Crown className={className} />;
+      // Ребёнок идола (Звезда Ай Хосино)
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6Z" />
+          <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+          <path d="M6 6l1 1M18 6l-1 1M6 18l1-1M18 18l-1-1" strokeWidth="1.5" />
+        </svg>
+      );
+    case 'SpiritFlame':
+    case 'Ghost':
+      // Шаман Кинг (Дух-хранитель / Пламя фурёку)
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M12 2.5C7.5 5.5 5 9.5 5 14a7 7 0 0 0 14 0c0-3.5-1.5-6.5-4.5-9L12 2.5z" />
+          <path d="M12 9c-1.5 1.5-2 3.5-2 5a2 2 0 0 0 4 0c0-1.5-1-3-2-5z" fill="currentColor" fillOpacity="0.2" />
+          <circle cx="12" cy="14" r="1.2" fill="currentColor" />
+        </svg>
+      );
+    case 'CursedFlash':
     case 'Zap':
-      return <Zap className={className} />;
+      // Магическая битва (Чёрная молния Кокусэн)
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M13 2L4 13.5h6.5l-2 8.5 11.5-12.5h-6.5l2.5-9.5z" />
+          <path d="M3 3l2 2M19 19l2 2M21 4l-2 2M5 20l-2-2" strokeWidth="1.5" />
+        </svg>
+      );
+    case 'BlankBrackets':
+    case 'Gamepad2':
+      // Нет игры — нет жизни (Символ Пустых 『 』)
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M4 8V4h4" />
+          <path d="M4 16v4h4" />
+          <path d="M20 8V4h-4" />
+          <path d="M20 16v4h-4" />
+          <rect x="8.5" y="8.5" width="7" height="7" rx="1.5" />
+          <path d="M12 8.5v7M8.5 12h7" />
+        </svg>
+      );
+    case 'StageSparkles':
+    case 'Sparkles':
+      // Ребёнок идола (Софиты главной сцены)
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M12 2l2.2 6.3L20.5 10.5l-6.3 2.2L12 19l-2.2-6.3L3.5 10.5l6.3-2.2L12 2z" />
+          <path d="M18.5 16.5l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1 1-2.5z" />
+          <circle cx="5" cy="5" r="1" fill="currentColor" />
+        </svg>
+      );
+    case 'ImanityCrown':
+    case 'Crown':
+      // Нет игры — нет жизни (Корона Короля Иманити)
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M3 18h18l-2-11-4.5 4L12 4 9.5 11 5 7 3 18z" />
+          <path d="M3 20h18" strokeWidth="2" />
+          <circle cx="12" cy="4" r="1.2" fill="currentColor" />
+          <circle cx="5" cy="7" r="1.2" fill="currentColor" />
+          <circle cx="19" cy="7" r="1.2" fill="currentColor" />
+        </svg>
+      );
+    case 'ShamanBlade':
+    case 'Swords':
+      // Шаман Кинг (Клинок Оверсоула Фуцуномитама)
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M14.5 2.5L21.5 9.5 9 22H2v-7L14.5 2.5z" />
+          <path d="M13 4l7 7" />
+          <path d="M7 17l-3 3" />
+          <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
+        </svg>
+      );
+    case 'SixEyes':
     case 'Eye':
-      return <Eye className={className} />;
+      // Магическая битва (Шесть Глаз Рикуган Сатору Годзё)
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+          <circle cx="12" cy="12" r="4" />
+          <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+          <path d="M12 4v2.5M12 17.5V20M4 12h2.5M17.5 12H20" strokeWidth="1.5" />
+        </svg>
+      );
+    case 'LimitlessVoid':
     case 'Infinity':
-      return <Infinity className={className} />;
+      // Магическая битва (Необъятная бездна Бесконечность)
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z" />
+          <circle cx="12" cy="12" r="9.5" strokeDasharray="2 3" strokeWidth="1.2" />
+        </svg>
+      );
     default:
       return <Award className={className} />;
   }
