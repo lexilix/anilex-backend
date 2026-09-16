@@ -198,4 +198,64 @@ try {
   console.error('Error purging test accounts:', e.message);
 }
 
+// Auto-deduplicate anime records on startup
+function deduplicateAnimeDatabase() {
+  try {
+    const duplicates = db.prepare(`
+      SELECT LOWER(TRIM(title)) as norm_title, year, COUNT(*) as count, GROUP_CONCAT(id) as ids
+      FROM anime
+      GROUP BY LOWER(TRIM(title)), year
+      HAVING count > 1
+    `).all();
+
+    if (duplicates.length === 0) return;
+    console.log(`[Database] Found ${duplicates.length} duplicate anime groups. Merging...`);
+
+    for (const group of duplicates) {
+      const idList = group.ids.split(',').map(Number);
+      const records = db.prepare(`SELECT * FROM anime WHERE id IN (${idList.join(',')})`).all();
+      if (records.length < 2) continue;
+
+      records.sort((a, b) => {
+        const aIsAnimeGo = !a.slug.startsWith('shiki-');
+        const bIsAnimeGo = !b.slug.startsWith('shiki-');
+        if (aIsAnimeGo && !bIsAnimeGo) return -1;
+        if (!aIsAnimeGo && bIsAnimeGo) return 1;
+        const aDesc = (a.description || '').length;
+        const bDesc = (b.description || '').length;
+        if (aDesc !== bDesc) return bDesc - aDesc;
+        return a.id - b.id;
+      });
+
+      const keeper = records[0];
+      const toDelete = records.slice(1);
+
+      let keeperGenres = [];
+      try { keeperGenres = JSON.parse(keeper.genres || '[]'); } catch (e) {}
+
+      for (const dup of toDelete) {
+        let dupGenres = [];
+        try { dupGenres = JSON.parse(dup.genres || '[]'); } catch (e) {}
+        for (const g of dupGenres) {
+          if (!keeperGenres.includes(g)) keeperGenres.push(g);
+        }
+
+        db.prepare(`UPDATE OR IGNORE ratings SET anime_id = ? WHERE anime_id = ?`).run(keeper.id, dup.id);
+        db.prepare(`DELETE FROM ratings WHERE anime_id = ?`).run(dup.id);
+        db.prepare(`UPDATE OR IGNORE favorites SET anime_id = ? WHERE anime_id = ?`).run(keeper.id, dup.id);
+        db.prepare(`DELETE FROM favorites WHERE anime_id = ?`).run(dup.id);
+        db.prepare(`UPDATE comments SET anime_id = ? WHERE anime_id = ?`).run(keeper.id, dup.id);
+        db.prepare(`DELETE FROM anime WHERE id = ?`).run(dup.id);
+      }
+
+      db.prepare(`UPDATE anime SET genres = ? WHERE id = ?`).run(JSON.stringify(keeperGenres), keeper.id);
+    }
+    console.log('[Database] Deduplication completed successfully.');
+  } catch (err) {
+    console.error('[Database] Deduplication error:', err.message);
+  }
+}
+
+deduplicateAnimeDatabase();
+
 module.exports = db;

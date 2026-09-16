@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { UserPlus, MessageSquare, Check, X, ExternalLink } from 'lucide-react';
 
 export default function NotificationToast({
@@ -11,7 +11,7 @@ export default function NotificationToast({
   if (!toasts || toasts.length === 0) return null;
 
   return (
-    <aside aria-label="Уведомления" className="fixed top-20 right-4 sm:right-6 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+    <aside aria-label="Уведомления" className="fixed bottom-6 right-4 sm:right-6 z-50 flex flex-col-reverse gap-3 max-w-sm w-full pointer-events-none">
       {toasts.map((toast) => (
         <ToastItem
           key={toast.id}
@@ -30,7 +30,7 @@ function ToastItem({ toast, onDismiss, onAccept, onReject, onNavigate }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onDismiss();
-    }, 7000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [onDismiss]);
 
@@ -40,7 +40,7 @@ function ToastItem({ toast, onDismiss, onAccept, onReject, onNavigate }) {
   return (
     <div
       role="status"
-      className="pointer-events-auto w-full rounded-2xl backdrop-blur-xl bg-white/85 dark:bg-[#18181b]/90 border border-white/40 dark:border-white/10 shadow-2xl p-4 text-neutral-900 dark:text-neutral-100 transition-all duration-300 animate-in fade-in slide-in-from-top-4"
+      className="pointer-events-auto w-full rounded-2xl backdrop-blur-xl bg-white/85 dark:bg-[#18181b]/90 border border-white/40 dark:border-white/10 shadow-2xl p-4 text-neutral-900 dark:text-neutral-100 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
@@ -110,7 +110,7 @@ function ToastItem({ toast, onDismiss, onAccept, onReject, onNavigate }) {
             className="w-full py-1.5 px-3 rounded-xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
           >
             <ExternalLink className="w-3.5 h-3.5" />
-            <span>Перейти к обсуждению</span>
+            <span>Открыть и перейти к комментарию</span>
           </button>
         </div>
       )}

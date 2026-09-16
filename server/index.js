@@ -28,6 +28,7 @@ const {
   seedInitialData,
   syncFromAnimeGo,
   fetchNextAnimeGoPage,
+  fetchOngoingAnime,
   searchAnimeGo,
   searchShikimori
 } = require('./scraper');
@@ -739,28 +740,62 @@ app.get('/api/types', (req, res) => {
 // ----------------------------------------------------
 // FEATURED CAROUSEL (TOP RATED & NEWEST)
 // ----------------------------------------------------
-app.get('/api/anime/featured', optionalAuthMiddleware, (req, res) => {
+app.get('/api/anime/featured', optionalAuthMiddleware, async (req, res) => {
   try {
     const currentUserId = req.user ? req.user.id : null;
     const { tab = 'top', limit = 15 } = req.query;
     const limitNum = Math.min(30, Math.max(5, parseInt(limit, 10) || 15));
 
-    let orderBySql = '';
-    let havingSql = '';
     if (tab === 'newest') {
-      orderBySql = "ORDER BY (CASE WHEN a.year IS NOT NULL AND a.year != '' THEN a.year ELSE '0000' END) DESC, a.id DESC";
-    } else {
-      // Top rated: strictly ONLY anime that have at least 1 user rating!
-      havingSql = 'HAVING COUNT(r.id) > 0';
-      orderBySql = `
-        ORDER BY
-          avg_score DESC,
-          rating_count DESC,
-          (CASE WHEN a.year IS NOT NULL AND a.year != '' THEN a.year ELSE '0000' END) DESC,
-          a.id DESC
-      `;
+      // 15 live ongoings airing right now from AnimeGO /anime/status/ongoing
+      const ongoingItems = await fetchOngoingAnime(limitNum);
+      const formatted = [];
+
+      for (const item of ongoingItems) {
+        // Find in DB to get real ID and ratings
+        const dbRow = db.prepare(`
+          SELECT
+            a.id,
+            a.slug,
+            a.title,
+            a.original_title,
+            a.image_url,
+            a.type,
+            a.year,
+            a.genres,
+            a.description,
+            ROUND(AVG(r.score), 1) as avg_score,
+            COUNT(r.id) as rating_count,
+            (SELECT score FROM ratings WHERE anime_id = a.id AND user_id = ?) as my_score
+          FROM anime a
+          LEFT JOIN ratings r ON a.id = r.anime_id
+          WHERE a.slug = ? OR LOWER(TRIM(a.title)) = LOWER(?)
+          GROUP BY a.id
+          LIMIT 1
+        `).get(currentUserId || -1, item.slug, (item.title || '').trim());
+
+        if (dbRow) {
+          formatted.push({
+            id: dbRow.id,
+            slug: dbRow.slug,
+            title: dbRow.title,
+            originalTitle: dbRow.original_title,
+            imageUrl: dbRow.image_url,
+            type: dbRow.type,
+            year: dbRow.year,
+            genres: JSON.parse(dbRow.genres || '[]'),
+            description: dbRow.description,
+            myScore: dbRow.my_score !== null && dbRow.my_score !== undefined ? dbRow.my_score : null,
+            averageScore: dbRow.rating_count > 0 && dbRow.avg_score !== null ? Number(dbRow.avg_score) : null,
+            ratingCount: Number(dbRow.rating_count)
+          });
+        }
+      }
+
+      return res.json({ items: formatted.slice(0, 15) });
     }
 
+    // Top rated: strictly ONLY anime that have at least 1 user rating!
     const items = db.prepare(`
       SELECT
         a.id,
@@ -780,9 +815,13 @@ app.get('/api/anime/featured', optionalAuthMiddleware, (req, res) => {
         ) as my_score
       FROM anime a
       LEFT JOIN ratings r ON a.id = r.anime_id
-      GROUP BY a.id
-      ${havingSql}
-      ${orderBySql}
+      GROUP BY LOWER(TRIM(a.title)), a.year
+      HAVING COUNT(r.id) > 0
+      ORDER BY
+        avg_score DESC,
+        rating_count DESC,
+        (CASE WHEN a.year IS NOT NULL AND a.year != '' THEN a.year ELSE '0000' END) DESC,
+        a.id DESC
       LIMIT ?
     `).all(currentUserId || -1, Math.min(15, limitNum));
 
@@ -837,16 +876,26 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
     let searchRankParams = [];
     if (search && search.trim()) {
       const cleanSearch = search.trim();
-      const words = cleanSearch.toLowerCase().split(/\s+/).filter(w => w.length > 0);
-
-      // Check if we have exact/all-words matches in local DB
       const lSql = (c) => (db.lowerSql ? db.lowerSql(c) : `LOWER(${c})`);
+
+      const allWords = cleanSearch.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+      const stopWords = new Set(['у', 'в', 'и', 'с', 'к', 'о', 'на', 'по', 'за', 'из', 'от', 'до', 'об', 'a', 'an', 'to', 'in', 'on', 'of', 'at', 'is', 'no', 'wa']);
+      let meaningfulWords = allWords.filter(w => w.length > 2 && !stopWords.has(w));
+      if (meaningfulWords.length === 0) {
+        meaningfulWords = allWords.filter(w => w.length > 1);
+        if (meaningfulWords.length === 0) {
+          meaningfulWords = allWords;
+        }
+      }
+
+      // Check if we have exact or all-words matches in local DB (searching strictly title and original_title)
       let andConditions = [];
       let andParams = [];
-      for (const w of words) {
-        andConditions.push(`(${lSql('title')} LIKE ? OR ${lSql('original_title')} LIKE ? OR ${lSql('description')} LIKE ?)`);
-        andParams.push(`%${w}%`, `%${w}%`, `%${w}%`);
+      for (const w of meaningfulWords) {
+        andConditions.push(`(${lSql('title')} LIKE ? OR ${lSql('original_title')} LIKE ?)`);
+        andParams.push(`%${w}%`, `%${w}%`);
       }
+
       const countCheckSql = `SELECT COUNT(id) as cnt FROM anime WHERE ${andConditions.join(' AND ')}`;
       const countCheck = db.prepare(countCheckSql).get(...andParams);
 
@@ -860,31 +909,32 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         }
       }
 
-      // Re-check if all-words condition now yields results
-      const recheck = db.prepare(countCheckSql).get(...andParams);
-      if (recheck && recheck.cnt > 0) {
-        for (const w of words) {
-          whereClauses.push(`(${lSql('a.title')} LIKE ? OR ${lSql('a.original_title')} LIKE ? OR ${lSql('a.description')} LIKE ?)`);
-          params.push(`%${w}%`, `%${w}%`, `%${w}%`);
-        }
-      } else {
-        // Fallback: match ANY word
-        let orConditions = [];
-        for (const w of words) {
-          orConditions.push(`(${lSql('a.title')} LIKE ? OR ${lSql('a.original_title')} LIKE ? OR ${lSql('a.description')} LIKE ?)`);
-          params.push(`%${w}%`, `%${w}%`, `%${w}%`);
-        }
-        if (orConditions.length > 0) {
-          whereClauses.push(`(${orConditions.join(' OR ')})`);
-        }
+      // Add WHERE condition: ALL meaningful words must match in title or original_title!
+      for (const w of meaningfulWords) {
+        whereClauses.push(`(${lSql('a.title')} LIKE ? OR ${lSql('a.original_title')} LIKE ?)`);
+        params.push(`%${w}%`, `%${w}%`);
       }
 
-      // Add relevance scoring for search ordering: exact title matches first, then description
-      const rankCases = words.map(() => `(CASE WHEN ${lSql('a.title')} LIKE ? THEN 5 WHEN ${lSql('a.original_title')} LIKE ? THEN 3 WHEN ${lSql('a.description')} LIKE ? THEN 1 ELSE 0 END)`).join(' + ');
-      searchRankSql = `(${rankCases}) DESC, `;
-      for (const w of words) {
-        searchRankParams.push(`%${w}%`, `%${w}%`, `%${w}%`);
+      // Relevance rank cases:
+      // Exact title match: 100
+      // Starts with title: 50
+      // Contains full phrase: 30
+      // Per matching word in title: 10
+      // Per matching word in original_title: 5
+      const cleanLower = cleanSearch.toLowerCase();
+      let rankCases = [
+        `(CASE WHEN ${lSql('a.title')} = ? THEN 100 WHEN ${lSql('a.original_title')} = ? THEN 80 ELSE 0 END)`,
+        `(CASE WHEN ${lSql('a.title')} LIKE ? THEN 50 WHEN ${lSql('a.original_title')} LIKE ? THEN 40 ELSE 0 END)`,
+        `(CASE WHEN ${lSql('a.title')} LIKE ? THEN 30 WHEN ${lSql('a.original_title')} LIKE ? THEN 20 ELSE 0 END)`
+      ];
+      searchRankParams.push(cleanLower, cleanLower, `${cleanLower}%`, `${cleanLower}%`, `%${cleanLower}%`, `%${cleanLower}%`);
+
+      for (const w of meaningfulWords) {
+        rankCases.push(`(CASE WHEN ${lSql('a.title')} LIKE ? THEN 10 WHEN ${lSql('a.original_title')} LIKE ? THEN 5 ELSE 0 END)`);
+        searchRankParams.push(`%${w}%`, `%${w}%`);
       }
+
+      searchRankSql = `(${rankCases.join(' + ')}) DESC, `;
     }
 
     // Year filter
@@ -962,7 +1012,15 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
 
     // ORDER BY
     let orderBySql = "ORDER BY (CASE WHEN a.year IS NOT NULL AND a.year != '' THEN a.year ELSE '0000' END) DESC, a.id DESC";
-    if (sort === 'year_desc') {
+    if (sort === 'my_score_desc') {
+      orderBySql = `
+        ORDER BY
+          (CASE WHEN my_score IS NOT NULL THEN my_score ELSE -1 END) DESC,
+          (CASE WHEN avg_score IS NOT NULL THEN avg_score ELSE 0 END) DESC,
+          (CASE WHEN a.year IS NOT NULL AND a.year != '' THEN a.year ELSE '0000' END) DESC,
+          a.id DESC
+      `;
+    } else if (sort === 'year_desc') {
       orderBySql = "ORDER BY (CASE WHEN a.year IS NOT NULL AND a.year != '' THEN a.year ELSE '0000' END) DESC, a.id DESC";
     } else if (sort === 'year_asc') {
       orderBySql = "ORDER BY (CASE WHEN a.year IS NOT NULL AND a.year != '' THEN a.year ELSE '9999' END) ASC, a.id ASC";
@@ -1029,13 +1087,13 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       FROM anime a
       LEFT JOIN ratings r ON a.id = r.anime_id
       ${whereSql}
-      GROUP BY a.id
+      GROUP BY LOWER(TRIM(a.title)), a.year
       ${orderBySql}
       LIMIT ? OFFSET ?
     `;
 
     const countSql = `
-      SELECT COUNT(DISTINCT a.id) as total
+      SELECT COUNT(DISTINCT (LOWER(TRIM(a.title)) || '_' || a.year)) as total
       FROM anime a
       ${whereSql}
     `;
@@ -1074,23 +1132,32 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
 
     const isCatalogEndless = (!filterStatus || filterStatus === 'all') && !search && (!genres || genres.trim().length === 0) && (!type || type === 'all') && (!year || year === 'all');
 
-    const formattedItems = items.map(item => ({
-      id: item.id,
-      slug: item.slug,
-      title: item.title,
-      originalTitle: item.original_title,
-      imageUrl: item.image_url,
-      type: item.type,
-      year: item.year,
-      genres: JSON.parse(item.genres || '[]'),
-      description: item.description,
-      myScore: item.my_score !== null && item.my_score !== undefined ? item.my_score : null,
-      isFavorite: Boolean(item.is_favorite),
-      averageScore: item.rating_count > 0 && item.avg_score !== null ? Number(item.avg_score) : null,
-      ratingCount: Number(item.rating_count),
-      commentsCount: Number(item.comments_count || 0),
-      friendsRatings: friendsMap[item.id] || []
-    }));
+    const seenTitles = new Set();
+    const formattedItems = [];
+
+    for (const item of items) {
+      const key = `${(item.title || '').trim().toLowerCase()}_${item.year || ''}`;
+      if (seenTitles.has(key)) continue;
+      seenTitles.add(key);
+
+      formattedItems.push({
+        id: item.id,
+        slug: item.slug,
+        title: item.title,
+        originalTitle: item.original_title,
+        imageUrl: item.image_url,
+        type: item.type,
+        year: item.year,
+        genres: JSON.parse(item.genres || '[]'),
+        description: item.description,
+        myScore: item.my_score !== null && item.my_score !== undefined ? item.my_score : null,
+        isFavorite: Boolean(item.is_favorite),
+        averageScore: item.rating_count > 0 && item.avg_score !== null ? Number(item.avg_score) : null,
+        ratingCount: Number(item.rating_count),
+        commentsCount: Number(item.comments_count || 0),
+        friendsRatings: friendsMap[item.id] || []
+      });
+    }
 
     return res.json({
       items: formattedItems,

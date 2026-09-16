@@ -525,7 +525,7 @@ export default function AnimeDetailPage({
       </div>
 
       {/* Comments Section */}
-      <div className="rounded-3xl bg-white dark:bg-[#151518] p-6 sm:p-8 shadow-sm space-y-6">
+      <div id="comments-section" className="rounded-3xl bg-white dark:bg-[#151518] p-6 sm:p-8 shadow-sm space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-neutral-500" />
@@ -593,8 +593,9 @@ export default function AnimeDetailPage({
 
               return (
                 <div
+                  id={`comment-${comment.id}`}
                   key={comment.id}
-                  className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 space-y-3"
+                  className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 space-y-3 transition-all duration-500"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -728,8 +729,9 @@ export default function AnimeDetailPage({
 
                         return (
                           <div
+                            id={`comment-${reply.id}`}
                             key={reply.id}
-                            className="p-3 rounded-xl bg-neutral-100/70 dark:bg-neutral-800/60 flex items-start justify-between gap-3"
+                            className="p-3 rounded-xl bg-neutral-100/70 dark:bg-neutral-800/60 flex items-start justify-between gap-3 transition-all duration-500"
                           >
                             <div className="flex items-start gap-2.5 flex-1 min-w-0">
                               <div className="w-6 h-6 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-[10px] font-bold flex items-center justify-center shrink-0">

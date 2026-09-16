@@ -194,11 +194,11 @@ export default function App() {
     }
   }, [token]);
 
-  // Notifications polling (every 10s when authenticated)
+  // Notifications polling (every 5s when authenticated)
   useEffect(() => {
     if (!token) return;
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000);
+    const interval = setInterval(fetchNotifications, 5000);
     return () => clearInterval(interval);
   }, [token, fetchNotifications]);
 
@@ -297,6 +297,24 @@ export default function App() {
     handleMarkNotificationAsRead(notif.id);
     if (notif.data?.animeId) {
       navigateTo('anime-detail', notif.data.animeId);
+      const targetCommentId = notif.data?.commentId || notif.data?.replyId;
+      setTimeout(() => {
+        if (targetCommentId) {
+          const el = document.getElementById(`comment-${targetCommentId}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('ring-2', 'ring-neutral-400', 'dark:ring-neutral-500');
+            setTimeout(() => {
+              el.classList.remove('ring-2', 'ring-neutral-400', 'dark:ring-neutral-500');
+            }, 3000);
+            return;
+          }
+        }
+        const section = document.getElementById('comments-section');
+        if (section) {
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 500);
     }
   };
 
@@ -331,15 +349,28 @@ export default function App() {
         const data = await res.json();
         const newItems = data.items || [];
 
+        const sanitizeList = (list) => {
+          const seen = new Set();
+          return list.filter((item) => {
+            const key = `${(item.title || '').trim().toLowerCase()}_${item.year || ''}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        };
+
         if (isAppend) {
           setAnimeList((prev) => {
-            // Avoid duplicates by ID
+            const existingKeys = new Set(prev.map((i) => `${(i.title || '').trim().toLowerCase()}_${i.year || ''}`));
             const existingIds = new Set(prev.map((i) => i.id));
-            const filtered = newItems.filter((i) => !existingIds.has(i.id));
-            return [...prev, ...filtered];
+            const filtered = newItems.filter((i) => {
+              const key = `${(i.title || '').trim().toLowerCase()}_${i.year || ''}`;
+              return !existingIds.has(i.id) && !existingKeys.has(key);
+            });
+            return sanitizeList([...prev, ...filtered]);
           });
         } else {
-          setAnimeList(newItems);
+          setAnimeList(sanitizeList(newItems));
         }
 
         setTotalCount(data.total || 0);

@@ -51,6 +51,7 @@ export default function ProfilePage({
   // Public friend profile preview state
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [friendRatings, setFriendRatings] = useState([]);
+  const [friendScoreFilter, setFriendScoreFilter] = useState('top5');
 
   // Fetch rated anime
   const fetchRated = useCallback(async () => {
@@ -252,6 +253,7 @@ export default function ProfilePage({
         const data = await res.json();
         setSelectedFriend(data.user);
         setFriendRatings(data.ratings || []);
+        setFriendScoreFilter('top5');
       }
     } catch (err) {
       console.error('Error loading friend profile:', err);
@@ -1142,49 +1144,143 @@ export default function ProfilePage({
                     </div>
                   </div>
                 ) : (
-                  <div>
-                    <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">
-                      Оценки друга ({friendRatings.length})
-                    </h4>
+                  <div className="space-y-3">
+                    {(() => {
+                      const sortedFriendRatings = [...friendRatings].sort(
+                        (a, b) => (b.score || 0) - (a.score || 0)
+                      );
+                      const availableScores = Array.from(
+                        new Set(friendRatings.map((item) => item.score))
+                      ).sort((a, b) => b - a);
 
-                    {friendRatings.length === 0 ? (
-                      <p className="text-xs text-neutral-400 py-6 text-center">
-                        У этого пользователя пока нет оценок.
-                      </p>
-                    ) : (
-                      <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
-                        {friendRatings.map((item) => (
-                          <div
-                            key={item.id}
-                            onClick={() => {
-                              setSelectedFriend(null);
-                              onSelectAnime(item.id);
-                            }}
-                            className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 flex items-center justify-between gap-3 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-10 aspect-[5/7] rounded-lg overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0">
-                                <img
-                                  src={getImageUrl(item.imageUrl)}
-                                  alt={item.title}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                  }}
-                                />
-                              </div>
-                              <span className="text-xs font-semibold text-neutral-900 dark:text-white truncate">
-                                {item.title}
+                      let displayedRatings = [];
+                      if (friendScoreFilter === 'top5') {
+                        displayedRatings = sortedFriendRatings.slice(0, 5);
+                      } else if (friendScoreFilter === 'all') {
+                        displayedRatings = sortedFriendRatings;
+                      } else {
+                        const targetScore = parseInt(friendScoreFilter, 10);
+                        displayedRatings = sortedFriendRatings.filter(
+                          (item) => item.score === targetScore
+                        );
+                      }
+
+                      return (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                              {friendScoreFilter === 'top5'
+                                ? 'Топ-5 лучших тайтлов'
+                                : friendScoreFilter === 'all'
+                                ? `Все оценки (${friendRatings.length})`
+                                : `Оценка ${friendScoreFilter} / 10 (${displayedRatings.length})`}
+                            </h4>
+                            {friendScoreFilter === 'top5' && friendRatings.length > 5 && (
+                              <span className="text-[11px] text-neutral-400">
+                                Показано 5 из {friendRatings.length}
                               </span>
-                            </div>
-
-                            <span className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 ${getScoreBadgeClass(item.score)}`}>
-                              {item.score} / 10
-                            </span>
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    )}
+
+                          {/* Filter Chips */}
+                          {friendRatings.length > 0 && (
+                            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                              <button
+                                type="button"
+                                onClick={() => setFriendScoreFilter('top5')}
+                                className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                                  friendScoreFilter === 'top5'
+                                    ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 shadow-sm'
+                                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                                }`}
+                              >
+                                Топ-5
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFriendScoreFilter('all')}
+                                className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                                  friendScoreFilter === 'all'
+                                    ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 shadow-sm'
+                                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                                }`}
+                              >
+                                Все ({friendRatings.length})
+                              </button>
+                              {availableScores.map((sc) => {
+                                const count = friendRatings.filter((it) => it.score === sc).length;
+                                return (
+                                  <button
+                                    key={sc}
+                                    type="button"
+                                    onClick={() => setFriendScoreFilter(String(sc))}
+                                    className={`px-2.5 py-1 rounded-xl text-xs font-semibold whitespace-nowrap flex items-center gap-1 transition-colors ${
+                                      friendScoreFilter === String(sc)
+                                        ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 shadow-sm'
+                                        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                                    }`}
+                                  >
+                                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                    <span>{sc}</span>
+                                    <span className="text-[10px] opacity-70">({count})</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {friendRatings.length === 0 ? (
+                            <p className="text-xs text-neutral-400 py-6 text-center">
+                              У этого пользователя пока нет оценок.
+                            </p>
+                          ) : displayedRatings.length === 0 ? (
+                            <p className="text-xs text-neutral-400 py-6 text-center">
+                              Тайтлы с оценкой {friendScoreFilter} не найдены.
+                            </p>
+                          ) : (
+                            <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+                              {displayedRatings.map((item) => (
+                                <div
+                                  key={item.id}
+                                  onClick={() => {
+                                    setSelectedFriend(null);
+                                    onSelectAnime(item.id);
+                                  }}
+                                  className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 flex items-center justify-between gap-3 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 aspect-[5/7] rounded-lg overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0">
+                                      <img
+                                        src={getImageUrl(item.imageUrl)}
+                                        alt={item.title}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <span className="text-xs font-semibold text-neutral-900 dark:text-white truncate block">
+                                        {item.title}
+                                      </span>
+                                      {item.year && (
+                                        <span className="text-[11px] text-neutral-400">
+                                          {item.year}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <span className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 ${getScoreBadgeClass(item.score)}`}>
+                                    {item.score} / 10
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

@@ -13,10 +13,76 @@ function setLastScrapedPage(page) {
   `).run(String(page));
 }
 
-// Save anime items safely into database
+// Save anime items safely into database (with strict deduplication)
 function insertOrUpdateAnime(item) {
   if (!item.title || !item.slug || !item.image) return;
 
+  const cleanTitle = item.title.trim();
+  const cleanOriginal = (item.originalTitle || '').trim();
+
+  // 1. Check if an anime with this slug exists
+  let existing = db.prepare('SELECT id, slug, title, original_title, image_url, type, year, genres, description FROM anime WHERE slug = ?').get(item.slug);
+
+  // 2. If not found by slug, check by normalized title and year (or title alone)
+  if (!existing) {
+    if (item.year) {
+      existing = db.prepare(`
+        SELECT id, slug, title, original_title, image_url, type, year, genres, description
+        FROM anime
+        WHERE LOWER(TRIM(title)) = LOWER(?) AND year = ?
+      `).get(cleanTitle, item.year);
+    }
+    if (!existing) {
+      existing = db.prepare(`
+        SELECT id, slug, title, original_title, image_url, type, year, genres, description
+        FROM anime
+        WHERE LOWER(TRIM(title)) = LOWER(?)
+           OR (original_title != '' AND LOWER(TRIM(original_title)) = LOWER(?))
+      `).get(cleanTitle, cleanOriginal || cleanTitle);
+    }
+  }
+
+  if (existing) {
+    // Merge without creating a duplicate row!
+    let mergedGenres = [];
+    try { mergedGenres = JSON.parse(existing.genres || '[]'); } catch (e) {}
+    if (Array.isArray(item.genres) && item.genres.length > 0) {
+      for (const g of item.genres) {
+        if (!mergedGenres.includes(g)) mergedGenres.push(g);
+      }
+    }
+
+    const desc = (existing.description && existing.description.length > 40)
+      ? existing.description
+      : (item.description || existing.description || '');
+
+    let origTitle = existing.original_title || '';
+    if (cleanOriginal) {
+      if (!origTitle) {
+        origTitle = cleanOriginal;
+      } else if (!origTitle.toLowerCase().includes(cleanOriginal.toLowerCase())) {
+        origTitle = `${origTitle} / ${cleanOriginal}`;
+      }
+    }
+    const yr = existing.year || item.year || '';
+    const img = (!existing.image_url || existing.image_url.includes('shikimori')) && !item.slug.startsWith('shiki-')
+      ? item.image
+      : (existing.image_url || item.image);
+
+    db.prepare(`
+      UPDATE anime SET
+        original_title = ?,
+        year = ?,
+        image_url = ?,
+        genres = ?,
+        description = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(origTitle, yr, img, JSON.stringify(mergedGenres), desc, existing.id);
+    return;
+  }
+
+  // 3. Otherwise insert new
   const stmt = db.prepare(`
     INSERT INTO anime (slug, title, original_title, image_url, type, year, genres, description, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -33,8 +99,8 @@ function insertOrUpdateAnime(item) {
 
   stmt.run(
     item.slug,
-    item.title,
-    item.originalTitle || '',
+    cleanTitle,
+    cleanOriginal,
     item.image,
     item.type || 'Сериал',
     item.year || '',
@@ -262,6 +328,15 @@ async function searchAnimeGo(query) {
                 .trim();
             }
 
+            // Alternate Name (English title e.g. "Solo Leveling", "Komi Can't Communicate")
+            const altNameMatch = dHtml.match(/"alternateName":\s*"([^"]+)"/i);
+            if (altNameMatch && altNameMatch[1]) {
+              const alt = altNameMatch[1].trim();
+              if (alt && (!item.originalTitle || !item.originalTitle.toLowerCase().includes(alt.toLowerCase()))) {
+                item.originalTitle = item.originalTitle ? `${item.originalTitle} / ${alt}` : alt;
+              }
+            }
+
             // Genres
             const detailGenres = [...dHtml.matchAll(/href="\/anime\/genre\/([^"]+)"[^>]*>([^<]+)<\/a>/g)]
               .map(g => g[2].trim());
@@ -275,7 +350,13 @@ async function searchAnimeGo(query) {
       })
     );
 
+    const isQueryAscii = /^[a-zA-Z0-9\s':\-!]+$/.test(cleanQuery);
     for (const item of items) {
+      if (isQueryAscii && cleanQuery.length > 2) {
+        if (!item.originalTitle || !item.originalTitle.toLowerCase().includes(cleanQuery.toLowerCase())) {
+          item.originalTitle = item.originalTitle ? `${item.originalTitle} / ${cleanQuery}` : cleanQuery;
+        }
+      }
       insertOrUpdateAnime(item);
     }
 
@@ -378,6 +459,131 @@ async function searchShikimori(query) {
   }
 }
 
+// Cache for live ongoing anime
+let ongoingCache = {
+  items: [],
+  timestamp: 0
+};
+
+// Fetch 15 current ongoing anime airing right now from AnimeGO
+async function fetchOngoingAnime(limit = 15) {
+  const now = Date.now();
+  // Return cached if fresh (under 20 minutes) and has items
+  if (ongoingCache.items.length > 0 && (now - ongoingCache.timestamp) < 20 * 60 * 1000) {
+    return ongoingCache.items.slice(0, limit);
+  }
+
+  const url = 'https://animego.me/anime/status/ongoing';
+  console.log(`[Ongoing Scraper] Live fetching current ongoings from ${url}...`);
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7'
+      }
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP error ${res.status}`);
+    }
+
+    const html = await res.text();
+    const items = [];
+    const parts = html.split('class="ani-list__item d-flex g-col-12"');
+
+    for (let i = 1; i < parts.length && items.length < limit; i++) {
+      const chunk = parts[i];
+      const linkMatch = chunk.match(/href="\/anime\/([a-zA-Z0-9\-]+)"/);
+      const slug = linkMatch ? linkMatch[1] : null;
+
+      const imgMatch = chunk.match(/src="(https:\/\/[^"]+)"[^>]*alt="([^"]*)"/);
+      const image = imgMatch ? imgMatch[1] : '';
+      const title = imgMatch ? imgMatch[2] : '';
+
+      const origMatch = chunk.match(/<div class="fw-lighter small mb-2 text-line-clamp"[^>]*>\s*(.*?)\s*<\/div>/);
+      const originalTitle = origMatch ? origMatch[1].replace(/#\s*/, '').trim() : '';
+
+      const genreMatches = [...chunk.matchAll(/href="\/anime\/(genre|type|season)\/([^"]+)"[^>]*>([^<]+)<\/a>/g)];
+      const genres = [];
+      let type = 'Сериал';
+      let year = '2026';
+
+      for (const gm of genreMatches) {
+        const kind = gm[1];
+        const valName = gm[3].trim();
+        if (kind === 'genre') {
+          if (!genres.includes(valName)) genres.push(valName);
+        } else if (kind === 'type') {
+          type = valName;
+        } else if (kind === 'season') {
+          year = valName;
+        }
+      }
+
+      const descMatch = chunk.match(/<div class="ani-list__item-description[^>]*>\s*([\s\S]*?)\s*<\/div>/);
+      const description = descMatch
+        ? descMatch[1]
+            .replace(/&quot;/g, '"')
+            .replace(/&amp;/g, '&')
+            .replace(/&#039;/g, "'")
+            .replace(/<[^>]+>/g, '')
+            .trim()
+        : '';
+
+      // Skip invalid or placeholder 404 posters
+      if (title && slug && image && !image.includes('404')) {
+        const itemObj = {
+          slug,
+          title,
+          originalTitle,
+          image,
+          type,
+          year,
+          genres,
+          description
+        };
+        items.push(itemObj);
+        insertOrUpdateAnime(itemObj);
+      }
+    }
+
+    if (items.length > 0) {
+      ongoingCache = {
+        items,
+        timestamp: now
+      };
+      console.log(`[Ongoing Scraper] Successfully refreshed ${items.length} live ongoings.`);
+      return items;
+    }
+  } catch (err) {
+    console.error('[Ongoing Scraper] Error refreshing ongoings:', err.message);
+  }
+
+  // Fallback to cache if available
+  if (ongoingCache.items.length > 0) {
+    return ongoingCache.items.slice(0, limit);
+  }
+
+  // Fallback to database: current year titles without 404 images
+  const fallbackRows = db.prepare(`
+    SELECT slug, title, original_title, image_url as image, type, year, genres, description
+    FROM anime
+    WHERE year IN ('2026', '2025')
+      AND image_url NOT LIKE '%404%'
+      AND image_url != ''
+    ORDER BY id DESC
+    LIMIT ?
+  `).all(limit);
+
+  return fallbackRows.map(r => ({
+    ...r,
+    originalTitle: r.original_title,
+    genres: JSON.parse(r.genres || '[]')
+  }));
+}
+
 // Seed initial pages if database has few titles
 async function seedInitialData() {
   const countRow = db.prepare('SELECT COUNT(*) as count FROM anime').get();
@@ -395,6 +601,7 @@ module.exports = {
   scrapeAnimeGoPage,
   syncFromAnimeGo,
   fetchNextAnimeGoPage,
+  fetchOngoingAnime,
   searchAnimeGo,
   searchShikimori,
   seedInitialData
