@@ -254,7 +254,10 @@ try {
 
 // Auto-restore registered accounts, ratings, friendships, and comments from persistent backup
 function restoreAccountsFromBackup() {
-  const backupFile = path.join(dataDir, 'accounts_backup.json');
+  let backupFile = path.join(dataDir, 'accounts_backup.json');
+  if (!fs.existsSync(backupFile)) {
+    backupFile = path.join(dataDir, 'accounts_backup_permanent.json');
+  }
   if (!fs.existsSync(backupFile)) return;
 
   try {
@@ -360,6 +363,10 @@ function saveAccountsBackup() {
     };
 
     fs.writeFileSync(backupFile, JSON.stringify(snapshot, null, 2), 'utf8');
+
+    // Also update permanent redundant archive
+    const permFile = path.join(dataDir, 'accounts_backup_permanent.json');
+    fs.writeFileSync(permFile, JSON.stringify(snapshot, null, 2), 'utf8');
   } catch (err) {
     console.error('[Database] Failed to snapshot accounts_backup.json:', err.message);
   }

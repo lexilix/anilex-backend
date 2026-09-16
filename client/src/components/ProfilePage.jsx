@@ -4,6 +4,7 @@ import { getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
 import { getUserLevel, LEVELS_CONFIG } from '../utils/levels';
 import { getStoredHiddenAnimeList, setAnimeHiddenLocally, toggleHiddenAnime } from '../utils/hiddenStorage';
+import { getCachedUserRatings, setCachedUserRatings, updateCachedUserRating } from '../utils/profileCache';
 
 function LevelIcon({ iconName, className = 'w-5 h-5' }) {
   switch (iconName) {
@@ -155,8 +156,8 @@ export default function ProfilePage({
   }, [initialTab]);
 
   // Rated anime state
-  const [ratedAnime, setRatedAnime] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [ratedAnime, setRatedAnime] = useState(() => getCachedUserRatings(user?.id) || []);
+  const [loading, setLoading] = useState(() => (getCachedUserRatings(user?.id)?.length > 0 ? false : true));
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('my_score_desc');
   const [activeRatedGenres, setActiveRatedGenres] = useState([]);
@@ -269,6 +270,9 @@ export default function ProfilePage({
           items = items.filter((it) => it.myScore === parseInt(selectedScore, 10));
         }
         setRatedAnime(items);
+        if (!searchQuery.trim() && selectedType === 'all' && activeRatedGenres.length === 0 && selectedScore === 'all') {
+          setCachedUserRatings(user?.id, items);
+        }
       }
     } catch (err) {
       console.error('Error fetching rated anime:', err);
@@ -392,8 +396,9 @@ export default function ProfilePage({
       const token = localStorage.getItem('anime_auth_token');
       if (!token) return;
 
-      // Optimistically remove from state
+      // Optimistically remove from state and update cache
       setRatedAnime((prev) => prev.filter((it) => it.id !== animeId));
+      updateCachedUserRating(user?.id, animeId, null);
 
       if (onRateAnime) {
         onRateAnime(animeId, null);

@@ -24,9 +24,27 @@ export function getCachedCatalog(key) {
 
 export function setCachedCatalog(key, payload) {
   try {
+    const cleanItems = (payload.items || []).map((it) => ({
+      id: it.id,
+      title: it.title,
+      originalTitle: it.originalTitle,
+      imageUrl: it.imageUrl,
+      type: it.type,
+      year: it.year,
+      genres: it.genres || [],
+      description: it.description,
+      myScore: it.myScore,
+      averageScore: it.averageScore,
+      ratingCount: it.ratingCount,
+      isFavorite: it.isFavorite,
+      isHidden: it.isHidden,
+      commentsCount: it.commentsCount
+    }));
+
     const cacheData = {
       timestamp: Date.now(),
-      items: (payload.items || []).slice(0, 50),
+      page: payload.page || 1,
+      items: cleanItems.slice(0, 500),
       total: payload.total || 0,
       totalPages: payload.totalPages || 1,
       recommendationGenresCount: payload.recommendationGenresCount || 0
@@ -37,10 +55,44 @@ export function setCachedCatalog(key, payload) {
   }
 }
 
+export function updateCachedAnimeItem(animeId, updates) {
+  try {
+    const numId = Number(animeId);
+    for (let i = 0; i < localStorage.length; i++) {
+      const storageKey = localStorage.key(i);
+      if (storageKey && storageKey.startsWith(CACHE_KEY_PREFIX)) {
+        try {
+          const raw = localStorage.getItem(storageKey);
+          if (!raw) continue;
+          const data = JSON.parse(raw);
+          if (data && Array.isArray(data.items)) {
+            let modified = false;
+            data.items = data.items.map((item) => {
+              if (Number(item.id) === numId) {
+                modified = true;
+                return { ...item, ...updates };
+              }
+              return item;
+            });
+            if (modified) {
+              localStorage.setItem(storageKey, JSON.stringify(data));
+            }
+          }
+        } catch (err) {
+          // ignore parsing error for single key
+        }
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
 export function hasCatalogChanged(cachedItems, newItems) {
   if (!cachedItems || !newItems) return true;
-  if (cachedItems.length !== newItems.length) return true;
-  for (let i = 0; i < cachedItems.length; i++) {
+  const compareLen = Math.min(cachedItems.length, newItems.length);
+  if (compareLen === 0 && (cachedItems.length > 0 || newItems.length > 0)) return true;
+  for (let i = 0; i < compareLen; i++) {
     const a = cachedItems[i];
     const b = newItems[i];
     if (a.id !== b.id) return true;

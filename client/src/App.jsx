@@ -11,8 +11,9 @@ import FeaturedCarousel from './components/FeaturedCarousel';
 import NotificationToast from './components/NotificationToast';
 import { Sparkles, Film, Loader2 } from 'lucide-react';
 import { apiUrl } from './api';
-import { getCachedCatalog, setCachedCatalog, hasCatalogChanged } from './utils/catalogCache';
+import { getCachedCatalog, setCachedCatalog, hasCatalogChanged, updateCachedAnimeItem } from './utils/catalogCache';
 import { getHiddenAnimeIds, toggleHiddenAnime } from './utils/hiddenStorage';
+import { getCachedUserProfile, setCachedUserProfile, clearCachedUserProfile, updateCachedUserRating } from './utils/profileCache';
 
 export default function App() {
   // Theme state
@@ -26,7 +27,7 @@ export default function App() {
   const [selectedAnimeId, setSelectedAnimeId] = useState(null);
 
   // Auth state
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getCachedUserProfile());
   const [token, setToken] = useState(() => localStorage.getItem('anime_auth_token') || '');
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
@@ -132,12 +133,19 @@ export default function App() {
           if (res.ok) return res.json();
           throw new Error('Unauthorized');
         })
-        .then((data) => setUser(data.user))
+        .then((data) => {
+          setUser(data.user);
+          setCachedUserProfile(data.user);
+        })
         .catch(() => {
           localStorage.removeItem('anime_auth_token');
+          clearCachedUserProfile();
           setToken('');
           setUser(null);
         });
+    } else {
+      clearCachedUserProfile();
+      setUser(null);
     }
   }, [token]);
 
@@ -332,19 +340,21 @@ export default function App() {
   // Fetch initial or refreshed anime list
   const fetchAnime = useCallback(
     async (targetPage = 1, isAppend = false) => {
-      const cacheKey = `p${targetPage}_s${activeSort}_t${activeType}_y${activeYear}_st${filterStatus}_g${activeGenres.slice().sort().join('_')}_q${debouncedSearch.trim()}_u${user ? user.id : 'anon'}`;
+      const isSearching = Boolean(debouncedSearch.trim());
+      const catalogKey = `s${activeSort}_t${activeType}_y${activeYear}_st${filterStatus}_g${activeGenres.slice().sort().join('_')}_q${debouncedSearch.trim()}_u${user ? user.id : 'anon'}`;
       let cached = null;
 
       if (isAppend) {
         setLoadingMore(true);
       } else {
-        if (targetPage === 1) {
-          cached = getCachedCatalog(cacheKey);
+        if (targetPage === 1 && !isSearching) {
+          cached = getCachedCatalog(catalogKey);
           if (cached && Array.isArray(cached.items) && cached.items.length > 0) {
             setAnimeList(cached.items);
             setTotalCount(cached.total || 0);
             setTotalPages(cached.totalPages || 1);
             setRecommendationCount(cached.recommendationGenresCount || 0);
+            setPage(cached.page || 1);
             setLoading(false);
           } else {
             setLoading(true);
@@ -376,7 +386,6 @@ export default function App() {
         const data = await res.json();
         const newItems = data.items || [];
 
-        const isSearching = Boolean(debouncedSearch.trim());
         const hiddenIds = getHiddenAnimeIds(user?.id);
 
         const sanitizeList = (list) => {
@@ -410,19 +419,31 @@ export default function App() {
               const key = `${(i.title || '').trim().toLowerCase()}_${i.year || ''}`;
               return !existingIds.has(i.id) && !existingKeys.has(key);
             });
-            return sanitizeList([...prev, ...filtered]);
+            const updated = sanitizeList([...prev, ...filtered]);
+            // Save cumulative list to user's cache
+            if (!isSearching) {
+              setCachedCatalog(catalogKey, {
+                items: updated,
+                page: targetPage,
+                total: data.total,
+                totalPages: data.totalPages,
+                recommendationGenresCount: data.recommendationGenresCount
+              });
+            }
+            return updated;
           });
         } else {
           if (!cached || hasCatalogChanged(cached.items, sanitized)) {
             setAnimeList(sanitized);
-          }
-          if (targetPage === 1) {
-            setCachedCatalog(cacheKey, {
-              items: sanitized,
-              total: data.total,
-              totalPages: data.totalPages,
-              recommendationGenresCount: data.recommendationGenresCount
-            });
+            if (!isSearching) {
+              setCachedCatalog(catalogKey, {
+                items: sanitized,
+                page: 1,
+                total: data.total,
+                totalPages: data.totalPages,
+                recommendationGenresCount: data.recommendationGenresCount
+              });
+            }
           }
         }
 
@@ -449,31 +470,85 @@ export default function App() {
     fetchAnime(1, false);
   }, [fetchAnime]);
 
-  // Infinite Scroll Observer
+  // Refs to prevent duplicate fetches or runaway cascading
+  const isFetchingMoreRef = useRef(false);
+  const pageRef = useRef(page);
+  const totalPagesRef = useRef(totalPages);
+  const loadingRef = useRef(loading || loadingMore);
+
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    totalPagesRef.current = totalPages;
+  }, [totalPages]);
+
+  useEffect(() => {
+    loadingRef.current = loading || loadingMore;
+  }, [loading, loadingMore]);
+
+  // 1. Catalog Scroll Listener: Loads next 15 titles when user scrolls down
   useEffect(() => {
     if (view !== 'catalog') return;
+    if (debouncedSearch.trim().length > 0) return; // Search is handled separately
 
-    const isGeneralCatalog = !debouncedSearch.trim() && activeGenres.length === 0 && activeType === 'all' && (!activeYear || activeYear === 'all') && filterStatus === 'all';
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+
+      requestAnimationFrame(() => {
+        ticking = false;
+        if (loadingRef.current || isFetchingMoreRef.current) return;
+
+        const scrollHeight = document.documentElement.scrollHeight;
+        const scrollTop = window.scrollY || document.documentElement.scrollTop;
+        const clientHeight = window.innerHeight;
+
+        // Trigger loading next 15 when user scrolls down within 300px of page bottom
+        if (scrollTop + clientHeight >= scrollHeight - 300) {
+          const isGeneralCatalog = activeGenres.length === 0 && activeType === 'all' && (!activeYear || activeYear === 'all') && filterStatus === 'all';
+          const canLoadMore = isGeneralCatalog || pageRef.current < totalPagesRef.current;
+
+          if (canLoadMore) {
+            isFetchingMoreRef.current = true;
+            fetchAnime(pageRef.current + 1, true).finally(() => {
+              isFetchingMoreRef.current = false;
+            });
+          }
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [view, debouncedSearch, activeGenres, activeType, activeYear, filterStatus, fetchAnime]);
+
+  // 2. Search Mode: Untouched IntersectionObserver for search results
+  useEffect(() => {
+    if (view !== 'catalog') return;
+    if (!debouncedSearch.trim()) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        const canLoadMore = isGeneralCatalog || page < totalPages;
-        if (entries[0].isIntersecting && !loading && !loadingMore && canLoadMore) {
+        if (entries[0].isIntersecting && !loading && !loadingMore && page < totalPages) {
           fetchAnime(page + 1, true);
         }
       },
-      { threshold: 0.1, rootMargin: '400px' }
+      { threshold: 0.1, rootMargin: '300px' }
     );
 
     const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
+    if (currentTarget) observer.observe(currentTarget);
 
     return () => {
       if (currentTarget) observer.unobserve(currentTarget);
     };
-  }, [view, loading, loadingMore, page, totalPages, fetchAnime, debouncedSearch, activeGenres, activeType, activeYear, filterStatus]);
+  }, [view, loading, loadingMore, page, totalPages, fetchAnime, debouncedSearch]);
 
   // Toggle Favorite handler
   const handleToggleFavorite = async (animeId) => {
@@ -567,6 +642,7 @@ export default function App() {
       const data = await res.json();
 
       // Update in local state
+      const targetAnime = animeList.find((it) => it.id === animeId);
       setAnimeList((prev) =>
         prev.map((item) =>
           item.id === animeId
@@ -580,6 +656,14 @@ export default function App() {
             : item
         )
       );
+
+      // Update in cached catalog and user ratings cache
+      updateCachedAnimeItem(animeId, {
+        myScore: data.myScore,
+        averageScore: data.averageScore,
+        ratingCount: data.ratingCount
+      });
+      updateCachedUserRating(user?.id, animeId, data.myScore, targetAnime);
 
       fetchMetadata();
     } catch (err) {
@@ -622,6 +706,7 @@ export default function App() {
   const handleLoginSuccess = (newUser, newToken) => {
     setUser(newUser);
     setToken(newToken);
+    setCachedUserProfile(newUser);
     localStorage.setItem('anime_auth_token', newToken);
     isFirstNotificationFetchRef.current = true;
     seenNotificationIdsRef.current.clear();
@@ -631,6 +716,7 @@ export default function App() {
   // Logout handler
   const handleLogout = () => {
     setUser(null);
+    clearCachedUserProfile();
     setToken('');
     setNotifications([]);
     setToasts([]);
