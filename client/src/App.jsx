@@ -12,6 +12,7 @@ import NotificationToast from './components/NotificationToast';
 import { Sparkles, Film, Loader2 } from 'lucide-react';
 import { apiUrl } from './api';
 import { getCachedCatalog, setCachedCatalog, hasCatalogChanged } from './utils/catalogCache';
+import { getHiddenAnimeIds, toggleHiddenAnime } from './utils/hiddenStorage';
 
 export default function App() {
   // Theme state
@@ -375,6 +376,9 @@ export default function App() {
         const data = await res.json();
         const newItems = data.items || [];
 
+        const isSearching = Boolean(debouncedSearch.trim());
+        const hiddenIds = getHiddenAnimeIds(user?.id);
+
         const sanitizeList = (list) => {
           const seen = new Set();
           return list.filter((item) => {
@@ -382,11 +386,18 @@ export default function App() {
             if (img.includes('missing_original') || img.includes('404') || img.includes('placeholder')) {
               return false;
             }
+            // On main catalog (not searching): hide titles marked as not interested
+            if (!isSearching && (Boolean(item.isHidden) || hiddenIds.has(item.id))) {
+              return false;
+            }
             const key = `${(item.title || '').trim().toLowerCase()}_${item.year || ''}`;
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
-          });
+          }).map((item) => ({
+            ...item,
+            isHidden: Boolean(item.isHidden || hiddenIds.has(item.id))
+          }));
         };
 
         const sanitized = sanitizeList(newItems);
@@ -494,35 +505,28 @@ export default function App() {
   };
 
   // Toggle Hide ("Не интересует") handler
-  const handleToggleHide = async (animeId) => {
+  const handleToggleHide = async (animeId, forcedState = null) => {
     if (!token) {
       setAuthModalOpen(true);
       return;
     }
 
-    try {
-      const res = await fetch(apiUrl(`/api/anime/${animeId}/hide`), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    const animeObj = animeList.find((it) => it.id === animeId) || { id: animeId };
+    const newHidden = await toggleHiddenAnime(animeObj, token, user?.id, forcedState);
 
-      if (!res.ok) throw new Error('Hide toggle failed');
+    const isSearching = Boolean(debouncedSearch.trim());
 
-      const data = await res.json();
-
-      if (data.isHidden) {
-        // Remove from current catalog view immediately for this user
-        setAnimeList((prev) => prev.filter((item) => item.id !== animeId));
-        setTotalCount((prev) => Math.max(0, prev - 1));
-      } else {
-        setAnimeList((prev) =>
-          prev.map((item) =>
-            item.id === animeId ? { ...item, isHidden: false } : item
-          )
-        );
-      }
-    } catch (err) {
-      console.error('Hide toggle error:', err);
+    if (!isSearching && newHidden) {
+      // Main catalog: remove immediately from list
+      setAnimeList((prev) => prev.filter((item) => item.id !== animeId));
+      setTotalCount((prev) => Math.max(0, prev - 1));
+    } else {
+      // Search mode (Photo 1) or un-hiding: update isHidden in current animeList to dim/undim
+      setAnimeList((prev) =>
+        prev.map((item) =>
+          item.id === animeId ? { ...item, isHidden: newHidden } : item
+        )
+      );
     }
   };
 
@@ -707,6 +711,7 @@ export default function App() {
             onSelectAnime={(id) => navigateTo('anime-detail', id)}
             onRateAnime={handleRate}
             onToggleFavorite={handleToggleFavorite}
+            onToggleHide={handleToggleHide}
           />
         )}
 

@@ -54,7 +54,7 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.get('/api/version', (req, res) => {
   res.json({
     status: 'ok',
-    version: '1.0.4',
+    version: '1.0.5',
     nodeVersion: process.version,
     hasLowerUtf8: Boolean(db.hasLowerUtf8)
   });
@@ -1106,8 +1106,9 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
     // Exclude missing / 404 placeholder covers from catalog (Photo 3)
     whereClauses.push("a.image_url NOT LIKE '%missing_original%' AND a.image_url NOT LIKE '%404%' AND a.image_url NOT LIKE '%placeholder%'");
 
-    // Exclude anime marked as 'not interested' (hidden) by current user (Photo 4)
-    if (currentUserId) {
+    // Exclude anime marked as 'not interested' (hidden) by current user on main catalog (Photo 1 & Photo 4)
+    // When searching, keep them in results so they can be shown dimmed / marked as not interested
+    if (currentUserId && (!search || search.trim().length === 0)) {
       whereClauses.push('(SELECT COUNT(*) FROM user_hidden_anime WHERE user_id = ? AND anime_id = a.id) = 0');
       params.push(currentUserId);
     }
@@ -1668,6 +1669,76 @@ app.get('/api/user/favorites', authMiddleware, (req, res) => {
   } catch (err) {
     console.error('Get favorites error:', err);
     return res.status(500).json({ error: 'Ошибка получения избранных тайтлов' });
+  }
+});
+
+// User Hidden ('Не интересует') list for user profile
+app.get('/api/user/hidden', authMiddleware, (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { search, type } = req.query;
+
+    const params = [userId, userId];
+    let whereClauses = ['h.user_id = ?'];
+
+    if (search && search.trim()) {
+      const tCol = db.lowerSql ? db.lowerSql('a.title') : 'LOWER(a.title)';
+      const otCol = db.lowerSql ? db.lowerSql('a.original_title') : 'LOWER(a.original_title)';
+      whereClauses.push(`(${tCol} LIKE ? OR ${otCol} LIKE ?)`);
+      const term = `%${search.trim().toLowerCase()}%`;
+      params.push(term, term);
+    }
+
+    if (type && type.trim() && type !== 'all') {
+      whereClauses.push('a.type = ?');
+      params.push(type.trim());
+    }
+
+    const items = db.prepare(`
+      SELECT
+        a.id,
+        a.slug,
+        a.title,
+        a.original_title,
+        a.image_url,
+        a.type,
+        a.year,
+        a.genres,
+        a.description,
+        h.created_at as hidden_at,
+        ROUND((SELECT AVG(score) FROM ratings WHERE anime_id = a.id), 1) as avg_score,
+        (SELECT COUNT(id) FROM ratings WHERE anime_id = a.id) as rating_count,
+        (
+          SELECT score FROM ratings
+          WHERE anime_id = a.id AND user_id = ?
+        ) as my_score
+      FROM user_hidden_anime h
+      JOIN anime a ON a.id = h.anime_id
+      WHERE ${whereClauses.join(' AND ')}
+      ORDER BY h.created_at DESC
+    `).all(...params);
+
+    const formatted = items.map(item => ({
+      id: item.id,
+      slug: item.slug,
+      title: item.title,
+      originalTitle: item.original_title,
+      imageUrl: item.image_url,
+      type: item.type,
+      year: item.year,
+      genres: JSON.parse(item.genres || '[]'),
+      description: item.description,
+      myScore: item.my_score !== null && item.my_score !== undefined ? item.my_score : null,
+      hiddenAt: item.hidden_at,
+      averageScore: item.rating_count > 0 && item.avg_score !== null ? Number(item.avg_score) : null,
+      ratingCount: Number(item.rating_count),
+      isHidden: true
+    }));
+
+    return res.json({ items: formatted, total: formatted.length });
+  } catch (err) {
+    console.error('Get hidden anime error:', err);
+    return res.status(500).json({ error: 'Ошибка получения скрытых тайтлов' });
   }
 });
 

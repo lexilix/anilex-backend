@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Star, MessageSquare, ChevronDown, ChevronUp, Calendar, Film, Lock, Bookmark, EyeOff } from 'lucide-react';
 import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
 import { getImageUrl } from '../api';
+import { isAnimeHiddenLocally } from '../utils/hiddenStorage';
 
 export default function AnimeCard({
   anime,
@@ -23,10 +24,19 @@ export default function AnimeCard({
   const [favLoading, setFavLoading] = useState(false);
   const [hideLoading, setHideLoading] = useState(false);
 
+  // Optimistic hidden state synced with anime prop and local storage
+  const [localHidden, setLocalHidden] = useState(() => {
+    return Boolean(anime.isHidden) || isAnimeHiddenLocally(anime.id, user?.id);
+  });
+
+  useEffect(() => {
+    setLocalHidden(Boolean(anime.isHidden) || isAnimeHiddenLocally(anime.id, user?.id));
+  }, [anime.isHidden, anime.id, user?.id]);
+
   // User's rating and community stats
   const myScore = anime.myScore;
   const isFavorite = anime.isFavorite;
-  const isHidden = anime.isHidden;
+  const isHidden = localHidden;
   const averageScore = anime.averageScore;
   const ratingCount = anime.ratingCount || 0;
   const friendsRatings = anime.friendsRatings || [];
@@ -63,10 +73,15 @@ export default function AnimeCard({
       onRequireAuth();
       return;
     }
+    const nextState = !localHidden;
+    setLocalHidden(nextState);
+
     if (onToggleHide) {
       setHideLoading(true);
       try {
-        await onToggleHide(anime.id);
+        await onToggleHide(anime.id, nextState);
+      } catch (err) {
+        console.error('Hide toggle error:', err);
       } finally {
         setHideLoading(false);
       }
@@ -90,7 +105,13 @@ export default function AnimeCard({
   };
 
   return (
-    <article className="rounded-3xl bg-white dark:bg-[#151518] p-4 sm:p-5 flex flex-col sm:flex-row gap-4 sm:gap-6 transition-all">
+    <article
+      className={`rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 sm:gap-6 transition-all duration-200 relative ${
+        isHidden
+          ? 'bg-neutral-200/50 dark:bg-[#0c0c0e]/95 opacity-40 hover:opacity-75 grayscale contrast-75 border border-rose-500/25 shadow-none'
+          : 'bg-white dark:bg-[#151518]'
+      }`}
+    >
       
       {/* 1. КАРТИНКА ТАЙТЛА (СЛЕВА) */}
       <div
@@ -152,6 +173,12 @@ export default function AnimeCard({
                   <span>{commentsCount}</span>
                 </span>
               )}
+              {isHidden && (
+                <span className="px-2 py-0.5 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold text-[10px] flex items-center gap-1 border border-rose-500/25 shrink-0 animate-in fade-in">
+                  <EyeOff className="w-3 h-3 stroke-[2.5]" />
+                  <span>Не интересует</span>
+                </span>
+              )}
             </div>
 
             {/* Action Buttons: Hide ("Не интересует") & Favorite */}
@@ -160,10 +187,10 @@ export default function AnimeCard({
                 type="button"
                 onClick={handleHideClick}
                 disabled={hideLoading}
-                title={isHidden ? 'Скрыто ("Не интересует")' : 'Не интересует'}
+                title={isHidden ? 'Скрыто ("Не интересует") — нажать, чтобы вернуть' : 'Не интересует (скрыть с главной)'}
                 className={`p-1.5 rounded-xl transition-all flex items-center justify-center shrink-0 ${
                   isHidden
-                    ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-sm shadow-rose-500/20'
+                    ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-sm shadow-rose-500/30 ring-2 ring-rose-500/20'
                     : 'text-neutral-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30'
                 }`}
               >
