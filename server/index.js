@@ -443,7 +443,7 @@ app.get('/api/users/search', optionalAuthMiddleware, (req, res) => {
           nickname: u.nickname,
           avatarUrl: u.avatar_url,
           bannerUrl: u.banner_url,
-          ratedCount: canSeeScore ? (u.rated_count || 0) : null,
+          ratedCount: u.rated_count || 0,
           avgScore: canSeeScore && u.avg_score !== null ? Number(u.avg_score) : null,
           friendshipStatus,
           requestId
@@ -726,7 +726,7 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
         avatarUrl: user.avatar_url,
         bannerUrl: user.banner_url,
         createdAt: user.created_at,
-        ratedCount: isFriend ? (stats.rated_count || 0) : null,
+        ratedCount: stats.rated_count || 0,
         avgScore: isFriend && stats.avg_score !== null ? Number(stats.avg_score) : null,
         isFriend,
         friendshipStatus,

@@ -123,7 +123,7 @@ export const LEVELS_CONFIG = [
     maxCount: 349,
     title: 'Нет жизни',
     franchise: 'Нет игры — нет жизни',
-    iconName: 'BlankBrackets',
+    iconName: 'ChessKing',
     barColor: 'bg-neutral-800 dark:bg-neutral-200',
     iconBg: 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-700',
     bgBadge: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800/80 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700',

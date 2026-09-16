@@ -46,17 +46,26 @@ function LevelIcon({ iconName, className = 'w-5 h-5' }) {
           <path d="M3 3l2 2M19 19l2 2M21 4l-2 2M5 20l-2-2" strokeWidth="1.5" />
         </svg>
       );
+    case 'ChessKing':
     case 'BlankBrackets':
     case 'Gamepad2':
-      // Нет игры — нет жизни (Символ Пустых 『 』)
+      // Нет игры — нет жизни (Шахматный Король Иманити / Фигура Расы)
       return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
-          <path d="M4 8V4h4" />
-          <path d="M4 16v4h4" />
-          <path d="M20 8V4h-4" />
-          <path d="M20 16v4h-4" />
-          <rect x="8.5" y="8.5" width="7" height="7" rx="1.5" />
-          <path d="M12 8.5v7M8.5 12h7" />
+          {/* Top Cross */}
+          <path d="M12 2v4M10 4h4" />
+          {/* King Crown Dome */}
+          <path d="M8 8.5c0-2 1.8-2.5 4-2.5s4 .5 4 2.5c0 1.2-.8 2-1.5 2.5h-5C8.8 10.5 8 9.7 8 8.5z" />
+          {/* Collar Ring */}
+          <path d="M8.5 11h7" strokeWidth="1.6" />
+          {/* Fluted Body */}
+          <path d="M9.5 11.5L8 17h8l-1.5-5.5" />
+          {/* Tet / Sora Spade Emblem */}
+          <path d="M12 13c-.6-.7-1.2-.2-1 .4.2.6 1 1.1 1 1.1s.8-.5 1-1.1c.2-.6-.4-1.1-1-.4z" fill="currentColor" />
+          <path d="M12 14.5v1" />
+          {/* Stepped Base */}
+          <path d="M7 17.5h10" />
+          <path d="M5.5 20.5h13" strokeWidth="2" />
         </svg>
       );
     case 'StageSparkles':
@@ -83,13 +92,22 @@ function LevelIcon({ iconName, className = 'w-5 h-5' }) {
       );
     case 'ShamanBlade':
     case 'Swords':
-      // Шаман Кинг (Клинок Оверсоула Фуцуномитама)
+      // Шаман Кинг (Клинок Оверсоула Харусаме и пламя духа Амидамару)
       return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
-          <path d="M14.5 2.5L21.5 9.5 9 22H2v-7L14.5 2.5z" />
-          <path d="M13 4l7 7" />
-          <path d="M7 17l-3 3" />
-          <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
+          {/* Katana Blade */}
+          <path d="M12 2l1.3 2.5v9h-2.6V4.5L12 2z" />
+          <line x1="12" y1="3.5" x2="12" y2="13.5" strokeWidth="1" />
+          {/* Circular Tsuba Guard */}
+          <ellipse cx="12" cy="14" rx="4.8" ry="1.5" strokeWidth="1.8" />
+          {/* Wrapped Tsuka Handle */}
+          <path d="M10.8 15.5v5.5h2.4v-5.5" />
+          <line x1="10.8" y1="17.3" x2="13.2" y2="17.3" strokeWidth="1.2" />
+          <line x1="10.8" y1="19.3" x2="13.2" y2="19.3" strokeWidth="1.2" />
+          <path d="M10 21.5h4" strokeWidth="1.6" />
+          {/* Amidamaru Over Soul Spirit Flame */}
+          <path d="M7 11.5c-1-3 1.5-6.5 5-8.5 0 2.5-1 4.5 1 5.5s3 3 2 5c-1 2-3 2.5-4 2.5-2.5 0-4-2-4-4.5z" strokeWidth="1.4" opacity="0.6" />
+          <circle cx="12" cy="9.5" r="1.2" fill="currentColor" />
         </svg>
       );
     case 'SixEyes':
@@ -595,7 +613,7 @@ export default function ProfilePage({
                     className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 transition-colors shadow-sm flex items-center gap-1.5 justify-center flex-1 md:flex-initial"
                   >
                     <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Уровни и награды</span>
+                    <span>Уровни и ранги</span>
                     <ChevronRight className="w-3 h-3 opacity-60" />
                   </button>
 
@@ -1217,9 +1235,20 @@ export default function ProfilePage({
                           <h4 className="text-xs font-bold text-neutral-900 dark:text-white truncate">
                             {fr.nickname}
                           </h4>
-                          <span className="text-[11px] text-neutral-400 block">
-                            {fr.ratedCount} оценок {fr.avgScore ? `• ★ ${fr.avgScore}` : ''}
-                          </span>
+                          {(() => {
+                            const frLevel = getUserLevel(fr.ratedCount || 0);
+                            return (
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border ${frLevel.currentLevel.bgBadge}`}>
+                                  <LevelIcon iconName={frLevel.currentLevel.iconName} className="w-3 h-3" />
+                                  <span>Ур. {frLevel.currentLevel.level}</span>
+                                </span>
+                                <span className="text-[11px] text-neutral-400">
+                                  {fr.ratedCount || 0} {fr.avgScore ? `• ★ ${fr.avgScore}` : ''}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
 
@@ -1306,34 +1335,68 @@ export default function ProfilePage({
                     <h3 className="text-xl font-bold text-neutral-900 dark:text-white">
                       {selectedFriend.nickname}
                     </h3>
-                    {selectedFriend.isFriend ? (
-                      <div className="flex items-center gap-2.5 text-xs text-neutral-400 mt-1 flex-wrap">
-                        {(() => {
-                          const fl = getUserLevel(selectedFriend.ratedCount || 0);
-                          return (
-                            <span className={`px-2 py-0.5 rounded-lg text-[11px] font-bold border ${fl.currentLevel.bgBadge} flex items-center gap-1.5`}>
-                              <LevelIcon iconName={fl.currentLevel.iconName} className="w-3.5 h-3.5" />
-                              <span>{fl.currentLevel.title}</span>
-                              <span className="opacity-75">· Ур. {fl.currentLevel.level}</span>
-                            </span>
-                          );
-                        })()}
-                        <span>{selectedFriend.ratedCount} оценок</span>
-                        {selectedFriend.avgScore !== null && (
-                          <span className="flex items-center gap-1 font-semibold text-neutral-700 dark:text-neutral-300">
-                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                            {selectedFriend.avgScore} средняя
+                    {(() => {
+                      const fl = getUserLevel(selectedFriend.ratedCount || 0);
+                      return (
+                        <div className="flex items-center gap-2.5 text-xs text-neutral-400 mt-1 flex-wrap">
+                          <span className={`px-2 py-0.5 rounded-lg text-[11px] font-bold border ${fl.currentLevel.bgBadge} flex items-center gap-1.5`}>
+                            <LevelIcon iconName={fl.currentLevel.iconName} className="w-3.5 h-3.5" />
+                            <span>{fl.currentLevel.title}</span>
+                            <span className="opacity-75">· Ур. {fl.currentLevel.level}</span>
                           </span>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5 text-xs text-amber-500 font-medium mt-1">
-                        <Lock className="w-3.5 h-3.5" />
-                        <span>Профиль скрыт</span>
-                      </div>
-                    )}
+                          <span>{selectedFriend.ratedCount || 0} оценок</span>
+                          {selectedFriend.isFriend && selectedFriend.avgScore !== null && (
+                            <span className="flex items-center gap-1 font-semibold text-neutral-700 dark:text-neutral-300">
+                              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                              {selectedFriend.avgScore} средняя
+                            </span>
+                          )}
+                          {!selectedFriend.isFriend && (
+                            <span className="text-[11px] text-amber-500 font-medium flex items-center gap-1">
+                              <Lock className="w-3 h-3" />
+                              <span>Оценки скрыты</span>
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
+
+                {/* Friend Otaku Level Card */}
+                {(() => {
+                  const fl = getUserLevel(selectedFriend.ratedCount || 0);
+                  return (
+                    <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/70 border border-neutral-200/70 dark:border-neutral-800">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl ${fl.currentLevel.iconBg} flex items-center justify-center shrink-0 shadow-sm`}>
+                          <LevelIcon iconName={fl.currentLevel.iconName} className="w-6 h-6 sm:w-7 sm:h-7" />
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                              Уровень {fl.currentLevel.level}
+                            </span>
+                            {fl.currentLevel.franchise && (
+                              <span className="text-[11px] px-2 py-0.5 rounded-md bg-neutral-200/60 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-medium">
+                                {fl.currentLevel.franchise}
+                              </span>
+                            )}
+                            <span className="text-[11px] px-2 py-0.5 rounded-lg bg-neutral-200/40 dark:bg-neutral-800/60 text-neutral-500 font-medium">
+                              {selectedFriend.ratedCount || 0} {(selectedFriend.ratedCount || 0) === 1 ? 'оценка' : (selectedFriend.ratedCount || 0) < 5 ? 'оценки' : 'оценок'}
+                            </span>
+                          </div>
+                          <h4 className="text-base font-bold text-neutral-900 dark:text-white">
+                            {fl.currentLevel.title}
+                          </h4>
+                          <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                            {fl.currentLevel.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Friend Ratings list or Privacy Lock */}
                 {!selectedFriend.isFriend ? (
@@ -1631,13 +1694,13 @@ export default function ProfilePage({
             <div>
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-500 mb-1">
                 <Trophy className="w-4 h-4" />
-                <span>Система рангов и наград</span>
+                <span>Система рангов Отаку</span>
               </div>
               <h2 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
                 Ранги Отаку Томодачи
               </h2>
               <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                Оценивайте любимые тайтлы от 0 до 10, повышайте свой ранг отаку и открывайте эксклюзивные титулы, бейджи и привилегии сообщества.
+                Оценивайте любимые тайтлы от 0 до 10, повышайте свой ранг отаку и открывайте эксклюзивные титулы и бейджи сообщества.
               </p>
             </div>
 
@@ -1771,21 +1834,6 @@ export default function ProfilePage({
                               </span>
                             )}
                           </div>
-                        </div>
-
-                        {/* Rewards list */}
-                        <div className="mt-3 pt-3 border-t border-neutral-100 dark:border-neutral-800/80">
-                          <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                            Награды и привилегии:
-                          </span>
-                          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-neutral-700 dark:text-neutral-300">
-                            {tier.rewards.map((rew, idx) => (
-                              <li key={idx} className="flex items-center gap-1.5">
-                                <span className={`w-1.5 h-1.5 rounded-full ${isUnlocked ? 'bg-emerald-500' : 'bg-neutral-400 dark:bg-neutral-600'}`} />
-                                <span>{rew}</span>
-                              </li>
-                            ))}
-                          </ul>
                         </div>
                       </div>
                     );
