@@ -1103,6 +1103,15 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       params.push(currentUserId);
     }
 
+    // Exclude missing / 404 placeholder covers from catalog (Photo 3)
+    whereClauses.push("a.image_url NOT LIKE '%missing_original%' AND a.image_url NOT LIKE '%404%' AND a.image_url NOT LIKE '%placeholder%'");
+
+    // Exclude anime marked as 'not interested' (hidden) by current user (Photo 4)
+    if (currentUserId) {
+      whereClauses.push('(SELECT COUNT(*) FROM user_hidden_anime WHERE user_id = ? AND anime_id = a.id) = 0');
+      params.push(currentUserId);
+    }
+
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     // Check if we need to auto-scrape next page from AnimeGO on the fly!
@@ -1216,6 +1225,10 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
           WHERE anime_id = a.id AND user_id = ?
         ) as is_favorite,
         (
+          SELECT COUNT(id) FROM user_hidden_anime
+          WHERE anime_id = a.id AND user_id = ?
+        ) as is_hidden,
+        (
           SELECT COUNT(id) FROM comments WHERE anime_id = a.id
         ) as comments_count
       FROM anime a
@@ -1233,7 +1246,7 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
     `;
 
     const totalRow = db.prepare(countSql).get(...params);
-    const items = db.prepare(querySql).all(currentUserId || -1, currentUserId || -1, ...params, ...searchRankParams, limitNum, offset);
+    const items = db.prepare(querySql).all(currentUserId || -1, currentUserId || -1, currentUserId || -1, ...params, ...searchRankParams, limitNum, offset);
 
     const animeIds = items.map(it => it.id);
     let friendsMap = {};
@@ -1286,6 +1299,7 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         description: item.description,
         myScore: item.my_score !== null && item.my_score !== undefined ? item.my_score : null,
         isFavorite: Boolean(item.is_favorite),
+        isHidden: Boolean(item.is_hidden),
         averageScore: item.rating_count > 0 && item.avg_score !== null ? Number(item.avg_score) : null,
         ratingCount: Number(item.rating_count),
         commentsCount: Number(item.comments_count || 0),
@@ -1325,12 +1339,16 @@ app.get('/api/anime/:id', optionalAuthMiddleware, (req, res) => {
 
     let myScore = null;
     let isFavorite = false;
+    let isHidden = false;
     if (currentUserId) {
       const myRow = db.prepare('SELECT score FROM ratings WHERE anime_id = ? AND user_id = ?').get(animeId, currentUserId);
       if (myRow) myScore = myRow.score;
 
       const favRow = db.prepare('SELECT id FROM favorites WHERE anime_id = ? AND user_id = ?').get(animeId, currentUserId);
       if (favRow) isFavorite = true;
+
+      const hiddenRow = db.prepare('SELECT id FROM user_hidden_anime WHERE anime_id = ? AND user_id = ?').get(animeId, currentUserId);
+      if (hiddenRow) isHidden = true;
     }
 
     let friendsRatings = [];
@@ -1360,6 +1378,7 @@ app.get('/api/anime/:id', optionalAuthMiddleware, (req, res) => {
       description: anime.description,
       myScore,
       isFavorite,
+      isHidden,
       averageScore: stats.rating_count > 0 && stats.avg_score !== null ? Number(stats.avg_score) : null,
       ratingCount: Number(stats.rating_count),
       friendsRatings: friendsRatings.map(r => ({
@@ -1377,8 +1396,8 @@ app.get('/api/anime/:id', optionalAuthMiddleware, (req, res) => {
 // Helper to extract base franchise title
 function extractFranchiseBase(title) {
   if (!title) return '';
-  let clean = title.trim();
-  const splitParts = clean.split(/\s*[—–:]\s*/);
+  let clean = title.replace(/\u00A0/g, ' ').trim();
+  const splitParts = clean.split(/\s*[-—–:!.]\s*/);
   if (splitParts[0] && splitParts[0].length >= 4) {
     clean = splitParts[0].trim();
   }
@@ -1392,7 +1411,7 @@ function extractFranchiseBase(title) {
     .replace(/\s+Movie.*$/gi, '')
     .replace(/\s+OVA.*$/gi, '')
     .replace(/\s+Спешл.*$/gi, '')
-    .replace(/\.+$/, '')
+    .replace(/[-—–!.:]+$/, '')
     .trim();
   return clean;
 }
@@ -1436,7 +1455,7 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
       `).all(currentUserId || -1, `${normBase}%`);
 
       const escapedBase = normBase.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const regex = new RegExp(`^${escapedBase}(?:\\s+(?:[0-9]+|II|III|IV|V|VI|VII|VIII|IX|X|сезон|фильм|часть|ova|спешл|movie|final|код|тренировка|бесконечный|деревня|квартал|поезд)|:|$|\\s*[—–\\-]|\\.)`, 'i');
+      const regex = new RegExp(`^${escapedBase}(?:\\s*(?:[0-9]+|II|III|IV|V|VI|VII|VIII|IX|X|сезон|фильм|часть|ova|спешл|movie|final|код|тренировка|бесконечный|деревня|квартал|поезд)|:|$|\\s*[-—–!:.\\s]|\\.)`, 'i');
 
       for (const c of candidates) {
         const normCand = normalize(c.title);
@@ -1456,9 +1475,11 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
           relation = '3-й сезон';
         } else if (/4-й сезон|\b4\b|\biv\b|финал/i.test(tLower)) {
           relation = '4-й сезон / Финал';
+        } else if (/мини-аниме|спин-офф/i.test(tLower)) {
+          relation = 'Мини-аниме / Спин-офф';
         } else if (/фильм|movie/i.test(tLower) || c.type === 'Фильм') {
           relation = 'Фильм';
-        } else if (/ova|спешл|ona/i.test(tLower) || c.type === 'OVA') {
+        } else if (/ova|спешл|ona/i.test(tLower) || c.type === 'OVA' || c.type === 'Спешл') {
           relation = 'Спешл / OVA';
         } else if (!/[0-9]/.test(tLower)) {
           relation = '1-й сезон / Начало';
@@ -1525,6 +1546,42 @@ app.post('/api/anime/:id/favorite', authMiddleware, (req, res) => {
   } catch (err) {
     console.error('Toggle favorite error:', err);
     return res.status(500).json({ error: 'Ошибка обновления избранного' });
+  }
+});
+
+// Toggle 'Not Interested' (Hide from catalog) for an anime (Photo 4)
+app.post('/api/anime/:id/hide', authMiddleware, (req, res) => {
+  try {
+    const userId = req.user.id;
+    const animeId = parseInt(req.params.id, 10);
+    if (isNaN(animeId)) {
+      return res.status(400).json({ error: 'Неверный ID аниме' });
+    }
+
+    const anime = db.prepare('SELECT id FROM anime WHERE id = ?').get(animeId);
+    if (!anime) {
+      return res.status(404).json({ error: 'Аниме не найдено' });
+    }
+
+    const existing = db.prepare('SELECT id FROM user_hidden_anime WHERE user_id = ? AND anime_id = ?').get(userId, animeId);
+    let isHidden = false;
+
+    if (existing) {
+      db.prepare('DELETE FROM user_hidden_anime WHERE id = ?').run(existing.id);
+      isHidden = false;
+    } else {
+      db.prepare('INSERT INTO user_hidden_anime (user_id, anime_id) VALUES (?, ?)').run(userId, animeId);
+      isHidden = true;
+    }
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({ success: true, isHidden, animeId });
+  } catch (err) {
+    console.error('Toggle hide anime error:', err);
+    return res.status(500).json({ error: 'Ошибка скрытия аниме' });
   }
 });
 

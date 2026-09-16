@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Star, MessageSquare, ChevronDown, ChevronUp, Calendar, Film, Lock, Bookmark } from 'lucide-react';
+import { Star, MessageSquare, ChevronDown, ChevronUp, Calendar, Film, Lock, Bookmark, EyeOff } from 'lucide-react';
 import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
 import { getImageUrl } from '../api';
 
@@ -12,6 +12,7 @@ export default function AnimeCard({
   onRequireAuth,
   onSelectAnime,
   onToggleFavorite,
+  onToggleHide,
   friends = []
 }) {
   const [expandedDesc, setExpandedDesc] = useState(false);
@@ -20,14 +21,17 @@ export default function AnimeCard({
   const [imageFailed, setImageFailed] = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
+  const [hideLoading, setHideLoading] = useState(false);
 
   // User's rating and community stats
   const myScore = anime.myScore;
   const isFavorite = anime.isFavorite;
+  const isHidden = anime.isHidden;
   const averageScore = anime.averageScore;
   const ratingCount = anime.ratingCount || 0;
   const friendsRatings = anime.friendsRatings || [];
   const commentsCount = anime.commentsCount || 0;
+
 
   const handleImageError = () => {
     if (imgSrc === anime.imageUrl && anime.imageUrl) {
@@ -49,6 +53,22 @@ export default function AnimeCard({
         await onToggleFavorite(anime.id);
       } finally {
         setFavLoading(false);
+      }
+    }
+  };
+
+  const handleHideClick = async (e) => {
+    e.stopPropagation();
+    if (!user) {
+      onRequireAuth();
+      return;
+    }
+    if (onToggleHide) {
+      setHideLoading(true);
+      try {
+        await onToggleHide(anime.id);
+      } finally {
+        setHideLoading(false);
       }
     }
   };
@@ -134,20 +154,36 @@ export default function AnimeCard({
               )}
             </div>
 
-            {/* Favorite Button (top right corner as circled in photo) */}
-            <button
-              type="button"
-              onClick={handleFavoriteClick}
-              disabled={favLoading}
-              title={isFavorite ? 'В избранном' : 'Добавить в избранное'}
-              className={`p-1.5 rounded-xl transition-all flex items-center justify-center shrink-0 ${
-                isFavorite
-                  ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
-                  : 'text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800/80'
-              }`}
-            >
-              <Bookmark className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
-            </button>
+            {/* Action Buttons: Hide ("Не интересует") & Favorite */}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={handleHideClick}
+                disabled={hideLoading}
+                title={isHidden ? 'Скрыто ("Не интересует")' : 'Не интересует'}
+                className={`p-1.5 rounded-xl transition-all flex items-center justify-center shrink-0 ${
+                  isHidden
+                    ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-sm shadow-rose-500/20'
+                    : 'text-neutral-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                }`}
+              >
+                <EyeOff className={`w-4 h-4 ${isHidden ? 'stroke-[2.5]' : ''}`} />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleFavoriteClick}
+                disabled={favLoading}
+                title={isFavorite ? 'В избранном' : 'Добавить в избранное'}
+                className={`p-1.5 rounded-xl transition-all flex items-center justify-center shrink-0 ${
+                  isFavorite
+                    ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
+                    : 'text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800/80'
+                }`}
+              >
+                <Bookmark className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+              </button>
+            </div>
           </div>
 
           {/* 2. НАЗВАНИЕ ТАЙТЛА - СПРАВА ЗАГОЛОВОК */}

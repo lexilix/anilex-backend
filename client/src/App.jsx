@@ -11,6 +11,7 @@ import FeaturedCarousel from './components/FeaturedCarousel';
 import NotificationToast from './components/NotificationToast';
 import { Sparkles, Film, Loader2 } from 'lucide-react';
 import { apiUrl } from './api';
+import { getCachedCatalog, setCachedCatalog, hasCatalogChanged } from './utils/catalogCache';
 
 export default function App() {
   // Theme state
@@ -330,10 +331,26 @@ export default function App() {
   // Fetch initial or refreshed anime list
   const fetchAnime = useCallback(
     async (targetPage = 1, isAppend = false) => {
+      const cacheKey = `p${targetPage}_s${activeSort}_t${activeType}_y${activeYear}_st${filterStatus}_g${activeGenres.slice().sort().join('_')}_q${debouncedSearch.trim()}_u${user ? user.id : 'anon'}`;
+      let cached = null;
+
       if (isAppend) {
         setLoadingMore(true);
       } else {
-        setLoading(true);
+        if (targetPage === 1) {
+          cached = getCachedCatalog(cacheKey);
+          if (cached && Array.isArray(cached.items) && cached.items.length > 0) {
+            setAnimeList(cached.items);
+            setTotalCount(cached.total || 0);
+            setTotalPages(cached.totalPages || 1);
+            setRecommendationCount(cached.recommendationGenresCount || 0);
+            setLoading(false);
+          } else {
+            setLoading(true);
+          }
+        } else {
+          setLoading(true);
+        }
       }
 
       try {
@@ -345,7 +362,7 @@ export default function App() {
         if (filterStatus !== 'all') params.append('filterStatus', filterStatus);
         if (activeGenres.length > 0) params.append('genres', activeGenres.join(','));
         params.append('page', targetPage);
-        params.append('limit', 20);
+        params.append('limit', 15);
 
         const headers = {};
         if (token) {
@@ -361,6 +378,10 @@ export default function App() {
         const sanitizeList = (list) => {
           const seen = new Set();
           return list.filter((item) => {
+            const img = (item.imageUrl || '').toLowerCase();
+            if (img.includes('missing_original') || img.includes('404') || img.includes('placeholder')) {
+              return false;
+            }
             const key = `${(item.title || '').trim().toLowerCase()}_${item.year || ''}`;
             if (seen.has(key)) return false;
             seen.add(key);
@@ -368,18 +389,30 @@ export default function App() {
           });
         };
 
+        const sanitized = sanitizeList(newItems);
+
         if (isAppend) {
           setAnimeList((prev) => {
             const existingKeys = new Set(prev.map((i) => `${(i.title || '').trim().toLowerCase()}_${i.year || ''}`));
             const existingIds = new Set(prev.map((i) => i.id));
-            const filtered = newItems.filter((i) => {
+            const filtered = sanitized.filter((i) => {
               const key = `${(i.title || '').trim().toLowerCase()}_${i.year || ''}`;
               return !existingIds.has(i.id) && !existingKeys.has(key);
             });
             return sanitizeList([...prev, ...filtered]);
           });
         } else {
-          setAnimeList(sanitizeList(newItems));
+          if (!cached || hasCatalogChanged(cached.items, sanitized)) {
+            setAnimeList(sanitized);
+          }
+          if (targetPage === 1) {
+            setCachedCatalog(cacheKey, {
+              items: sanitized,
+              total: data.total,
+              totalPages: data.totalPages,
+              recommendationGenresCount: data.recommendationGenresCount
+            });
+          }
         }
 
         setTotalCount(data.total || 0);
@@ -388,7 +421,7 @@ export default function App() {
         setRecommendationCount(data.recommendationGenresCount || 0);
       } catch (err) {
         console.error('Error loading anime catalog:', err);
-        if (!isAppend) {
+        if (!isAppend && !cached) {
           setAnimeList([]);
           setTotalCount(0);
         }
@@ -397,7 +430,7 @@ export default function App() {
         setLoadingMore(false);
       }
     },
-    [debouncedSearch, activeSort, activeType, activeYear, filterStatus, activeGenres, token]
+    [debouncedSearch, activeSort, activeType, activeYear, filterStatus, activeGenres, token, user]
   );
 
   // Reset to page 1 on filter or search change
@@ -457,6 +490,39 @@ export default function App() {
       );
     } catch (err) {
       console.error('Favorite toggle error:', err);
+    }
+  };
+
+  // Toggle Hide ("Не интересует") handler
+  const handleToggleHide = async (animeId) => {
+    if (!token) {
+      setAuthModalOpen(true);
+      return;
+    }
+
+    try {
+      const res = await fetch(apiUrl(`/api/anime/${animeId}/hide`), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!res.ok) throw new Error('Hide toggle failed');
+
+      const data = await res.json();
+
+      if (data.isHidden) {
+        // Remove from current catalog view immediately for this user
+        setAnimeList((prev) => prev.filter((item) => item.id !== animeId));
+        setTotalCount((prev) => Math.max(0, prev - 1));
+      } else {
+        setAnimeList((prev) =>
+          prev.map((item) =>
+            item.id === animeId ? { ...item, isHidden: false } : item
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Hide toggle error:', err);
     }
   };
 
@@ -779,6 +845,7 @@ export default function App() {
                         onRequireAuth={() => setAuthModalOpen(true)}
                         onSelectAnime={(id) => navigateTo('anime-detail', id)}
                         onToggleFavorite={handleToggleFavorite}
+                        onToggleHide={handleToggleHide}
                       />
                     ))}
                   </div>

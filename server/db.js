@@ -157,8 +157,19 @@ db.exec(`
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS user_hidden_anime (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    anime_id INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(anime_id) REFERENCES anime(id) ON DELETE CASCADE,
+    UNIQUE(user_id, anime_id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_ratings_anime ON ratings(anime_id);
   CREATE INDEX IF NOT EXISTS idx_ratings_user ON ratings(user_id);
+  CREATE INDEX IF NOT EXISTS idx_user_hidden_anime_user ON user_hidden_anime(user_id);
   CREATE INDEX IF NOT EXISTS idx_anime_slug ON anime(slug);
   CREATE INDEX IF NOT EXISTS idx_comments_anime ON comments(anime_id);
   CREATE INDEX IF NOT EXISTS idx_comments_user ON comments(user_id);
@@ -250,11 +261,16 @@ function restoreAccountsFromBackup() {
     const raw = fs.readFileSync(backupFile, 'utf8');
     const data = JSON.parse(raw);
 
-    // Restore users
+    // Restore users with strict protection of existing avatar, banner, and nickname
     if (Array.isArray(data.users)) {
       const insertUserStmt = db.prepare(`
-        INSERT OR IGNORE INTO users (id, email, nickname, password_hash, salt, avatar_url, banner_url, allow_password_set, created_at)
+        INSERT INTO users (id, email, nickname, password_hash, salt, avatar_url, banner_url, allow_password_set, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          avatar_url = COALESCE(users.avatar_url, excluded.avatar_url),
+          banner_url = COALESCE(users.banner_url, excluded.banner_url),
+          nickname = COALESCE(users.nickname, excluded.nickname),
+          email = COALESCE(users.email, excluded.email)
       `);
       for (const u of data.users) {
         insertUserStmt.run(
@@ -304,6 +320,17 @@ function restoreAccountsFromBackup() {
       }
     }
 
+    // Restore hidden anime preferences
+    if (Array.isArray(data.hiddenAnime)) {
+      const insertHiddenStmt = db.prepare(`
+        INSERT OR IGNORE INTO user_hidden_anime (id, user_id, anime_id, created_at)
+        VALUES (?, ?, ?, ?)
+      `);
+      for (const h of data.hiddenAnime) {
+        insertHiddenStmt.run(h.id, h.user_id, h.anime_id, h.created_at || new Date().toISOString());
+      }
+    }
+
     console.log('[Database] Auto-restored accounts, friendships, and ratings from accounts_backup.json.');
   } catch (err) {
     console.error('[Database] Failed to restore from accounts_backup.json:', err.message);
@@ -320,6 +347,7 @@ function saveAccountsBackup() {
     const ratings = db.prepare('SELECT * FROM ratings').all();
     const friendRequests = db.prepare('SELECT * FROM friend_requests').all();
     const comments = db.prepare('SELECT * FROM comments').all();
+    const hiddenAnime = db.prepare('SELECT * FROM user_hidden_anime').all();
 
     const snapshot = {
       version: 1,
@@ -327,7 +355,8 @@ function saveAccountsBackup() {
       users,
       ratings,
       friendRequests,
-      comments
+      comments,
+      hiddenAnime
     };
 
     fs.writeFileSync(backupFile, JSON.stringify(snapshot, null, 2), 'utf8');
@@ -401,6 +430,8 @@ function deduplicateAnimeDatabase() {
         db.prepare(`DELETE FROM ratings WHERE anime_id = ?`).run(dup.id);
         db.prepare(`UPDATE OR IGNORE favorites SET anime_id = ? WHERE anime_id = ?`).run(keeper.id, dup.id);
         db.prepare(`DELETE FROM favorites WHERE anime_id = ?`).run(dup.id);
+        db.prepare(`UPDATE OR IGNORE user_hidden_anime SET anime_id = ? WHERE anime_id = ?`).run(keeper.id, dup.id);
+        db.prepare(`DELETE FROM user_hidden_anime WHERE anime_id = ?`).run(dup.id);
         db.prepare(`UPDATE comments SET anime_id = ? WHERE anime_id = ?`).run(keeper.id, dup.id);
         db.prepare(`DELETE FROM anime WHERE id = ?`).run(dup.id);
       }

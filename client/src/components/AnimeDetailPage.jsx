@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Star, MessageSquare, Send, Trash2, Calendar, Film, User, Bookmark, ThumbsUp, ThumbsDown, CornerDownRight, Lock } from 'lucide-react';
+import { ArrowLeft, Star, MessageSquare, Send, Trash2, Calendar, Film, User, Bookmark, EyeOff, ThumbsUp, ThumbsDown, CornerDownRight, Lock } from 'lucide-react';
 import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
 
@@ -18,6 +18,7 @@ export default function AnimeDetailPage({
   const [loading, setLoading] = useState(true);
   const [commentLoading, setCommentLoading] = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
+  const [hideLoading, setHideLoading] = useState(false);
   const [imgSrc, setImgSrc] = useState('');
   const [imageFailed, setImageFailed] = useState(false);
 
@@ -53,6 +54,29 @@ export default function AnimeDetailPage({
       }
     } catch (err) {
       console.error('Toggle favorite error:', err);
+    }
+  };
+
+  const handleToggleHide = async () => {
+    if (!user) {
+      onRequireAuth();
+      return;
+    }
+    setHideLoading(true);
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      const res = await fetch(apiUrl(`/api/anime/${animeId}/hide`), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAnime((prev) => ({ ...prev, isHidden: data.isHidden }));
+      }
+    } catch (err) {
+      console.error('Toggle hide error:', err);
+    } finally {
+      setHideLoading(false);
     }
   };
 
@@ -334,17 +358,34 @@ export default function AnimeDetailPage({
           <span>Назад в каталог</span>
         </button>
 
-        <button
-          onClick={handleToggleFavorite}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold transition-colors shadow-sm ${
-            anime.isFavorite
-              ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
-              : 'bg-white dark:bg-[#151518] text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-          }`}
-        >
-          <Bookmark className={`w-4 h-4 ${anime.isFavorite ? 'fill-current' : ''}`} />
-          <span>{anime.isFavorite ? 'В избранном' : 'В избранное'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Hide / "Не интересует" button */}
+          <button
+            onClick={handleToggleHide}
+            disabled={hideLoading}
+            title={anime.isHidden ? 'Скрыто из каталога ("Не интересует")' : 'Не интересует (скрыть из каталога)'}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-semibold transition-all shadow-sm ${
+              anime.isHidden
+                ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-rose-500/20'
+                : 'bg-white dark:bg-[#151518] text-neutral-600 dark:text-neutral-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+            }`}
+          >
+            <EyeOff className={`w-4 h-4 ${anime.isHidden ? 'stroke-[2.5]' : ''}`} />
+            <span>{anime.isHidden ? 'Не интересует (скрыто)' : 'Не интересует'}</span>
+          </button>
+
+          <button
+            onClick={handleToggleFavorite}
+            className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold transition-colors shadow-sm ${
+              anime.isFavorite
+                ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
+                : 'bg-white dark:bg-[#151518] text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+            }`}
+          >
+            <Bookmark className={`w-4 h-4 ${anime.isFavorite ? 'fill-current' : ''}`} />
+            <span>{anime.isFavorite ? 'В избранном' : 'В избранное'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Anime Detail Card */}
