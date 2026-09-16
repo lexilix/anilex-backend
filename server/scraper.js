@@ -672,6 +672,7 @@ async function seedInitialData() {
 }
 
 module.exports = {
+  insertOrUpdateAnime,
   scrapeAnimeGoPage,
   syncFromAnimeGo,
   fetchNextAnimeGoPage,

@@ -32,6 +32,11 @@ const {
   searchAnimeGo,
   searchShikimori
 } = require('./scraper');
+const {
+  scrapeAnimeGoUserList,
+  parseAnimeGoHtml,
+  importUserRatings
+} = require('./animego_importer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -294,6 +299,47 @@ app.put('/api/auth/profile', authMiddleware, (req, res) => {
   } catch (err) {
     console.error('Update profile error:', err);
     return res.status(500).json({ error: 'Ошибка обновления профиля' });
+  }
+});
+
+// Import ratings from AnimeGO (via public user URL/ID or pasted HTML)
+app.post('/api/user/import-animego', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { animegoUrlOrId, rawHtml } = req.body;
+
+    let items = [];
+    if (rawHtml && typeof rawHtml === 'string' && rawHtml.trim()) {
+      items = parseAnimeGoHtml(rawHtml);
+    } else if (animegoUrlOrId && typeof animegoUrlOrId === 'string' && animegoUrlOrId.trim()) {
+      items = await scrapeAnimeGoUserList(animegoUrlOrId);
+    } else {
+      return res.status(400).json({ error: 'Укажите ссылку/ID профиля AnimeGO или вставьте HTML страницы' });
+    }
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'Не удалось найти оценки аниме в указанном профиле или HTML' });
+    }
+
+    const result = importUserRatings(userId, items);
+
+    // Fetch updated stats
+    const stats = db.prepare(`
+      SELECT COUNT(id) as rated_count, ROUND(AVG(score), 1) as avg_score
+      FROM ratings WHERE user_id = ?
+    `).get(userId);
+
+    return res.json({
+      success: true,
+      result,
+      stats: {
+        ratedCount: stats.rated_count || 0,
+        avgScore: stats.avg_score !== null ? Number(stats.avg_score) : null
+      }
+    });
+  } catch (err) {
+    console.error('Import AnimeGO error:', err);
+    return res.status(500).json({ error: err.message || 'Ошибка импорта оценок с AnimeGO' });
   }
 });
 

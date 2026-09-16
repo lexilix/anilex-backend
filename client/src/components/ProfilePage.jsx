@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Settings, Star, Search, Filter, X, ArrowLeft, Film, Users, Calendar, Bookmark, Trash2, Check, UserPlus, UserCheck, Lock, Trophy, Sparkles, Award, ChevronRight } from 'lucide-react';
+import { User, Settings, Star, Search, Filter, X, ArrowLeft, Film, Users, Calendar, Bookmark, Trash2, Check, UserPlus, UserCheck, Lock, Trophy, Sparkles, Award, ChevronRight, Download, RefreshCw, ExternalLink, HelpCircle } from 'lucide-react';
 import { getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
 import { getUserLevel, LEVELS_CONFIG } from '../utils/levels';
@@ -55,6 +55,57 @@ export default function ProfilePage({
   const [friendScoreFilter, setFriendScoreFilter] = useState('top5');
   const [friendGenreFilter, setFriendGenreFilter] = useState('all');
   const [showLevelsModal, setShowLevelsModal] = useState(false);
+
+  // AnimeGO Import state
+  const [showAnimeGoModal, setShowAnimeGoModal] = useState(false);
+  const [animegoInput, setAnimegoInput] = useState('');
+  const [animegoRawHtml, setAnimegoRawHtml] = useState('');
+  const [showHtmlTab, setShowHtmlTab] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const [importError, setImportError] = useState(null);
+
+  const handleImportAnimeGo = async () => {
+    if (!animegoInput.trim() && !animegoRawHtml.trim()) {
+      setImportError('Укажите ссылку/ID профиля AnimeGO или вставьте HTML');
+      return;
+    }
+
+    setImportLoading(true);
+    setImportError(null);
+    setImportResult(null);
+
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      if (!token) throw new Error('Требуется авторизация');
+
+      const payload = showHtmlTab && animegoRawHtml.trim()
+        ? { rawHtml: animegoRawHtml.trim() }
+        : { animegoUrlOrId: animegoInput.trim() };
+
+      const res = await fetch(apiUrl('/api/user/import-animego'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Ошибка при импорте');
+      }
+
+      setImportResult(data.result);
+      fetchRated();
+    } catch (err) {
+      console.error('Import error:', err);
+      setImportError(err.message || 'Ошибка импорта оценок');
+    } finally {
+      setImportLoading(false);
+    }
+  };
 
   // Fetch rated anime
   const fetchRated = useCallback(async () => {
@@ -423,15 +474,30 @@ export default function ProfilePage({
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowLevelsModal(true)}
-                  className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 transition-colors shrink-0 shadow-sm flex items-center gap-1.5 self-stretch md:self-auto justify-center"
-                >
-                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Уровни и награды</span>
-                  <ChevronRight className="w-3 h-3 opacity-60" />
-                </button>
+                <div className="flex items-center gap-2 self-stretch md:self-auto shrink-0 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setShowLevelsModal(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 transition-colors shadow-sm flex items-center gap-1.5 justify-center flex-1 md:flex-initial"
+                  >
+                    <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Уровни и награды</span>
+                    <ChevronRight className="w-3 h-3 opacity-60" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAnimeGoModal(true);
+                      setImportResult(null);
+                      setImportError(null);
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white transition-all shadow-md flex items-center gap-1.5 justify-center flex-1 md:flex-initial"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Импорт с AnimeGO</span>
+                  </button>
+                </div>
               </div>
             );
           })()}
@@ -1607,6 +1673,192 @@ export default function ProfilePage({
                   });
                 })()}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AnimeGO Import Modal */}
+      {showAnimeGoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
+          <div className="bg-white dark:bg-[#18181b] border border-neutral-200 dark:border-neutral-800 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-5 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between shrink-0 bg-neutral-50/50 dark:bg-neutral-900/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md">
+                  <Download className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-neutral-900 dark:text-white">
+                    Импорт оценок с AnimeGO
+                  </h3>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                    Перенос просмотренных тайтлов и оценок в ваш профиль
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAnimeGoModal(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5">
+              {/* Rules info */}
+              <div className="p-4 rounded-2xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-xs space-y-1.5 text-blue-900 dark:text-blue-200">
+                <div className="font-bold flex items-center gap-1.5 text-blue-700 dark:text-blue-300">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Правила переноса оценок:</span>
+                </div>
+                <p>• Если на тайтле уже есть оценка в вашем профиле — она останется неизменной.</p>
+                <p>• Если оценки нет — будет выставлен балл из AnimeGO (от 1 до 10).</p>
+                <p>• Если тайтл в вашем списке AnimeGO без оценки — будет выставлен 0.</p>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex rounded-2xl bg-neutral-100 dark:bg-neutral-900 p-1">
+                <button
+                  type="button"
+                  onClick={() => setShowHtmlTab(false)}
+                  className={`flex-1 py-2 text-xs font-semibold rounded-xl transition-colors ${
+                    !showHtmlTab
+                      ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
+                      : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                  }`}
+                >
+                  По ссылке / ID профиля
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowHtmlTab(true)}
+                  className={`flex-1 py-2 text-xs font-semibold rounded-xl transition-colors ${
+                    showHtmlTab
+                      ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
+                      : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                  }`}
+                >
+                  Вставить HTML страницы
+                </button>
+              </div>
+
+              {!showHtmlTab ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+                      Ссылка на профиль AnimeGO или цифровой ID:
+                    </label>
+                    <input
+                      type="text"
+                      value={animegoInput}
+                      onChange={(e) => setAnimegoInput(e.target.value)}
+                      placeholder="Например: https://animego.me/user/1659989 или 1659989"
+                      className="w-full px-4 py-2.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/60 dark:border-neutral-800 text-xs text-neutral-500 dark:text-neutral-400 space-y-1">
+                    <span className="font-semibold text-neutral-700 dark:text-neutral-300 block">
+                      💡 Как узнать свой ID на AnimeGO:
+                    </span>
+                    <p>
+                      1. Откройте сайт <a href="https://animego.me/profile/" target="_blank" rel="noreferrer" className="text-blue-500 underline">animego.me/profile/</a>.
+                    </p>
+                    <p>
+                      2. Нажмите на свою аватарку или никнейм — адрес в браузере станет вида <code className="text-neutral-700 dark:text-neutral-300 bg-neutral-200/70 dark:bg-neutral-800 px-1 py-0.5 rounded">https://animego.me/user/НОМЕР</code>.
+                    </p>
+                    <p>
+                      3. Скопируйте эту ссылку или номер и вставьте в поле выше.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+                      Исходный HTML код страницы https://animego.me/profile/?type=2:
+                    </label>
+                    <textarea
+                      rows={5}
+                      value={animegoRawHtml}
+                      onChange={(e) => setAnimegoRawHtml(e.target.value)}
+                      placeholder="Нажмите Ctrl+U на странице своего профиля AnimeGO, скопируйте и вставьте сюда..."
+                      className="w-full px-4 py-2.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-xs font-mono text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <p className="text-[11px] text-neutral-400">
+                    Используйте этот вариант, если ваш профиль на AnimeGO закрыт от публичного просмотра.
+                  </p>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {importError && (
+                <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 text-xs text-rose-700 dark:text-rose-300">
+                  {importError}
+                </div>
+              )}
+
+              {/* Success Result */}
+              {importResult && (
+                <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-xs text-emerald-900 dark:text-emerald-200 space-y-2">
+                  <div className="font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 text-sm">
+                    <Check className="w-4 h-4" />
+                    <span>Импорт успешно завершён!</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+                    <div className="p-2 rounded-xl bg-white/60 dark:bg-black/20">
+                      <span className="block text-neutral-500 dark:text-neutral-400 text-[10px] uppercase">Найдено</span>
+                      <span className="font-bold text-sm text-neutral-900 dark:text-white">{importResult.total}</span>
+                    </div>
+                    <div className="p-2 rounded-xl bg-white/60 dark:bg-black/20">
+                      <span className="block text-neutral-500 dark:text-neutral-400 text-[10px] uppercase">Добавлено</span>
+                      <span className="font-bold text-sm text-emerald-600 dark:text-emerald-400">+{importResult.newlyRatedCount}</span>
+                    </div>
+                    <div className="p-2 rounded-xl bg-white/60 dark:bg-black/20">
+                      <span className="block text-neutral-500 dark:text-neutral-400 text-[10px] uppercase">Сохранено</span>
+                      <span className="font-bold text-sm text-blue-600 dark:text-blue-400">{importResult.alreadyRatedCount}</span>
+                    </div>
+                  </div>
+                  {importResult.zeroRatedCount > 0 && (
+                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                      * {importResult.zeroRatedCount} тайтлов без оценки на AnimeGO сохранены со счётом 0.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-end gap-3 shrink-0 bg-neutral-50/50 dark:bg-neutral-900/50">
+              <button
+                type="button"
+                onClick={() => setShowAnimeGoModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition-colors"
+              >
+                {importResult ? 'Закрыть' : 'Отмена'}
+              </button>
+              <button
+                type="button"
+                disabled={importLoading}
+                onClick={handleImportAnimeGo}
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
+              >
+                {importLoading ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Импортируем оценки...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{importResult ? 'Повторить импорт' : 'Начать импорт'}</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
