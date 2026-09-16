@@ -1,3 +1,18 @@
+// Auto-respawn with --experimental-sqlite if missing (critical for Node 22.x on Render)
+try {
+  require('node:sqlite');
+} catch (err) {
+  if (err.code === 'ERR_UNKNOWN_BUILTIN_MODULE' && !process.execArgv.includes('--experimental-sqlite')) {
+    console.log('[Server] Auto-relaunching with --experimental-sqlite flag...');
+    const { spawnSync } = require('node:child_process');
+    const result = spawnSync(process.execPath, ['--experimental-sqlite', ...process.argv.slice(1)], {
+      stdio: 'inherit',
+      env: process.env
+    });
+    process.exit(result.status ?? 0);
+  }
+}
+
 const express = require('express');
 const cors = require('cors');
 const path = require('node:path');
