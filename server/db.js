@@ -30,11 +30,21 @@ const db = new DatabaseSync(dbPath);
 db.exec('PRAGMA foreign_keys = ON;');
 db.exec('PRAGMA journal_mode = WAL;');
 
-// Custom Unicode / Cyrillic lowercase function for SQLite (supported in Node >= 22.13.0)
+// Custom Unicode / Cyrillic lowercase and ё/е normalization
+function normalizeSearchText(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[«»""''`]/g, '')
+    .trim();
+}
+
 let hasLowerUtf8 = false;
 try {
   if (typeof db.function === 'function') {
-    db.function('lower_utf8', (str) => typeof str === 'string' ? str.toLowerCase() : '');
+    db.function('lower_utf8', (str) => normalizeSearchText(str));
     hasLowerUtf8 = true;
     console.log('[Database] Custom lower_utf8 function registered successfully.');
   }
@@ -43,6 +53,7 @@ try {
 }
 
 db.hasLowerUtf8 = hasLowerUtf8;
+db.normalizeSearchText = normalizeSearchText;
 db.lowerSql = function (col) {
   return hasLowerUtf8 ? `lower_utf8(${col})` : `LOWER(${col})`;
 };
@@ -197,19 +208,34 @@ try {
     CREATE INDEX IF NOT EXISTS idx_anime_orig_lower ON anime(original_title_lower);
   `);
 
-  // Backfill any missing title_lower / original_title_lower using JavaScript toLowerCase()
-  const unindexedRows = db.prepare('SELECT id, title, original_title FROM anime WHERE title_lower IS NULL OR title_lower = \'\'').all();
-  if (unindexedRows.length > 0) {
-    console.log(`[Database] Indexing ${unindexedRows.length} anime titles for instant Unicode search...`);
+  // Re-index all anime titles with normalizeSearchText (converting ё to е and stripping punctuation)
+  const normSetting = db.prepare("SELECT value FROM app_settings WHERE key = 'search_normalized_v3'").get();
+  if (!normSetting) {
+    console.log('[Database] Re-indexing all anime titles with Unicode ё/е normalization...');
+    const allRows = db.prepare('SELECT id, title, original_title FROM anime').all();
     const updateLowerStmt = db.prepare('UPDATE anime SET title_lower = ?, original_title_lower = ? WHERE id = ?');
     db.exec('BEGIN TRANSACTION;');
-    for (const row of unindexedRows) {
-      const tl = (row.title || '').trim().toLowerCase();
-      const otl = (row.original_title || '').trim().toLowerCase();
+    for (const row of allRows) {
+      const tl = normalizeSearchText(row.title);
+      const otl = normalizeSearchText(row.original_title);
       updateLowerStmt.run(tl, otl, row.id);
     }
     db.exec('COMMIT;');
-    console.log('[Database] Anime search index ready.');
+    db.prepare("INSERT INTO app_settings (key, value) VALUES ('search_normalized_v3', '1') ON CONFLICT(key) DO UPDATE SET value = '1'").run();
+    console.log(`[Database] Normalized search index ready for ${allRows.length} anime titles.`);
+  } else {
+    // Backfill any newly added rows missing title_lower
+    const unindexedRows = db.prepare("SELECT id, title, original_title FROM anime WHERE title_lower IS NULL OR title_lower = ''").all();
+    if (unindexedRows.length > 0) {
+      const updateLowerStmt = db.prepare('UPDATE anime SET title_lower = ?, original_title_lower = ? WHERE id = ?');
+      db.exec('BEGIN TRANSACTION;');
+      for (const row of unindexedRows) {
+        const tl = normalizeSearchText(row.title);
+        const otl = normalizeSearchText(row.original_title);
+        updateLowerStmt.run(tl, otl, row.id);
+      }
+      db.exec('COMMIT;');
+    }
   }
 } catch (e) {
   console.log('Migration note:', e.message);
@@ -316,9 +342,10 @@ db.saveAccountsBackup = saveAccountsBackup;
 function deduplicateAnimeDatabase() {
   try {
     const duplicates = db.prepare(`
-      SELECT LOWER(TRIM(title)) as norm_title, year, COUNT(*) as count, GROUP_CONCAT(id) as ids
+      SELECT title_lower as norm_title, year, COUNT(*) as count, GROUP_CONCAT(id) as ids
       FROM anime
-      GROUP BY LOWER(TRIM(title)), year
+      WHERE title_lower IS NOT NULL AND title_lower != ''
+      GROUP BY title_lower, year
       HAVING count > 1
     `).all();
 
@@ -347,11 +374,27 @@ function deduplicateAnimeDatabase() {
       let keeperGenres = [];
       try { keeperGenres = JSON.parse(keeper.genres || '[]'); } catch (e) {}
 
+      let keeperOrig = keeper.original_title || '';
+      let keeperDesc = keeper.description || '';
+
       for (const dup of toDelete) {
         let dupGenres = [];
         try { dupGenres = JSON.parse(dup.genres || '[]'); } catch (e) {}
         for (const g of dupGenres) {
           if (!keeperGenres.includes(g)) keeperGenres.push(g);
+        }
+
+        if (dup.original_title) {
+          const parts = dup.original_title.split('/').map(p => p.trim()).filter(Boolean);
+          for (const p of parts) {
+            if (!keeperOrig.toLowerCase().includes(p.toLowerCase())) {
+              keeperOrig = keeperOrig ? `${keeperOrig} / ${p}` : p;
+            }
+          }
+        }
+
+        if ((!keeperDesc || keeperDesc.length < 40) && dup.description && dup.description.length > keeperDesc.length) {
+          keeperDesc = dup.description;
         }
 
         db.prepare(`UPDATE OR IGNORE ratings SET anime_id = ? WHERE anime_id = ?`).run(keeper.id, dup.id);
@@ -362,7 +405,14 @@ function deduplicateAnimeDatabase() {
         db.prepare(`DELETE FROM anime WHERE id = ?`).run(dup.id);
       }
 
-      db.prepare(`UPDATE anime SET genres = ? WHERE id = ?`).run(JSON.stringify(keeperGenres), keeper.id);
+      db.prepare(`
+        UPDATE anime SET
+          genres = ?,
+          original_title = ?,
+          original_title_lower = ?,
+          description = ?
+        WHERE id = ?
+      `).run(JSON.stringify(keeperGenres), keeperOrig, normalizeSearchText(keeperOrig), keeperDesc, keeper.id);
     }
     console.log('[Database] Deduplication completed successfully.');
   } catch (err) {

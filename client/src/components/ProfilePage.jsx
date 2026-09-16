@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Settings, Star, Search, Filter, X, ArrowLeft, Film, Users, Calendar, Bookmark, Trash2, Check, UserPlus, UserCheck, Lock } from 'lucide-react';
+import { User, Settings, Star, Search, Filter, X, ArrowLeft, Film, Users, Calendar, Bookmark, Trash2, Check, UserPlus, UserCheck, Lock, Trophy, Sparkles, Award, ChevronRight } from 'lucide-react';
 import { getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
+import { getUserLevel, LEVELS_CONFIG } from '../utils/levels';
 
 export default function ProfilePage({
   user,
@@ -53,6 +54,7 @@ export default function ProfilePage({
   const [friendRatings, setFriendRatings] = useState([]);
   const [friendScoreFilter, setFriendScoreFilter] = useState('top5');
   const [friendGenreFilter, setFriendGenreFilter] = useState('all');
+  const [showLevelsModal, setShowLevelsModal] = useState(false);
 
   // Fetch rated anime
   const fetchRated = useCallback(async () => {
@@ -373,6 +375,66 @@ export default function ProfilePage({
               </div>
             </div>
           </div>
+
+          {/* Otaku Level & Progression Card */}
+          {(() => {
+            const ratedCount = user ? (user.ratedCount ?? ratedAnime.length) : 0;
+            const userLevelData = getUserLevel(ratedCount);
+
+            return (
+              <div className="mb-4 p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/70 dark:border-neutral-800/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${userLevelData.currentLevel.color} text-2xl flex items-center justify-center shadow-md shrink-0`}>
+                    <span>{userLevelData.currentLevel.badge}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+                        Уровень {userLevelData.currentLevel.level}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-lg text-xs font-bold border ${userLevelData.currentLevel.bgBadge}`}>
+                        {userLevelData.currentLevel.title}
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 line-clamp-1">
+                      {userLevelData.currentLevel.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="w-full md:w-64 shrink-0 flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-neutral-500 dark:text-neutral-400 font-medium">
+                      {userLevelData.isMaxLevel ? (
+                        'Максимальный ранг!'
+                      ) : (
+                        `До след. уровня: еще ${userLevelData.neededForNext} ${userLevelData.neededForNext === 1 ? 'оценка' : userLevelData.neededForNext < 5 ? 'оценки' : 'оценок'}`
+                      )}
+                    </span>
+                    <span className="font-bold text-neutral-900 dark:text-white">
+                      {userLevelData.progressPercent}%
+                    </span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-neutral-200 dark:bg-neutral-800 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full bg-gradient-to-r ${userLevelData.currentLevel.color} transition-all duration-500`}
+                      style={{ width: `${userLevelData.progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowLevelsModal(true)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 transition-colors shrink-0 shadow-sm flex items-center gap-1.5 self-stretch md:self-auto justify-center"
+                >
+                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Уровни и награды</span>
+                  <ChevronRight className="w-3 h-3 opacity-60" />
+                </button>
+              </div>
+            );
+          })()}
 
           {/* Profile Navigation Tabs */}
           <div className="flex gap-2 pt-3 border-t border-neutral-100 dark:border-neutral-800 flex-wrap">
@@ -1065,7 +1127,17 @@ export default function ProfilePage({
                       {selectedFriend.nickname}
                     </h3>
                     {selectedFriend.isFriend ? (
-                      <div className="flex items-center gap-3 text-xs text-neutral-400 mt-1">
+                      <div className="flex items-center gap-2.5 text-xs text-neutral-400 mt-1 flex-wrap">
+                        {(() => {
+                          const fl = getUserLevel(selectedFriend.ratedCount || 0);
+                          return (
+                            <span className={`px-2 py-0.5 rounded-lg text-[11px] font-bold border ${fl.currentLevel.bgBadge} flex items-center gap-1`}>
+                              <span>{fl.currentLevel.badge}</span>
+                              <span>{fl.currentLevel.title}</span>
+                              <span className="opacity-75">· Ур. {fl.currentLevel.level}</span>
+                            </span>
+                          );
+                        })()}
                         <span>{selectedFriend.ratedCount} оценок</span>
                         {selectedFriend.avgScore !== null && (
                           <span className="flex items-center gap-1 font-semibold text-neutral-700 dark:text-neutral-300">
@@ -1354,6 +1426,189 @@ export default function ProfilePage({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Otaku Levels & Rewards Modal */}
+      {showLevelsModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setShowLevelsModal(false)}
+        >
+          <div
+            className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151518] p-6 sm:p-8 shadow-2xl relative space-y-6 border border-neutral-200/60 dark:border-neutral-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowLevelsModal(false)}
+              className="absolute right-5 top-5 w-8 h-8 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 hover:text-neutral-900 dark:hover:text-white flex items-center justify-center transition-colors"
+            >
+              ✕
+            </button>
+
+            {/* Modal Header */}
+            <div>
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-500 mb-1">
+                <Trophy className="w-4 h-4" />
+                <span>Система рангов и наград</span>
+              </div>
+              <h2 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
+                Ранги Отаку Томодачи
+              </h2>
+              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                Оценивайте любимые тайтлы от 0 до 10, повышайте свой ранг отаку и открывайте эксклюзивные титулы, бейджи и привилегии сообщества.
+              </p>
+            </div>
+
+            {/* Current User Level Banner */}
+            {(() => {
+              const ratedCount = user ? (user.ratedCount ?? ratedAnime.length) : 0;
+              const userLevelData = getUserLevel(ratedCount);
+
+              return (
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950 border border-neutral-200/80 dark:border-neutral-800/80">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${userLevelData.currentLevel.color} text-3xl flex items-center justify-center shadow-lg shrink-0`}>
+                        <span>{userLevelData.currentLevel.badge}</span>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                            Уровень {userLevelData.currentLevel.level}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-amber-400/15 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                            Ваш текущий ранг
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-bold text-neutral-900 dark:text-white mt-0.5">
+                          {userLevelData.currentLevel.title}
+                        </h3>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                          Оценено: <strong className="text-neutral-800 dark:text-neutral-200">{userLevelData.count}</strong> тайтлов
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="sm:text-right">
+                      {!userLevelData.isMaxLevel ? (
+                        <div>
+                          <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+                            До уровня {userLevelData.nextLevel.level}: <strong className="text-neutral-900 dark:text-white">{userLevelData.neededForNext}</strong> {userLevelData.neededForNext === 1 ? 'оценка' : userLevelData.neededForNext < 5 ? 'оценки' : 'оценок'}
+                          </span>
+                          <div className="w-full sm:w-48 h-2 rounded-full bg-neutral-200 dark:bg-neutral-800 overflow-hidden mt-1.5 ml-auto">
+                            <div
+                              className={`h-full rounded-full bg-gradient-to-r ${userLevelData.currentLevel.color}`}
+                              style={{ width: `${userLevelData.progressPercent}%` }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="px-3 py-1 rounded-xl text-xs font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                          Максимальный божественный уровень!
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Levels Roadmap List */}
+            <div className="space-y-3.5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                Все уровни гильдии ({LEVELS_CONFIG.length})
+              </h3>
+
+              <div className="space-y-3">
+                {(() => {
+                  const ratedCount = user ? (user.ratedCount ?? ratedAnime.length) : 0;
+                  const userLevelData = getUserLevel(ratedCount);
+
+                  return LEVELS_CONFIG.map((tier) => {
+                    const isCurrent = tier.level === userLevelData.currentLevel.level;
+                    const isUnlocked = userLevelData.count >= tier.minCount;
+                    const remainingToUnlock = Math.max(0, tier.minCount - userLevelData.count);
+
+                    return (
+                      <div
+                        key={tier.level}
+                        className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                          isCurrent
+                            ? 'bg-neutral-50 dark:bg-neutral-900/90 border-amber-400/50 shadow-md ring-1 ring-amber-400/30'
+                            : isUnlocked
+                            ? 'bg-white dark:bg-[#18181b] border-neutral-200/70 dark:border-neutral-800'
+                            : 'bg-neutral-50/50 dark:bg-neutral-900/30 border-neutral-200/40 dark:border-neutral-800/40 opacity-75'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                          <div className="flex items-start gap-3.5">
+                            <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${tier.color} text-2xl flex items-center justify-center shrink-0 shadow-sm`}>
+                              <span>{tier.badge}</span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
+                                  Ур. {tier.level}
+                                </span>
+                                <h4 className="text-base font-bold text-neutral-900 dark:text-white">
+                                  {tier.title}
+                                </h4>
+                                <span className="text-[11px] px-2 py-0.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-500 font-medium">
+                                  {tier.minCount === 0 ? '0-4 оценок' : tier.maxCount > 1000 ? `${tier.minCount}+ оценок` : `${tier.minCount}-${tier.maxCount} оценок`}
+                                </span>
+                              </div>
+
+                              <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                                {tier.description}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Status Badge */}
+                          <div className="sm:self-center shrink-0">
+                            {isCurrent ? (
+                              <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-400/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1.5">
+                                <Sparkles className="w-3.5 h-3.5 fill-current" />
+                                <span>Текущий ранг</span>
+                              </span>
+                            ) : isUnlocked ? (
+                              <span className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Получено</span>
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1.5 rounded-xl text-xs font-medium bg-neutral-200/60 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 flex items-center gap-1.5">
+                                <Lock className="w-3.5 h-3.5" />
+                                <span>Еще {remainingToUnlock} {remainingToUnlock === 1 ? 'оценка' : remainingToUnlock < 5 ? 'оценки' : 'оценок'}</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Rewards list */}
+                        <div className="mt-3 pt-3 border-t border-neutral-100 dark:border-neutral-800/80">
+                          <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                            Награды и привилегии:
+                          </span>
+                          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-neutral-700 dark:text-neutral-300">
+                            {tier.rewards.map((rew, idx) => (
+                              <li key={idx} className="flex items-center gap-1.5">
+                                <span className={`w-1.5 h-1.5 rounded-full ${isUnlocked ? 'bg-emerald-500' : 'bg-neutral-400 dark:bg-neutral-600'}`} />
+                                <span>{rew}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

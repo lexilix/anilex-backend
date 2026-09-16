@@ -8,16 +8,33 @@ export default function AnimeDetailPage({
   user,
   onBack,
   onGenreClick,
-  onRequireAuth
+  onRequireAuth,
+  onSelectAnime
 }) {
   const [anime, setAnime] = useState(null);
   const [comments, setComments] = useState([]);
+  const [relatedAnime, setRelatedAnime] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
   const [commentLoading, setCommentLoading] = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [imgSrc, setImgSrc] = useState('');
   const [imageFailed, setImageFailed] = useState(false);
+
+  // Fetch related continuations and franchise titles
+  const fetchRelatedAnime = async () => {
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(apiUrl(`/api/anime/${animeId}/related`), { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setRelatedAnime(data.items || []);
+      }
+    } catch (err) {
+      console.error('Error loading related anime:', err);
+    }
+  };
 
   const handleToggleFavorite = async () => {
     if (!user) {
@@ -78,6 +95,7 @@ export default function AnimeDetailPage({
   useEffect(() => {
     fetchAnimeDetails();
     fetchComments();
+    fetchRelatedAnime();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [animeId]);
 
@@ -523,6 +541,93 @@ export default function AnimeDetailPage({
           </div>
         </div>
       </div>
+
+      {/* Related Continuations & Seasons Section */}
+      {relatedAnime.length > 1 && (
+        <div className="rounded-3xl bg-white dark:bg-[#151518] p-6 sm:p-8 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Film className="w-5 h-5 text-amber-500" />
+              <h2 className="text-lg font-bold tracking-tight text-neutral-900 dark:text-white">
+                Связанное и продолжения ({relatedAnime.length})
+              </h2>
+            </div>
+            <span className="text-xs text-neutral-400">
+              Хронология франшизы
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+            {relatedAnime.map((item) => {
+              const isCurrent = item.id === anime.id;
+
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => {
+                    if (!isCurrent && onSelectAnime) {
+                      onSelectAnime(item.id);
+                    }
+                  }}
+                  className={`p-3 rounded-2xl border transition-all flex items-center gap-3.5 ${
+                    isCurrent
+                      ? 'bg-neutral-50 dark:bg-neutral-900/90 border-amber-400/50 ring-1 ring-amber-400/30 shadow-xs cursor-default'
+                      : 'bg-white dark:bg-[#18181b] border-neutral-200/70 dark:border-neutral-800/80 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 cursor-pointer shadow-xs hover:border-neutral-300 dark:hover:border-neutral-700'
+                  }`}
+                >
+                  {/* Thumbnail */}
+                  <div className="w-12 h-16 rounded-xl overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0 relative">
+                    <img
+                      src={getImageUrl(item.imageUrl)}
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  </div>
+
+                  {/* Info */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
+                        isCurrent
+                          ? 'bg-amber-400/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                          : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300'
+                      }`}>
+                        {item.relation}
+                      </span>
+                      {item.year && (
+                        <span className="text-[11px] text-neutral-400">
+                          {item.year}
+                        </span>
+                      )}
+                    </div>
+
+                    <h4 className="text-xs font-bold text-neutral-900 dark:text-white truncate mt-1">
+                      {item.title}
+                    </h4>
+
+                    <div className="flex items-center gap-2 text-[11px] text-neutral-400 mt-0.5">
+                      {item.averageScore !== null ? (
+                        <span className="flex items-center gap-0.5 font-semibold text-neutral-700 dark:text-neutral-300">
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                          {item.averageScore}
+                        </span>
+                      ) : (
+                        <span>Без оценок</span>
+                      )}
+                      {item.myScore !== null && (
+                        <span className="text-emerald-500 font-medium">
+                          • Ваша: {item.myScore}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Comments Section */}
       <div id="comments-section" className="rounded-3xl bg-white dark:bg-[#151518] p-6 sm:p-8 shadow-sm space-y-6">

@@ -17,29 +17,60 @@ function setLastScrapedPage(page) {
 function insertOrUpdateAnime(item) {
   if (!item.title || !item.slug || !item.image) return;
 
+  const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
   const cleanTitle = item.title.trim();
   const cleanOriginal = (item.originalTitle || '').trim();
+  const normTitle = normalize(cleanTitle);
+  const normOriginal = normalize(cleanOriginal);
 
-  // 1. Check if an anime with this slug exists
+  // 1. Check if an anime with this exact slug exists
   let existing = db.prepare('SELECT id, slug, title, original_title, image_url, type, year, genres, description FROM anime WHERE slug = ?').get(item.slug);
 
-  // 2. If not found by slug, check by normalized title and year (or title alone)
+  // 2. Check by normalized Russian title (+ year or title alone)
   if (!existing) {
     if (item.year) {
       existing = db.prepare(`
         SELECT id, slug, title, original_title, image_url, type, year, genres, description
         FROM anime
-        WHERE LOWER(TRIM(title)) = LOWER(?) AND year = ?
-      `).get(cleanTitle, item.year);
+        WHERE title_lower = ? AND year = ?
+      `).get(normTitle, item.year);
     }
     if (!existing) {
       existing = db.prepare(`
         SELECT id, slug, title, original_title, image_url, type, year, genres, description
         FROM anime
-        WHERE LOWER(TRIM(title)) = LOWER(?)
-           OR (original_title != '' AND LOWER(TRIM(original_title)) = LOWER(?))
-      `).get(cleanTitle, cleanOriginal || cleanTitle);
+        WHERE title_lower = ?
+      `).get(normTitle);
     }
+  }
+
+  // 3. Check by original/romaji/English title
+  if (!existing && normOriginal && normOriginal.length > 3) {
+    existing = db.prepare(`
+      SELECT id, slug, title, original_title, image_url, type, year, genres, description
+      FROM anime
+      WHERE original_title_lower = ?
+         OR (original_title_lower IS NOT NULL AND original_title_lower LIKE ?)
+         OR (title_lower = ?)
+    `).get(normOriginal, `%${normOriginal}%`, normOriginal);
+  }
+
+  // 4. Check by exact poster image URL
+  if (!existing && item.image && !item.image.includes('placeholder') && !item.image.includes('404')) {
+    existing = db.prepare(`
+      SELECT id, slug, title, original_title, image_url, type, year, genres, description
+      FROM anime
+      WHERE image_url = ?
+    `).get(item.image);
+  }
+
+  // 5. Check by identical non-empty description
+  if (!existing && item.description && item.description.length > 50) {
+    existing = db.prepare(`
+      SELECT id, slug, title, original_title, image_url, type, year, genres, description
+      FROM anime
+      WHERE description = ?
+    `).get(item.description);
   }
 
   if (existing) {
@@ -58,10 +89,11 @@ function insertOrUpdateAnime(item) {
 
     let origTitle = existing.original_title || '';
     if (cleanOriginal) {
-      if (!origTitle) {
-        origTitle = cleanOriginal;
-      } else if (!origTitle.toLowerCase().includes(cleanOriginal.toLowerCase())) {
-        origTitle = `${origTitle} / ${cleanOriginal}`;
+      const parts = cleanOriginal.split('/').map(p => p.trim()).filter(Boolean);
+      for (const p of parts) {
+        if (!origTitle.toLowerCase().includes(p.toLowerCase())) {
+          origTitle = origTitle ? `${origTitle} / ${p}` : p;
+        }
       }
     }
     const yr = existing.year || item.year || '';
@@ -79,11 +111,11 @@ function insertOrUpdateAnime(item) {
         description = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(origTitle, origTitle.toLowerCase().trim(), yr, img, JSON.stringify(mergedGenres), desc, existing.id);
+    `).run(origTitle, normalize(origTitle), yr, img, JSON.stringify(mergedGenres), desc, existing.id);
     return;
   }
 
-  // 3. Otherwise insert new
+  // 6. Otherwise insert new row
   const stmt = db.prepare(`
     INSERT INTO anime (slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -103,9 +135,9 @@ function insertOrUpdateAnime(item) {
   stmt.run(
     item.slug,
     cleanTitle,
-    cleanTitle.toLowerCase().trim(),
+    normTitle,
     cleanOriginal,
-    cleanOriginal.toLowerCase().trim(),
+    normOriginal,
     item.image,
     item.type || 'Сериал',
     item.year || '',
@@ -358,8 +390,12 @@ async function searchAnimeGo(query) {
     const isQueryAscii = /^[a-zA-Z0-9\s':\-!]+$/.test(cleanQuery);
     for (const item of items) {
       if (isQueryAscii && cleanQuery.length > 2) {
-        if (!item.originalTitle || !item.originalTitle.toLowerCase().includes(cleanQuery.toLowerCase())) {
-          item.originalTitle = item.originalTitle ? `${item.originalTitle} / ${cleanQuery}` : cleanQuery;
+        const normItemTitle = (item.title || '').toLowerCase();
+        const normItemOrig = (item.originalTitle || '').toLowerCase();
+        if (normItemTitle.includes(cleanQuery.toLowerCase()) || normItemOrig.includes(cleanQuery.toLowerCase())) {
+          if (!normItemOrig.includes(cleanQuery.toLowerCase())) {
+            item.originalTitle = item.originalTitle ? `${item.originalTitle} / ${cleanQuery}` : cleanQuery;
+          }
         }
       }
       insertOrUpdateAnime(item);
@@ -429,13 +465,13 @@ async function searchShikimori(query) {
       }
     }
 
-    // Fetch details for top 4 items to enrich description and genres
+    // Fetch details for top 6 items to enrich description, genres, English title and synonyms
     await Promise.all(
-      items.slice(0, 4).map(async (item) => {
+      items.slice(0, 6).map(async (item) => {
         try {
           const detailId = item.slug.replace('shiki-', '');
           const dRes = await fetch(`https://shikimori.one/api/animes/${detailId}`, {
-            headers: { 'User-Agent': 'Mozilla/5.0' }
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
           });
           if (dRes.ok) {
             const detailData = await dRes.json();
@@ -445,6 +481,28 @@ async function searchShikimori(query) {
             if (Array.isArray(detailData.genres) && detailData.genres.length > 0) {
               item.genres = detailData.genres.map(g => g.russian || g.name);
             }
+
+            // Extract English titles and synonyms
+            const extraTitles = [];
+            if (Array.isArray(detailData.english)) {
+              for (const en of detailData.english) {
+                if (en && typeof en === 'string' && en.trim()) extraTitles.push(en.trim());
+              }
+            } else if (typeof detailData.english === 'string' && detailData.english.trim()) {
+              extraTitles.push(detailData.english.trim());
+            }
+
+            if (Array.isArray(detailData.synonyms)) {
+              for (const syn of detailData.synonyms) {
+                if (syn && typeof syn === 'string' && syn.trim()) extraTitles.push(syn.trim());
+              }
+            }
+
+            for (const et of extraTitles) {
+              if (!item.originalTitle || !item.originalTitle.toLowerCase().includes(et.toLowerCase())) {
+                item.originalTitle = item.originalTitle ? `${item.originalTitle} / ${et}` : et;
+              }
+            }
           }
         } catch (e) {
           // ignore detail fetch error
@@ -452,7 +510,14 @@ async function searchShikimori(query) {
       })
     );
 
+    const isQueryAscii = /^[a-zA-Z0-9\s':\-!]+$/.test(cleanQuery);
     for (const item of items) {
+      if (isQueryAscii && cleanQuery.length > 2) {
+        const normItemOrig = (item.originalTitle || '').toLowerCase();
+        if (!normItemOrig.includes(cleanQuery.toLowerCase())) {
+          item.originalTitle = item.originalTitle ? `${item.originalTitle} / ${cleanQuery}` : cleanQuery;
+        }
+      }
       insertOrUpdateAnime(item);
     }
 

@@ -613,6 +613,7 @@ export default function App() {
             onBack={() => navigateTo('catalog')}
             onGenreClick={handleGenreClick}
             onRequireAuth={() => setAuthModalOpen(true)}
+            onSelectAnime={(id) => navigateTo('anime-detail', id)}
           />
         )}
 

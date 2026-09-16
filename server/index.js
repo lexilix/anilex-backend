@@ -958,8 +958,10 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
     let searchRankParams = [];
     if (search && search.trim()) {
       const cleanSearch = search.trim();
+      const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+      const normSearch = normalize(cleanSearch);
 
-      const allWords = cleanSearch.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+      const allWords = normSearch.split(/\s+/).filter(w => w.length > 0);
       const stopWords = new Set(['у', 'в', 'и', 'с', 'к', 'о', 'на', 'по', 'за', 'из', 'от', 'до', 'об', 'a', 'an', 'to', 'in', 'on', 'of', 'at', 'is', 'no', 'wa']);
       let meaningfulWords = allWords.filter(w => w.length > 2 && !stopWords.has(w));
       if (meaningfulWords.length === 0) {
@@ -974,7 +976,7 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       let andParams = [];
       for (const w of meaningfulWords) {
         andConditions.push('(title_lower LIKE ? OR original_title_lower LIKE ?)');
-        andParams.push(`%${w.toLowerCase()}%`, `%${w.toLowerCase()}%`);
+        andParams.push(`%${w}%`, `%${w}%`);
       }
 
       const countCheckSql = `SELECT COUNT(id) as cnt FROM anime WHERE ${andConditions.join(' AND ')}`;
@@ -993,7 +995,7 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       // Add WHERE condition: ALL meaningful words must match in title_lower or original_title_lower!
       for (const w of meaningfulWords) {
         whereClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ?)');
-        params.push(`%${w.toLowerCase()}%`, `%${w.toLowerCase()}%`);
+        params.push(`%${w}%`, `%${w}%`);
       }
 
       // Relevance rank cases:
@@ -1002,18 +1004,16 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       // Contains full phrase: 30
       // Per matching word in title: 10
       // Per matching word in original_title: 5
-      const cleanLower = cleanSearch.toLowerCase();
       let rankCases = [
         '(CASE WHEN a.title_lower = ? THEN 100 WHEN a.original_title_lower = ? THEN 80 ELSE 0 END)',
         '(CASE WHEN a.title_lower LIKE ? THEN 50 WHEN a.original_title_lower LIKE ? THEN 40 ELSE 0 END)',
         '(CASE WHEN a.title_lower LIKE ? THEN 30 WHEN a.original_title_lower LIKE ? THEN 20 ELSE 0 END)'
       ];
-      searchRankParams.push(cleanLower, cleanLower, `${cleanLower}%`, `${cleanLower}%`, `%${cleanLower}%`, `%${cleanLower}%`);
+      searchRankParams.push(normSearch, normSearch, `${normSearch}%`, `${normSearch}%`, `%${normSearch}%`, `%${normSearch}%`);
 
       for (const w of meaningfulWords) {
-        const wLower = w.toLowerCase();
         rankCases.push('(CASE WHEN a.title_lower LIKE ? THEN 10 WHEN a.original_title_lower LIKE ? THEN 5 ELSE 0 END)');
-        searchRankParams.push(`%${wLower}%`, `%${wLower}%`);
+        searchRankParams.push(`%${w}%`, `%${w}%`);
       }
 
       searchRankSql = `(${rankCases.join(' + ')}) DESC, `;
@@ -1319,6 +1319,128 @@ app.get('/api/anime/:id', optionalAuthMiddleware, (req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ error: 'Ошибка загрузки тайтла' });
+  }
+});
+
+// Helper to extract base franchise title
+function extractFranchiseBase(title) {
+  if (!title) return '';
+  let clean = title.trim();
+  const splitParts = clean.split(/\s*[—–:]\s*/);
+  if (splitParts[0] && splitParts[0].length >= 4) {
+    clean = splitParts[0].trim();
+  }
+  clean = clean
+    .replace(/\s+(?:[2-9]|10|II|III|IV|V|VI|VII|VIII|IX|X)\b/gi, '')
+    .replace(/\s+(?:2-й|3-й|4-й|5-й|6-й|второй|третий|четвертый|пятый)\s+сезон\b/gi, '')
+    .replace(/\s+сезон\s+[0-9]+\b/gi, '')
+    .replace(/\s+Часть\s+[0-9]+\b/gi, '')
+    .replace(/\s+Part\s+[0-9]+\b/gi, '')
+    .replace(/\s+Фильм.*$/gi, '')
+    .replace(/\s+Movie.*$/gi, '')
+    .replace(/\s+OVA.*$/gi, '')
+    .replace(/\s+Спешл.*$/gi, '')
+    .replace(/\.+$/, '')
+    .trim();
+  return clean;
+}
+
+// Related continuations and seasons for an anime
+app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
+  try {
+    const currentUserId = req.user ? req.user.id : null;
+    const animeId = parseInt(req.params.id, 10);
+    if (isNaN(animeId)) {
+      return res.status(400).json({ error: 'Неверный ID аниме' });
+    }
+
+    const target = db.prepare('SELECT id, slug, title, original_title, year, type, image_url FROM anime WHERE id = ?').get(animeId);
+    if (!target) {
+      return res.status(404).json({ error: 'Аниме не найдено' });
+    }
+
+    const resultsMap = new Map();
+    const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+    const base = extractFranchiseBase(target.title);
+
+    if (base && base.length >= 4) {
+      const normBase = normalize(base);
+      const candidates = db.prepare(`
+        SELECT
+          a.id,
+          a.slug,
+          a.title,
+          a.original_title,
+          a.year,
+          a.type,
+          a.image_url,
+          ROUND(AVG(r.score), 1) as avg_score,
+          COUNT(r.id) as rating_count,
+          (SELECT score FROM ratings WHERE anime_id = a.id AND user_id = ?) as my_score
+        FROM anime a
+        LEFT JOIN ratings r ON a.id = r.anime_id
+        WHERE a.title_lower LIKE ?
+        GROUP BY a.id
+      `).all(currentUserId || -1, `${normBase}%`);
+
+      const escapedBase = normBase.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const regex = new RegExp(`^${escapedBase}(?:\\s+(?:[0-9]+|II|III|IV|V|VI|VII|VIII|IX|X|сезон|фильм|часть|ova|спешл|movie|final|код|тренировка|бесконечный|деревня|квартал|поезд)|:|$|\\s*[—–\\-]|\\.)`, 'i');
+
+      for (const c of candidates) {
+        const normCand = normalize(c.title);
+        if (!regex.test(normCand)) continue;
+
+        let relation = 'Связанная часть';
+        const tLower = normCand;
+        if (c.id === target.id) {
+          relation = 'Текущий тайтл';
+        } else if (/часть\s*2|part\s*2/i.test(tLower)) {
+          relation = 'Часть 2';
+        } else if (/часть\s*3|part\s*3/i.test(tLower)) {
+          relation = 'Часть 3';
+        } else if (/2-й сезон|\b2\b|\bii\b|второй сезон/i.test(tLower)) {
+          relation = '2-й сезон';
+        } else if (/3-й сезон|\b3\b|\biii\b|третий сезон/i.test(tLower)) {
+          relation = '3-й сезон';
+        } else if (/4-й сезон|\b4\b|\biv\b|финал/i.test(tLower)) {
+          relation = '4-й сезон / Финал';
+        } else if (/фильм|movie/i.test(tLower) || c.type === 'Фильм') {
+          relation = 'Фильм';
+        } else if (/ova|спешл|ona/i.test(tLower) || c.type === 'OVA') {
+          relation = 'Спешл / OVA';
+        } else if (!/[0-9]/.test(tLower)) {
+          relation = '1-й сезон / Начало';
+        }
+
+        resultsMap.set(c.id, {
+          id: c.id,
+          slug: c.slug,
+          title: c.title,
+          originalTitle: c.original_title,
+          year: c.year,
+          type: c.type,
+          imageUrl: c.image_url,
+          relation,
+          isCurrent: c.id === target.id,
+          myScore: c.my_score !== null && c.my_score !== undefined ? c.my_score : null,
+          averageScore: c.rating_count > 0 && c.avg_score !== null ? Number(c.avg_score) : null,
+          ratingCount: Number(c.rating_count)
+        });
+      }
+    }
+
+    // Convert map to sorted list
+    const items = Array.from(resultsMap.values()).sort((a, b) => {
+      const yrA = parseInt(a.year, 10) || 0;
+      const yrB = parseInt(b.year, 10) || 0;
+      if (yrA !== yrB) return yrA - yrB;
+      return a.id - b.id;
+    });
+
+    return res.json({ items });
+  } catch (err) {
+    console.error('Error fetching related anime:', err);
+    return res.status(500).json({ error: 'Ошибка загрузки связанных тайтлов' });
   }
 });
 
