@@ -1,0 +1,21 @@
+{
+  "name": "anime-friends-rating",
+  "version": "1.0.0",
+  "description": "Minimalist anime rating website for friends with AnimeGO catalog",
+  "main": "server/index.js",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "server": "node server/index.js",
+    "client": "npm run dev --prefix client",
+    "build:client": "npm run build --prefix client",
+    "dev": "node server/index.js",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
