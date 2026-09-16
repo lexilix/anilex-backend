@@ -50,111 +50,193 @@ export function extractPlatformIdentifier(platform, input) {
 }
 
 /**
- * Parses AnimeLib raw HTML or JSON or text lines
+ * Recursively extracts anime and rating info from any JSON structure
  */
-export function parseAnimeLibContent(rawText) {
+function extractAnimeFromAnyObject(obj, items = [], visited = new Set()) {
+  if (!obj || typeof obj !== 'object') return items;
+  if (visited.has(obj)) return items;
+  visited.add(obj);
+
+  if (Array.isArray(obj)) {
+    for (const el of obj) extractAnimeFromAnyObject(el, items, visited);
+    return items;
+  }
+
+  const animeObj = obj.anime || obj.media || obj.item || obj.title_info || obj;
+  const rusName = animeObj.rus_name || animeObj.russian || animeObj.title || animeObj.name || obj.rus_name || obj.title || obj.name;
+  const engName = animeObj.eng_name || animeObj.original_title || animeObj.romanji || obj.eng_name;
+
+  const rawScore = obj.user_rate ?? obj.rate ?? obj.score ?? obj.user_rating ?? obj.rating ?? obj.my_score ?? animeObj.user_rate ?? animeObj.score;
+  const hasScore = rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore));
+  const scoreNum = hasScore ? Math.min(10, Math.max(0, Math.round(Number(rawScore)))) : 0;
+
+  const titleStr = typeof rusName === 'string' ? rusName.trim() : '';
+  const isExcluded = ['пользователь', 'профиль', 'закладки', 'главная', 'каталог', 'anime', 'manga'].includes(titleStr.toLowerCase());
+
+  if (titleStr.length >= 2 && !isExcluded && (hasScore || obj.anime || obj.media || animeObj.slug || obj.slug)) {
+    items.push({
+      slug: (animeObj.slug || obj.slug || titleStr).toString().trim(),
+      title: titleStr,
+      originalTitle: typeof engName === 'string' ? engName.trim() : '',
+      score: scoreNum,
+      image: animeObj.cover?.default || animeObj.cover?.thumbnail || animeObj.image || null,
+      type: 'Сериал'
+    });
+  }
+
+  for (const k of Object.keys(obj)) {
+    if (typeof obj[k] === 'object' && obj[k] !== null) {
+      extractAnimeFromAnyObject(obj[k], items, visited);
+    }
+  }
+  return items;
+}
+
+/**
+ * Parses AnimeLib raw HTML or JSON text or plain text
+ */
+export function parseAnimeLibContent(rawText, catalog = []) {
   if (!rawText || typeof rawText !== 'string') return [];
   const text = rawText.trim();
-  const allItems = [];
+  const rawItems = [];
 
-  // 1. Check if raw JSON
+  // 1. Direct JSON
   if (text.startsWith('[') || text.startsWith('{')) {
     try {
       const parsed = JSON.parse(text);
-      const list = Array.isArray(parsed) ? parsed : (parsed.data || parsed.items || []);
-      for (const it of list) {
-        const title = it.rus_name || it.name || it.title || '';
-        const score = typeof it.user_rate === 'number' ? it.user_rate : (typeof it.score === 'number' ? it.score : 0);
-        if (title) {
-          allItems.push({
-            slug: it.slug || title.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-'),
-            title,
-            originalTitle: it.eng_name || it.original_title || '',
-            score: Math.min(10, Math.max(0, Math.round(score))),
-            image: it.cover?.default || it.image || null,
-            type: it.type || 'Сериал'
-          });
-        }
-      }
-      if (allItems.length > 0) return allItems;
-    } catch {
-      // Not pure JSON, continue to HTML/regex
+      extractAnimeFromAnyObject(parsed, rawItems);
+    } catch (e) {}
+  }
+
+  // 2. Embedded Next.js or JSON scripts in HTML
+  const scriptMatches = text.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi);
+  for (const sm of scriptMatches) {
+    const scriptContent = (sm[1] || '').trim();
+    if (scriptContent.startsWith('{') || scriptContent.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(scriptContent);
+        extractAnimeFromAnyObject(parsed, rawItems);
+      } catch (e) {}
     }
   }
 
-  // 2. Parse Next.js __NEXT_DATA__ embedded JSON
-  const nextDataMatch = text.match(/<script\s+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
-  if (nextDataMatch) {
-    try {
-      const nextJson = JSON.parse(nextDataMatch[1]);
-      const pageProps = nextJson?.props?.pageProps || {};
-      const bookmarks = pageProps.bookmarks || pageProps.items || pageProps.userBookmarks || [];
-      if (Array.isArray(bookmarks) && bookmarks.length > 0) {
-        for (const it of bookmarks) {
-          const anime = it.anime || it.media || it.item || it;
-          const title = anime.rus_name || anime.name || anime.title;
-          const score = it.rate || it.user_rate || it.score || 0;
-          if (title) {
-            allItems.push({
-              slug: anime.slug || title.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-'),
-              title,
-              originalTitle: anime.eng_name || '',
-              score: Math.min(10, Math.max(0, Math.round(Number(score)))),
-              image: anime.cover?.default || null,
-              type: 'Сериал'
-            });
-          }
-        }
-        if (allItems.length > 0) return allItems;
+  // 3. Regular expression HTML scraping for media links and cards
+  const linkRegex = /<a[^>]+href=["']([^"']*(?:\/anime\/|\/media\/|\/title\/)[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let lm;
+  while ((lm = linkRegex.exec(text)) !== null) {
+    const href = lm[1];
+    const innerHtml = lm[2].replace(/<[^>]+>/g, '').trim();
+    if (innerHtml.length >= 2) {
+      const startPos = Math.max(0, lm.index - 100);
+      const endPos = Math.min(text.length, lm.index + lm[0].length + 150);
+      const window = text.slice(startPos, endPos);
+      let score = 0;
+      const scoreMatch = window.match(/(?:data-score|data-rating|data-rate|score|rate|рейтинг|оценка)[^0-9]{0,15}(\d{1,2})/i) ||
+                         window.match(/(\d{1,2})\s*\/\s*10/i) ||
+                         window.match(/★\s*(\d{1,2})/i);
+      if (scoreMatch) {
+        const val = parseInt(scoreMatch[1], 10);
+        if (val >= 1 && val <= 10) score = val;
       }
-    } catch {
-      // Continue
-    }
-  }
 
-  // 3. Fallback regex for HTML cards
-  const cardMatches = text.matchAll(/(?:class="[^"]*media-card[^"]*"|class="[^"]*item[^"]*")[\s\S]*?(?:href="\/ru\/anime\/([a-zA-Z0-9_-]+)"|href="\/([a-zA-Z0-9_-]+)")[\s\S]*?(?:<h3|<div class="[^"]*title[^"]*")>([^<]+)<[\s\S]*?(?:data-score="(\d+)"|(\d+)\s*\/\s*10)?/gi);
-  for (const cm of cardMatches) {
-    const slug = cm[1] || cm[2];
-    const title = (cm[3] || '').trim();
-    const score = cm[4] || cm[5] ? parseInt(cm[4] || cm[5], 10) : 0;
-    if (title && !allItems.some((x) => x.title.toLowerCase() === title.toLowerCase())) {
-      allItems.push({
-        slug: slug || title.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-'),
-        title,
+      rawItems.push({
+        slug: href.split('/').pop(),
+        title: innerHtml,
         originalTitle: '',
-        score: Math.min(10, Math.max(0, score)),
+        score,
         image: null,
         type: 'Сериал'
       });
     }
   }
 
-  // 4. Line-by-line fallback: "Наруто - 9" or "Атака титанов: 10"
-  if (allItems.length === 0) {
-    const lines = text.split(/\r?\n/);
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-      if (!line || line.startsWith('#') || line.startsWith('//')) continue;
-      const m = line.match(/^([^—–\-:]{2,100})\s*[—–\-:]\s*(\d{1,2})(?:\s*\/\s*10)?$/i);
-      if (m) {
-        const title = m[1].trim();
-        const score = parseInt(m[2], 10);
-        if (title && !allItems.some((x) => x.title.toLowerCase() === title.toLowerCase())) {
-          allItems.push({
-            slug: title.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-'),
-            title,
-            originalTitle: '',
-            score: Math.min(10, Math.max(0, score)),
-            image: null,
-            type: 'Сериал'
-          });
+  // 4. Catalog cross-referencing (scans for all catalog titles appearing in text)
+  const catList = (Array.isArray(catalog) && catalog.length > 0) ? catalog : getStoredCatalog();
+  if (Array.isArray(catList) && catList.length > 0) {
+    for (const c of catList) {
+      if (!c.title || c.title.length < 2) continue;
+      const titleEscaped = c.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp('(?:^|[^а-яА-Яa-zA-Z0-9])' + titleEscaped + '(?:$|[^а-яА-Яa-zA-Z0-9])', 'i');
+      const idx = text.search(re);
+      if (idx !== -1) {
+        const after = text.slice(idx + c.title.length, Math.min(text.length, idx + c.title.length + 100));
+        const before = text.slice(Math.max(0, idx - 100), idx);
+        let score = 0;
+        const patterns = [
+          /(?:оценка|рейтинг|rate|score|user-score|data-rate|data-rating|data-score)[^0-9]{0,15}(\d{1,2})/i,
+          /(\d{1,2})\s*\/\s*10/i,
+          /★\s*(\d{1,2})/i,
+          /(?:\r?\n|^)\s*(\d{1,2})\s*(?:\r?\n|$)/,
+          /[-—–:\s]+(\d{1,2})\b/
+        ];
+
+        for (const p of patterns) {
+          const m = after.match(p);
+          if (m) {
+            const val = parseInt(m[1], 10);
+            if (val >= 1 && val <= 10) { score = val; break; }
+          }
         }
+        if (!score) {
+          for (const p of patterns) {
+            const m = before.match(p);
+            if (m) {
+              const val = parseInt(m[1], 10);
+              if (val >= 1 && val <= 10) { score = val; break; }
+            }
+          }
+        }
+
+        rawItems.push({
+          slug: `anime-${c.id}`,
+          title: c.title,
+          originalTitle: c.originalTitle || '',
+          score,
+          image: null,
+          type: 'Сериал'
+        });
       }
     }
   }
 
-  return allItems;
+  // 5. Line-based text fallback (e.g. "Магическая битва - 10" or "Шаман Кинг 9/10")
+  const lines = text.split(/\r?\n/);
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#') || line.startsWith('//') || line.length < 3) continue;
+    const m = line.match(/^([a-zA-Zа-яА-Я0-9\s:!—–,.'«»]+?)(?:\s*[-—–:]\s*|\s*\(?\s*)(\d{1,2})(?:\s*\/\s*10)?\s*\)?$/);
+    if (m) {
+      const title = m[1].trim();
+      const score = parseInt(m[2], 10);
+      if (title.length > 1 && score >= 0 && score <= 10) {
+        rawItems.push({
+          slug: title.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-'),
+          title,
+          originalTitle: '',
+          score,
+          image: null,
+          type: 'Сериал'
+        });
+      }
+    }
+  }
+
+  // 6. Deduplicate by normalized title, preserving highest non-zero score
+  const itemMap = new Map();
+  for (const it of rawItems) {
+    if (!it.title || it.title.length < 2) continue;
+    const key = it.title.trim().toLowerCase().replace(/[^a-zа-я0-9]/gi, '');
+    if (!itemMap.has(key)) {
+      itemMap.set(key, it);
+    } else {
+      const existing = itemMap.get(key);
+      if (it.score > existing.score) {
+        itemMap.set(key, it);
+      }
+    }
+  }
+
+  return Array.from(itemMap.values());
 }
 
 /**
@@ -201,12 +283,12 @@ export async function fetchShikimoriDirect(username) {
     if (res.status === 404) {
       throw new Error(`Пользователь «${username}» не найден на Shikimori. Проверьте правильность никнейма.`);
     }
-    throw new Error(`Ошибка Shikimori API (код ${res.status}). Попробуйте позже.`);
+    throw new Error(`Ошибка подключения к Shikimori (код ${res.status}). Попробуйте позже.`);
   }
 
   const rates = await res.json();
   if (!Array.isArray(rates) || rates.length === 0) {
-    throw new Error(`В профиле «${username}» на Shikimori нет оценённых или добавленных аниме.`);
+    throw new Error(`В профиле «${username}» на Shikimori нет оценённых аниме.`);
   }
 
   return rates.map((r) => {
@@ -225,19 +307,81 @@ export async function fetchShikimoriDirect(username) {
 
 /**
  * Universal safe import runner:
- * 1. Calls backend /api/user/import
- * 2. If backend returns 404 or fails, applies resilient client fallbacks:
- *    - AnimeGO -> /api/user/import-animego
- *    - Shikimori -> direct client fetch from Shikimori API + save ratings
- *    - AnimeLib / Raw -> client parsing + save ratings
+ * Analyzes the profile and safely transfers ratings to the user's profile.
  */
 export async function executeImportWorkflow({ platform, input, rawContent, token, userId }) {
   if (!token) throw new Error('Требуется авторизация в профиле');
 
-  const cleanId = extractPlatformIdentifier(platform, input);
-  const isRaw = platform === 'raw' || Boolean(rawContent && rawContent.trim());
+  const combinedContent = (rawContent || '').trim() || (input && (input.length > 200 || input.includes('\n') || input.includes('<') || input.includes('{"')) ? input.trim() : '');
+  let resolvedPlatform = platform;
 
-  // Step 1: Try unified backend endpoint first
+  // Auto-detect platform from URL or content
+  const targetStr = (input || '') + ' ' + (rawContent || '');
+  if (targetStr.includes('animelib.org') || targetStr.includes('anilib')) {
+    resolvedPlatform = 'animelib';
+  } else if (targetStr.includes('shikimori.one') || targetStr.includes('shikimori.io') || targetStr.includes('shikimori.me')) {
+    resolvedPlatform = 'shikimori';
+  } else if (targetStr.includes('animego.me')) {
+    resolvedPlatform = 'animego';
+  }
+
+  const cleanId = extractPlatformIdentifier(resolvedPlatform, input);
+
+  // 1. If user provided raw code / HTML / text
+  if (combinedContent) {
+    let items = [];
+    if (resolvedPlatform === 'animego') {
+      items = parseAnimeGoHtml(combinedContent);
+    }
+    if (!items || items.length === 0) {
+      items = parseAnimeLibContent(combinedContent);
+    }
+    if (!items || items.length === 0) {
+      items = parseAnimeGoHtml(combinedContent);
+    }
+
+    if (items && items.length > 0) {
+      return await saveItemsDirectlyToCatalog(items, token, userId);
+    }
+  }
+
+  // 2. Shikimori Direct API (CORS enabled)
+  if (resolvedPlatform === 'shikimori') {
+    const username = cleanId || input.trim();
+    if (!username) throw new Error('Укажите никнейм или ссылку на профиль Shikimori');
+    const items = await fetchShikimoriDirect(username);
+    return await saveItemsDirectlyToCatalog(items, token, userId);
+  }
+
+  // 3. AnimeGO via link
+  if (resolvedPlatform === 'animego') {
+    try {
+      const res = await fetch(apiUrl('/api/user/import-animego'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          animegoUrlOrId: cleanId || input.trim(),
+          rawHtml: combinedContent
+        })
+      });
+
+      const text = await res.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+
+      if (res.ok && data?.result) return data.result;
+      if (data?.error) throw new Error(data.error);
+    } catch (err) {
+      if (err.message && !err.message.includes('<!DOCTYPE') && !err.message.includes('JSON')) {
+        throw err;
+      }
+    }
+  }
+
+  // 4. Try backend /api/user/import
   try {
     const res = await fetch(apiUrl('/api/user/import'), {
       method: 'POST',
@@ -246,93 +390,35 @@ export async function executeImportWorkflow({ platform, input, rawContent, token
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify({
-        platform: isRaw ? 'raw' : platform,
+        platform: resolvedPlatform,
         input: cleanId || input.trim(),
-        rawContent: (rawContent || '').trim()
+        rawContent: combinedContent
       })
     });
 
     const text = await res.text();
     let data = null;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = null;
-    }
+    try { data = JSON.parse(text); } catch {}
 
-    if (res.ok && data?.result) {
-      return data.result;
-    }
-
-    // If backend gave a clear user-facing error (like 400 with message), throw it
-    if (res.status === 400 && data?.error) {
-      throw new Error(data.error);
-    }
-
-    // If backend returned 404 HTML, proceed to fallbacks below
+    if (res.ok && data?.result) return data.result;
+    if (res.status === 400 && data?.error) throw new Error(data.error);
   } catch (err) {
-    if (err.message && !err.message.includes('Unexpected token') && !err.message.includes('<!DOCTYPE')) {
-      // If it's a genuine logical error (e.g. user not found), don't silently ignore
+    if (err.message && !err.message.includes('<!DOCTYPE') && !err.message.includes('JSON')) {
       if (err.message.includes('не найден') || err.message.includes('Укажите')) {
         throw err;
       }
     }
   }
 
-  // Step 2: Fallbacks for when backend /api/user/import is not deployed yet on Render
-  if (platform === 'animego') {
-    // Call legacy /api/user/import-animego which IS deployed on Render
-    const res = await fetch(apiUrl('/api/user/import-animego'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        animegoUrlOrId: cleanId || input.trim(),
-        rawHtml: (rawContent || '').trim()
-      })
-    });
-
-    const resText = await res.text();
-    let data = null;
-    try {
-      data = JSON.parse(resText);
-    } catch {
-      throw new Error('Сервер AnimeGO временно недоступен. Попробуйте повторить попытку через минуту.');
-    }
-
-    if (!res.ok) {
-      throw new Error(data?.error || 'Ошибка при импорте с AnimeGO');
-    }
-    return data.result;
+  // 5. AnimeLib specific link guidance if direct fetch was blocked by DDoS-Guard
+  if (resolvedPlatform === 'animelib') {
+    throw new Error(
+      'Сайт AnimeLib защищён проверкой браузера от автоматических запросов. ' +
+      'Пожалуйста, перейдите на открытую страницу профиля AnimeLib, нажмите Ctrl+U (Исходный код) или Ctrl+A (Выделить всё), скопируйте и вставьте в поле — все ваши оценки моментально определятся и перенесутся!'
+    );
   }
 
-  if (platform === 'shikimori') {
-    // Shikimori API has open CORS! Fetch directly from browser
-    const username = cleanId || input.trim();
-    const items = await fetchShikimoriDirect(username);
-    return await saveItemsDirectlyToCatalog(items, token, userId);
-  }
-
-  if (platform === 'animelib' || platform === 'raw') {
-    let items = [];
-    if (rawContent && rawContent.trim()) {
-      items = parseAnimeLibContent(rawContent);
-    }
-
-    if (items.length === 0) {
-      // If user provided a link to AnimeLib and no raw content
-      throw new Error(
-        'Сайт AnimeLib защищён проверкой DDoS-Guard и блокирует автоматические запросы по ссылке. ' +
-        'Пожалуйста, откройте страницу ваших закладок AnimeLib, нажмите Ctrl+U (Исходный код страницы), скопируйте его и вставьте во вкладку «Вставить код страницы / текст» — все оценки перенесутся моментально!'
-      );
-    }
-
-    return await saveItemsDirectlyToCatalog(items, token, userId);
-  }
-
-  throw new Error('Не удалось выполнить импорт. Пожалуйста, проверьте введённые данные.');
+  throw new Error('Не удалось найти оценки в указанном источнике. Попробуйте скопировать текст страницы профиля и вставить в поле.');
 }
 
 /**

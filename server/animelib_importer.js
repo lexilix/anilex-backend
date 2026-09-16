@@ -12,113 +12,149 @@ function extractAnimeLibUser(input) {
 }
 
 /**
- * Parses AnimeLib raw HTML or JSON text
+ * Recursively extracts anime and rating info from any JSON structure
  */
-function parseAnimeLibContent(rawText) {
-  if (!rawText || typeof rawText !== 'string') return [];
-  const text = rawText.trim();
-  const allItems = [];
+function extractAnimeFromAnyObject(obj, items = [], visited = new Set()) {
+  if (!obj || typeof obj !== 'object') return items;
+  if (visited.has(obj)) return items;
+  visited.add(obj);
 
-  // 1. Check if raw JSON was pasted
-  if (text.startsWith('[') || text.startsWith('{')) {
-    try {
-      const parsed = JSON.parse(text);
-      const list = Array.isArray(parsed) ? parsed : (parsed.data || parsed.items || parsed.bookmarks || []);
-      if (Array.isArray(list) && list.length > 0) {
-        for (const item of list) {
-          const animeData = item.anime || item.media || item.item || item;
-          const title = (animeData.rus_name || animeData.russian || animeData.name || animeData.title || '').trim();
-          const originalTitle = (animeData.eng_name || animeData.name || animeData.original_title || '').trim();
-          const rawScore = item.user_rating || item.user_rate || item.score || animeData.user_rating || animeData.score;
-          const score = typeof rawScore === 'number' ? Math.round(rawScore) : parseInt(rawScore, 10) || 0;
-          const slug = (animeData.slug || animeData.id ? `animelib-${animeData.slug || animeData.id}` : '').trim();
-          const image = animeData.cover?.default || animeData.cover?.thumbnail || animeData.image || null;
-
-          if (title) {
-            allItems.push({
-              slug: slug || title.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-'),
-              title,
-              originalTitle,
-              score: score >= 0 && score <= 10 ? score : 0,
-              image,
-              type: 'Сериал'
-            });
-          }
-        }
-        if (allItems.length > 0) return allItems;
-      }
-    } catch (e) {
-      // Not pure JSON, continue to HTML / text parsing
-    }
+  if (Array.isArray(obj)) {
+    for (const el of obj) extractAnimeFromAnyObject(el, items, visited);
+    return items;
   }
 
-  // 2. Check for embedded Next.js or Nuxt data inside HTML
-  const nextDataMatch = text.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/i);
-  if (nextDataMatch) {
-    try {
-      const nextObj = JSON.parse(nextDataMatch[1]);
-      const state = nextObj.props?.pageProps;
-      if (state) {
-        const list = state.bookmarks || state.items || state.list || [];
-        if (Array.isArray(list) && list.length > 0) {
-          return parseAnimeLibContent(JSON.stringify(list));
-        }
-      }
-    } catch (e) {}
-  }
+  const animeObj = obj.anime || obj.media || obj.item || obj.title_info || obj;
+  const rusName = animeObj.rus_name || animeObj.russian || animeObj.title || animeObj.name || obj.rus_name || obj.title || obj.name;
+  const engName = animeObj.eng_name || animeObj.original_title || animeObj.romanji || obj.eng_name;
 
-  // 3. Regular expression HTML scraping for media cards
-  // Matches typical AnimeLib card blocks: href="/ru/anime/slug", title / cover / score
-  const cardRegex = /<a[^>]+href="(\/(?:ru\/)?(?:anime|title)\/([^"/?#]+))"[^>]*>([\s\S]*?)<\/a>/gi;
-  let match;
+  const rawScore = obj.user_rate ?? obj.rate ?? obj.score ?? obj.user_rating ?? obj.rating ?? obj.my_score ?? animeObj.user_rate ?? animeObj.score;
+  const hasScore = rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore));
+  const scoreNum = hasScore ? Math.min(10, Math.max(0, Math.round(Number(rawScore)))) : 0;
 
-  while ((match = cardRegex.exec(text)) !== null) {
-    const slug = match[2].trim();
-    const innerHtml = match[3];
+  const titleStr = typeof rusName === 'string' ? rusName.trim() : '';
+  const isExcluded = ['пользователь', 'профиль', 'закладки', 'главная', 'каталог', 'anime', 'manga'].includes(titleStr.toLowerCase());
 
-    // Title match
-    const titleMatch = innerHtml.match(/class="[^"]*(?:title|name)[^"]*"[^>]*>([\s\S]*?)<\//i) ||
-                       innerHtml.match(/data-title="([^"]+)"/i) ||
-                       innerHtml.match(/alt="([^"]+)"/i);
-    const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : null;
-    if (!title || title.length < 2) continue;
-
-    // Score match (e.g. data-rating="10" or class="rating">10<)
-    const scoreMatch = innerHtml.match(/(?:data-rating|data-score)="(\d+)"/i) ||
-                       innerHtml.match(/class="[^"]*(?:user-score|rating|vote)[^"]*"[^>]*>\s*(\d+)/i);
-    const score = scoreMatch ? parseInt(scoreMatch[1], 10) : 0;
-
-    // Image match
-    const imgMatch = innerHtml.match(/<img[^>]+src="([^"]+)"/i);
-    const image = imgMatch ? imgMatch[1] : null;
-
-    allItems.push({
-      slug: slug || title.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-'),
-      title,
-      originalTitle: '',
-      score: score >= 0 && score <= 10 ? score : 0,
-      image,
+  if (titleStr.length >= 2 && !isExcluded && (hasScore || obj.anime || obj.media || animeObj.slug || obj.slug)) {
+    items.push({
+      slug: (animeObj.slug || obj.slug || titleStr).toString().trim(),
+      title: titleStr,
+      originalTitle: typeof engName === 'string' ? engName.trim() : '',
+      score: scoreNum,
+      image: animeObj.cover?.default || animeObj.cover?.thumbnail || animeObj.image || null,
       type: 'Сериал'
     });
   }
 
-  // 4. Line-based text fallback (e.g. "Магическая битва - 10" or "Шаман Кинг 9/10")
-  if (allItems.length === 0) {
-    const lines = text.split('\n');
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.length < 3) continue;
+  for (const k of Object.keys(obj)) {
+    if (typeof obj[k] === 'object' && obj[k] !== null) {
+      extractAnimeFromAnyObject(obj[k], items, visited);
+    }
+  }
+  return items;
+}
 
-      // Pattern: "Title [ -|:] Score" or "Title (Score/10)"
-      const lineMatch = trimmed.match(/^([a-zA-Zа-яА-Я0-9\s:!—–,.'«»]+?)(?:\s*[-—–:]\s*|\s*\(?\s*)(\d{1,2})(?:\s*\/\s*10)?\s*\)?$/);
-      if (lineMatch) {
-        const title = lineMatch[1].trim();
-        const score = parseInt(lineMatch[2], 10);
-        if (title.length > 1 && score >= 0 && score <= 10) {
-          allItems.push({
-            slug: title.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-'),
-            title,
-            originalTitle: '',
+/**
+ * Parses AnimeLib raw HTML or JSON text or plain text
+ */
+function parseAnimeLibContent(rawText) {
+  if (!rawText || typeof rawText !== 'string') return [];
+  const text = rawText.trim();
+  const rawItems = [];
+
+  // 1. Direct JSON
+  if (text.startsWith('[') || text.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(text);
+      extractAnimeFromAnyObject(parsed, rawItems);
+    } catch (e) {}
+  }
+
+  // 2. Embedded Next.js or JSON scripts in HTML
+  const scriptMatches = text.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi);
+  for (const sm of scriptMatches) {
+    const scriptContent = (sm[1] || '').trim();
+    if (scriptContent.startsWith('{') || scriptContent.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(scriptContent);
+        extractAnimeFromAnyObject(parsed, rawItems);
+      } catch (e) {}
+    }
+  }
+
+  // 3. Regular expression HTML scraping for media links and cards
+  const linkRegex = /<a[^>]+href=["']([^"']*(?:\/anime\/|\/media\/|\/title\/)[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let lm;
+  while ((lm = linkRegex.exec(text)) !== null) {
+    const href = lm[1];
+    const innerHtml = lm[2].replace(/<[^>]+>/g, '').trim();
+    if (innerHtml.length >= 2) {
+      // Find nearby rating within surrounding text
+      const startPos = Math.max(0, lm.index - 100);
+      const endPos = Math.min(text.length, lm.index + lm[0].length + 150);
+      const window = text.slice(startPos, endPos);
+      let score = 0;
+      const scoreMatch = window.match(/(?:data-score|data-rating|data-rate|score|rate|рейтинг|оценка)[^0-9]{0,15}(\d{1,2})/i) ||
+                         window.match(/(\d{1,2})\s*\/\s*10/i) ||
+                         window.match(/★\s*(\d{1,2})/i);
+      if (scoreMatch) {
+        const val = parseInt(scoreMatch[1], 10);
+        if (val >= 1 && val <= 10) score = val;
+      }
+
+      rawItems.push({
+        slug: href.split('/').pop(),
+        title: innerHtml,
+        originalTitle: '',
+        score,
+        image: null,
+        type: 'Сериал'
+      });
+    }
+  }
+
+  // 4. Catalog database matching (cross-referencing with local database titles)
+  try {
+    const catalog = db.prepare('SELECT id, title, original_title FROM anime').all();
+    if (Array.isArray(catalog) && catalog.length > 0) {
+      for (const c of catalog) {
+        if (!c.title || c.title.length < 2) continue;
+        const titleEscaped = c.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp('(?:^|[^а-яА-Яa-zA-Z0-9])' + titleEscaped + '(?:$|[^а-яА-Яa-zA-Z0-9])', 'i');
+        const idx = text.search(re);
+        if (idx !== -1) {
+          const after = text.slice(idx + c.title.length, Math.min(text.length, idx + c.title.length + 100));
+          const before = text.slice(Math.max(0, idx - 100), idx);
+          let score = 0;
+          const patterns = [
+            /(?:оценка|рейтинг|rate|score|user-score|data-rate|data-rating|data-score)[^0-9]{0,15}(\d{1,2})/i,
+            /(\d{1,2})\s*\/\s*10/i,
+            /★\s*(\d{1,2})/i,
+            /(?:\r?\n|^)\s*(\d{1,2})\s*(?:\r?\n|$)/,
+            /[-—–:\s]+(\d{1,2})\b/
+          ];
+
+          for (const p of patterns) {
+            const m = after.match(p);
+            if (m) {
+              const val = parseInt(m[1], 10);
+              if (val >= 1 && val <= 10) { score = val; break; }
+            }
+          }
+          if (!score) {
+            for (const p of patterns) {
+              const m = before.match(p);
+              if (m) {
+                const val = parseInt(m[1], 10);
+                if (val >= 1 && val <= 10) { score = val; break; }
+              }
+            }
+          }
+
+          rawItems.push({
+            slug: `anime-${c.id}`,
+            title: c.title,
+            originalTitle: c.original_title || '',
             score,
             image: null,
             type: 'Сериал'
@@ -126,9 +162,48 @@ function parseAnimeLibContent(rawText) {
         }
       }
     }
+  } catch (err) {
+    // If DB query fails, continue with items found so far
   }
 
-  return allItems;
+  // 5. Line-based text fallback (e.g. "Магическая битва - 10" or "Шаман Кинг 9/10")
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length < 3) continue;
+    const lineMatch = trimmed.match(/^([a-zA-Zа-яА-Я0-9\s:!—–,.'«»]+?)(?:\s*[-—–:]\s*|\s*\(?\s*)(\d{1,2})(?:\s*\/\s*10)?\s*\)?$/);
+    if (lineMatch) {
+      const title = lineMatch[1].trim();
+      const score = parseInt(lineMatch[2], 10);
+      if (title.length > 1 && score >= 0 && score <= 10) {
+        rawItems.push({
+          slug: title.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-'),
+          title,
+          originalTitle: '',
+          score,
+          image: null,
+          type: 'Сериал'
+        });
+      }
+    }
+  }
+
+  // 6. Deduplicate by title, preserving highest non-zero score
+  const itemMap = new Map();
+  for (const it of rawItems) {
+    if (!it.title || it.title.length < 2) continue;
+    const key = it.title.trim().toLowerCase().replace(/[^a-zа-я0-9]/gi, '');
+    if (!itemMap.has(key)) {
+      itemMap.set(key, it);
+    } else {
+      const existing = itemMap.get(key);
+      if (it.score > existing.score) {
+        itemMap.set(key, it);
+      }
+    }
+  }
+
+  return Array.from(itemMap.values());
 }
 
 /**

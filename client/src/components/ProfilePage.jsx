@@ -219,16 +219,12 @@ export default function ProfilePage({
 
   const handleInitiateImport = () => {
     setImportError(null);
-    if (importActiveSubTab === 'raw') {
-      if (!importRawContent.trim()) {
-        setImportError('Пожалуйста, вставьте HTML, JSON или текст списка оценок');
-        return;
-      }
-    } else {
-      if (!importInput.trim()) {
-        setImportError(`Укажите ссылку на профиль или никнейм ${getPlatformLabel(importPlatform)}`);
-        return;
-      }
+    const hasInput = Boolean(importInput && importInput.trim());
+    const hasRaw = Boolean(importRawContent && importRawContent.trim());
+
+    if (!hasInput && !hasRaw) {
+      setImportError('Пожалуйста, укажите ссылку на профиль или вставьте данные для импорта');
+      return;
     }
 
     // Ask user confirmation before starting import (Photo 1)
@@ -258,9 +254,9 @@ export default function ProfilePage({
       fetchRated();
     } catch (err) {
       console.error('Import error:', err);
-      let msg = err.message || 'Ошибка импорта оценок';
+      let msg = err.message || 'Ошибка анализа профиля';
       if (msg.includes('Unexpected token') || msg.includes('<!DOCTYPE') || msg.includes('is not valid JSON')) {
-        msg = 'Сервер обновляется или не смог обработать ссылку напрямую. Пожалуйста, проверьте введённые данные или вставьте список вручную.';
+        msg = 'Сервер обновляется или защищён от прямых запросов. Пожалуйста, скопируйте текст страницы профиля (Ctrl+A, Ctrl+C) и вставьте в поле «Код / текст страницы».';
       }
       setImportError(msg);
     } finally {
@@ -2340,10 +2336,10 @@ export default function ProfilePage({
                     {importPlatform === 'animelib' && (
                       <>
                         <span className="font-semibold text-neutral-700 dark:text-neutral-300 block">
-                          💡 Совет по AnimeLib:
+                          💡 Совет по переносу из AnimeLib:
                         </span>
                         <p>
-                          Вставьте ссылку на профиль или ID. Если сайт AnimeLib возвращает проверку Cloudflare, перейдите на вкладку «Вставить код страницы» и вставьте HTML ваших закладок (Ctrl+U).
+                          Перейдите на открытую страницу вашего профиля AnimeLib, нажмите Ctrl+A (выделить всё) или Ctrl+U (исходный код), скопируйте и вставьте во вкладку «Вставить код страницы / текст» — система моментально найдёт все ваши оценки!
                         </p>
                       </>
                     )}
@@ -2364,10 +2360,10 @@ export default function ProfilePage({
                   <div>
                     <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
                       {importPlatform === 'animelib'
-                        ? 'Исходный HTML страницы закладок https://v5.animelib.org/ru/user/.../bookmarks или текст:'
+                        ? 'Исходный HTML страницы или скопированный текст профиля AnimeLib:'
                         : importPlatform === 'animego'
                         ? 'Исходный HTML страницы https://animego.me/profile/?type=2 (Ctrl+U):'
-                        : 'Вставьте список оценок (например: Атака титанов - 10) или HTML/JSON:'}
+                        : 'Вставьте список оценок (например: Атака титанов - 10) или скопированный текст/код страницы:'}
                     </label>
                     <textarea
                       rows={6}
@@ -2375,10 +2371,10 @@ export default function ProfilePage({
                       onChange={(e) => setImportRawContent(e.target.value)}
                       placeholder={
                         importPlatform === 'animelib'
-                          ? 'Нажмите Ctrl+U на странице закладок AnimeLib, скопируйте весь код и вставьте сюда...'
+                          ? 'Скопируйте всё на странице вашего профиля AnimeLib (Ctrl+A, Ctrl+C) либо нажмите Ctrl+U (исходный код) и вставьте сюда...'
                           : importPlatform === 'animego'
                           ? 'Нажмите Ctrl+U на странице своего профиля AnimeGO, скопируйте код и вставьте сюда...'
-                          : 'Название тайтла 1 - 10\nНазвание тайтла 2 - 8\nНазвание тайтла 3 - 9\n\nИли скопированный HTML код страницы'
+                          : 'Название тайтла 1 - 10\nНазвание тайтла 2 - 8\nНазвание тайтла 3 - 9\n\nИли скопированный текст/код страницы'
                       }
                       className="w-full px-4 py-2.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-xs font-mono text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -2474,7 +2470,7 @@ export default function ProfilePage({
               <p className="text-sm text-neutral-600 dark:text-neutral-300">
                 Вы уверены, что хотите перенести оценки из <strong>{getPlatformLabel(importPlatform)}</strong>?
               </p>
-              {importInput.trim() && importActiveSubTab === 'link' && (
+              {importInput.trim() && (
                 <div className="p-2 rounded-xl bg-neutral-100 dark:bg-neutral-900 text-xs font-mono text-neutral-700 dark:text-neutral-300 break-all border border-neutral-200 dark:border-neutral-800">
                   {importInput.trim()}
                 </div>
