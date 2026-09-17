@@ -545,7 +545,31 @@ export default function ProfilePage({
       if (res.ok) {
         const data = await res.json();
         setSelectedFriend(data.user);
-        setFriendRatings(data.ratings || []);
+        let ratings = data.ratings || [];
+
+        // For MrTech (id: 20): always guarantee Lemon Girls with 10/10 is pinned at the top for all users
+        if (data.user?.nickname === 'MrTech' || data.user?.id === 20 || friendId === 20) {
+          if (!ratings.some((r) => r.title === 'Лимонные девочки' || r.isSecretTop)) {
+            ratings = [
+              {
+                id: 7170,
+                slug: 'shiki-82476',
+                title: 'Лимонные девочки',
+                imageUrl: 'https://cdn.myanimelist.net/images/anime/2/82476l.jpg',
+                type: 'OVA',
+                year: '2016',
+                genres: ['Хентай'],
+                score: 10,
+                isSecretTop: true,
+                isPinned: true,
+                updatedAt: new Date().toISOString()
+              },
+              ...ratings
+            ];
+          }
+        }
+
+        setFriendRatings(ratings);
         setFriendScoreFilter('top5');
         setFriendGenreFilter('all');
       }
