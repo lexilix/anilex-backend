@@ -215,6 +215,64 @@ export default function AnimeDetailPage({
           }
         }
 
+        // 4. Merge custom linked anime and season markers from custom edits
+        const allCustomEdits = getCustomAnimeEdits();
+        const currentCustom = allCustomEdits[animeId] || {};
+        if (currentCustom.season) {
+          const currentItem = items.find((it) => it.id === animeId || it.isCurrent);
+          if (currentItem) currentItem.relation = currentCustom.season;
+        }
+
+        if (Array.isArray(currentCustom.linkedAnime)) {
+          for (const lItem of currentCustom.linkedAnime) {
+            if (lItem && lItem.id) {
+              const existingIdx = items.findIndex((it) => Number(it.id) === Number(lItem.id));
+              if (existingIdx !== -1) {
+                items[existingIdx].relation = lItem.relation || items[existingIdx].relation;
+              } else {
+                items.push({
+                  id: Number(lItem.id),
+                  title: lItem.title || 'Аниме',
+                  originalTitle: lItem.originalTitle || '',
+                  year: lItem.year || '',
+                  type: lItem.type || 'Сериал',
+                  imageUrl: lItem.imageUrl || '',
+                  relation: lItem.relation || 'Связанная часть',
+                  isCurrent: Number(lItem.id) === animeId,
+                  myScore: null,
+                  averageScore: null,
+                  ratingCount: 0
+                });
+              }
+            }
+          }
+        }
+
+        // Also check if any other custom anime links to this anime
+        Object.values(allCustomEdits).forEach((c) => {
+          if (c && c.id && Number(c.id) !== animeId && Array.isArray(c.linkedAnime)) {
+            const hasLink = c.linkedAnime.some((l) => Number(l.id) === animeId);
+            if (hasLink) {
+              const existingIdx = items.findIndex((it) => Number(it.id) === Number(c.id));
+              if (existingIdx === -1) {
+                items.push({
+                  id: Number(c.id),
+                  title: c.title || 'Аниме',
+                  originalTitle: c.originalTitle || '',
+                  year: c.year || '',
+                  type: c.type || 'Сериал',
+                  imageUrl: c.imageUrl || '',
+                  relation: c.season || 'Связанная часть',
+                  isCurrent: false,
+                  myScore: null,
+                  averageScore: null,
+                  ratingCount: 0
+                });
+              }
+            }
+          }
+        });
+
         // Sort chronologically by year
         items.sort((a, b) => {
           const yrA = parseInt(a.year, 10) || 0;

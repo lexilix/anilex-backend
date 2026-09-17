@@ -10,9 +10,20 @@ import ProfileEditPage from './components/ProfileEditPage';
 import FeaturedCarousel from './components/FeaturedCarousel';
 import NotificationToast from './components/NotificationToast';
 import DevConsolePage from './components/DevConsolePage';
-import { Sparkles, Film, Loader2 } from 'lucide-react';
+import { Sparkles, Film, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { apiUrl } from './api';
-import { getCachedCatalog, setCachedCatalog, hasCatalogChanged, updateCachedAnimeItem, upsertCachedAnimeItem, removeCachedAnimeItem } from './utils/catalogCache';
+import {
+  getCachedCatalog,
+  setCachedCatalog,
+  getCachedPage,
+  setCachedPage,
+  searchCachedAnime,
+  getAllCachedAnime,
+  hasCatalogChanged,
+  updateCachedAnimeItem,
+  upsertCachedAnimeItem,
+  removeCachedAnimeItem
+} from './utils/catalogCache';
 import { getHiddenAnimeIds, toggleHiddenAnime } from './utils/hiddenStorage';
 import { getCachedUserProfile, setCachedUserProfile, clearCachedUserProfile, updateCachedUserRating } from './utils/profileCache';
 import { deduplicateAnimeList } from './utils/animeDeduplicator';
@@ -374,34 +385,54 @@ export default function App() {
   };
 
   // Fetch initial or refreshed anime list
+  // Fetch anime page (loads 15 titles per page and caches each page)
   const fetchAnime = useCallback(
     async (targetPage = 1, isAppend = false) => {
       const isSearching = Boolean(debouncedSearch.trim());
-      const catalogKey = `s${activeSort}_t${activeType}_y${activeYear}_st${filterStatus}_g${activeGenres.slice().sort().join('_')}_q${debouncedSearch.trim()}_u${user ? user.id : 'anon'}`;
-      let cached = null;
+      const filterKey = isSearching
+        ? `search_${debouncedSearch.trim().toLowerCase()}`
+        : `s${activeSort}_t${activeType}_y${activeYear}_st${filterStatus}_g${activeGenres.slice().sort().join('_')}`;
 
-      if (isAppend) {
-        setLoadingMore(true);
-      } else {
-        if (targetPage === 1 && !isSearching) {
-          cached = getCachedCatalog(catalogKey);
-          if (cached && Array.isArray(cached.items) && cached.items.length > 0) {
-            let items = cached.items.map((it) => applyCustomAnimeEdits(it));
-            if (activeSort === 'unrated') {
-              items = items.filter((it) => it.myScore === null || it.myScore === undefined);
-            }
-            setAnimeList(items);
-            setTotalCount(activeSort === 'unrated' ? items.length : (cached.total || 0));
-            setTotalPages(cached.totalPages || 1);
-            setRecommendationCount(cached.recommendationGenresCount || 0);
-            setPage(cached.page || 1);
-            setLoading(false);
-          } else {
-            setLoading(true);
-          }
+      // 1. Check if page is already cached in localStorage
+      const cached = getCachedPage(filterKey, targetPage);
+      if (cached && Array.isArray(cached.items) && cached.items.length > 0) {
+        let items = cached.items.map((it) => applyCustomAnimeEdits(it));
+        if (activeSort === 'unrated') {
+          items = items.filter((it) => it.myScore === null || it.myScore === undefined);
+        }
+        setAnimeList(items);
+        setTotalCount(activeSort === 'unrated' ? items.length : (cached.total || 0));
+        setTotalPages(cached.totalPages || 1);
+        setRecommendationCount(cached.recommendationGenresCount || 0);
+        setPage(targetPage);
+        setLoading(false);
+        return;
+      }
+
+      // If searching, check for immediate instant matches from cached titles and custom edits
+      if (isSearching) {
+        const searchLower = debouncedSearch.trim().toLowerCase();
+        const customEdits = getCustomAnimeEdits();
+        const matchingCustoms = Object.values(customEdits).filter((item) => {
+          if (!item || !item.id || !item.title) return false;
+          const t = (item.title || '').toLowerCase();
+          const ot = (item.originalTitle || item.original_title || '').toLowerCase();
+          const desc = (item.description || '').toLowerCase();
+          return t.includes(searchLower) || ot.includes(searchLower) || desc.includes(searchLower);
+        }).map(applyCustomAnimeEdits);
+
+        const cachedMatches = searchCachedAnime(searchLower).map(applyCustomAnimeEdits);
+        const quickResults = deduplicateAnimeList([...matchingCustoms, ...cachedMatches]);
+        if (quickResults.length > 0) {
+          setAnimeList(quickResults);
+          setTotalCount(quickResults.length);
+          setTotalPages(1);
+          setLoading(false);
         } else {
           setLoading(true);
         }
+      } else {
+        setLoading(true);
       }
 
       try {
@@ -413,14 +444,22 @@ export default function App() {
         if (filterStatus !== 'all') params.append('filterStatus', filterStatus);
         if (activeGenres.length > 0) params.append('genres', activeGenres.join(','));
         params.append('page', targetPage);
-        params.append('limit', isMobile ? 12 : 15);
+        params.append('limit', 15);
 
         const headers = {};
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const res = await fetch(apiUrl(`/api/anime?${params.toString()}`), { headers });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+        const res = await fetch(apiUrl(`/api/anime?${params.toString()}`), {
+          headers,
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
         if (!res.ok) throw new Error('Failed to load anime');
 
         const data = await res.json();
@@ -454,12 +493,9 @@ export default function App() {
               if ([7155, 7156, 7157, 7215, 6106, 6107, 6109, 7169].includes(item.id)) {
                 return false;
               }
-              // On main catalog (not searching): hide titles marked as not interested
               if (!isSearching && (Boolean(item.isHidden) || hiddenIds.has(item.id))) {
                 return false;
               }
-              // When sorting by 'unrated', exclude titles rated by current user (myScore !== null),
-              // while allowing titles rated by other users (averageScore exists)
               if (activeSort === 'unrated' && item.myScore !== null && item.myScore !== undefined) {
                 return false;
               }
@@ -468,7 +504,6 @@ export default function App() {
               seen.add(key);
               return true;
             }).map((item) => {
-              // Guard for Naruto descriptions & genres
               if (item.title === 'Наруто' || (item.title && /наруто/i.test(item.title) && !/ураганные|боруто|хроники|фильм/i.test(item.title))) {
                 if (!item.description || item.description.trim() === '' || item.description === 'Описание отсутствует.') {
                   item.description =
@@ -518,7 +553,7 @@ export default function App() {
           }
         }
 
-        // 1. If searching, ensure custom edited anime matching the search query appear in search!
+        // If searching, ensure custom edited anime matching the search query appear in search
         if (isSearching) {
           const searchLower = debouncedSearch.trim().toLowerCase();
           const matchingCustoms = Object.values(allCustomEdits).filter((item) => {
@@ -553,7 +588,7 @@ export default function App() {
           sanitized = deduplicateAnimeList(sanitized);
         }
 
-        // 2. On main feed (page 1, not searching), ensure custom edited anime appear in the feed!
+        // On main feed (page 1, not searching), ensure custom edited anime appear in the feed
         if (!isSearching && targetPage === 1 && activeSort !== 'unrated') {
           const customItems = Object.values(allCustomEdits)
             .filter((item) => item && item.id && item.title && !deletedAnimeIds.has(Number(item.id)))
@@ -582,37 +617,16 @@ export default function App() {
           sanitized = deduplicateAnimeList(sanitized);
         }
 
-        if (isAppend) {
-          setAnimeList((prev) => {
-            const combined = deduplicateAnimeList([...prev, ...sanitized]);
-            const updated = sanitizeList(combined);
-            // Save cumulative list to user's cache
-            if (!isSearching) {
-              setCachedCatalog(catalogKey, {
-                items: updated,
-                page: targetPage,
-                total: data.total,
-                totalPages: data.totalPages,
-                recommendationGenresCount: data.recommendationGenresCount
-              });
-            }
-            return updated;
-          });
-        } else {
-          if (!cached || hasCatalogChanged(cached.items, sanitized)) {
-            setAnimeList(sanitized);
-            if (!isSearching) {
-              setCachedCatalog(catalogKey, {
-                items: sanitized,
-                page: 1,
-                total: data.total,
-                totalPages: data.totalPages,
-                recommendationGenresCount: data.recommendationGenresCount
-              });
-            }
-          }
-        }
+        // Save page to cache
+        setCachedPage(filterKey, targetPage, {
+          items: sanitized,
+          page: targetPage,
+          total: data.total,
+          totalPages: data.totalPages,
+          recommendationGenresCount: data.recommendationGenresCount
+        });
 
+        setAnimeList(sanitized);
         const countReduction = newItems.length - sanitized.length;
         const adjustedTotal = Math.max(sanitized.length, (data.total || 0) - Math.max(0, countReduction));
         setTotalCount(adjustedTotal);
@@ -621,16 +635,20 @@ export default function App() {
         setRecommendationCount(data.recommendationGenresCount || 0);
       } catch (err) {
         console.error('Error loading anime catalog:', err);
-        if (!isAppend && !cached) {
-          setAnimeList([]);
-          setTotalCount(0);
+        if (targetPage === 1 && animeList.length === 0) {
+          const fallback = getCachedCatalog(filterKey) || getCachedCatalog('snewest_tall_yall_stall_g_q_uanon');
+          if (fallback && Array.isArray(fallback.items) && fallback.items.length > 0) {
+            setAnimeList(fallback.items.slice(0, 15).map(applyCustomAnimeEdits));
+            setTotalCount(fallback.total || fallback.items.length);
+            setTotalPages(Math.ceil((fallback.total || fallback.items.length) / 15));
+          }
         }
       } finally {
         setLoading(false);
         setLoadingMore(false);
       }
     },
-    [debouncedSearch, activeSort, activeType, activeYear, filterStatus, activeGenres, token, user]
+    [debouncedSearch, activeSort, activeType, activeYear, filterStatus, activeGenres, token]
   );
 
   // Reset to page 1 on filter or search change
@@ -638,104 +656,95 @@ export default function App() {
     fetchAnime(1, false);
   }, [fetchAnime]);
 
-  // Refs to prevent duplicate fetches or runaway cascading
-  const isFetchingMoreRef = useRef(false);
-  const pageRef = useRef(page);
-  const totalPagesRef = useRef(totalPages);
-  const loadingRef = useRef(loading || loadingMore);
+  // Page change handler
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalPages || loading) return;
+    fetchAnime(newPage, false);
+    const catalogTop = document.getElementById('catalog-top');
+    if (catalogTop) {
+      catalogTop.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
-  useEffect(() => {
-    pageRef.current = page;
-  }, [page]);
+  // Render numeric pagination buttons
+  const renderPageButtons = () => {
+    const buttons = [];
+    const maxButtons = 5;
+    let startPage = Math.max(1, page - 2);
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    if (endPage - startPage < maxButtons - 1) {
+      startPage = Math.max(1, endPage - maxButtons + 1);
+    }
 
-  useEffect(() => {
-    totalPagesRef.current = totalPages;
-  }, [totalPages]);
-
-  useEffect(() => {
-    loadingRef.current = loading || loadingMore;
-  }, [loading, loadingMore]);
-
-  // 1. Catalog Scroll Listener: Loads next 15 titles when user scrolls down
-  useEffect(() => {
-    if (view !== 'catalog') return;
-    if (debouncedSearch.trim().length > 0) return; // Search is handled separately
-
-    let ticking = false;
-
-    const handleScroll = () => {
-      if (ticking) return;
-      ticking = true;
-
-      requestAnimationFrame(() => {
-        ticking = false;
-        if (loadingRef.current || isFetchingMoreRef.current) return;
-
-        const scrollHeight = document.documentElement.scrollHeight;
-        const scrollTop = window.scrollY || document.documentElement.scrollTop;
-        const clientHeight = window.innerHeight;
-
-        // Trigger loading next 15 when user scrolls down within 300px of page bottom
-        if (scrollTop + clientHeight >= scrollHeight - 300) {
-          const isGeneralCatalog = activeGenres.length === 0 && activeType === 'all' && (!activeYear || activeYear === 'all') && filterStatus === 'all';
-          const canLoadMore = isGeneralCatalog || pageRef.current < totalPagesRef.current;
-
-          if (canLoadMore) {
-            isFetchingMoreRef.current = true;
-            fetchAnime(pageRef.current + 1, true).finally(() => {
-              isFetchingMoreRef.current = false;
-            });
-          }
-        }
-      });
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, [view, debouncedSearch, activeGenres, activeType, activeYear, filterStatus, fetchAnime]);
-
-  // Progressive rendering: mount cards smoothly in small batches for phones
-  useEffect(() => {
-    setRenderedLimit(isMobile ? 12 : 20);
-  }, [debouncedSearch, activeSort, activeType, activeYear, filterStatus, activeGenres, isMobile]);
-
-  useEffect(() => {
-    if (view !== 'catalog') return;
-    const handleProgressiveScroll = () => {
-      const scrollHeight = document.documentElement.scrollHeight;
-      const scrollTop = window.scrollY || document.documentElement.scrollTop;
-      const clientHeight = window.innerHeight;
-      if (scrollTop + clientHeight >= scrollHeight - 500) {
-        setRenderedLimit((prev) => Math.min(animeList.length, prev + (isMobile ? 8 : 15)));
+    if (startPage > 1) {
+      buttons.push(
+        <button
+          key={1}
+          type="button"
+          onClick={() => handlePageChange(1)}
+          className={`w-8 h-8 rounded-xl text-xs font-bold transition-all ${
+            page === 1
+              ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-xs'
+              : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+          }`}
+        >
+          1
+        </button>
+      );
+      if (startPage > 2) {
+        buttons.push(
+          <span key="ellipsis-start" className="px-1 text-xs text-neutral-400">
+            ...
+          </span>
+        );
       }
-    };
-    window.addEventListener('scroll', handleProgressiveScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleProgressiveScroll);
-  }, [view, animeList.length, isMobile]);
+    }
 
-  // 2. Search Mode: Untouched IntersectionObserver for search results
-  useEffect(() => {
-    if (view !== 'catalog') return;
-    if (!debouncedSearch.trim()) return;
+    for (let p = startPage; p <= endPage; p++) {
+      buttons.push(
+        <button
+          key={p}
+          type="button"
+          onClick={() => handlePageChange(p)}
+          className={`w-8 h-8 rounded-xl text-xs font-bold transition-all ${
+            page === p
+              ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-xs'
+              : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+          }`}
+        >
+          {p}
+        </button>
+      );
+    }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !loading && !loadingMore && page < totalPages) {
-          fetchAnime(page + 1, true);
-        }
-      },
-      { threshold: 0.1, rootMargin: '300px' }
-    );
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        buttons.push(
+          <span key="ellipsis-end" className="px-1 text-xs text-neutral-400">
+            ...
+          </span>
+        );
+      }
+      buttons.push(
+        <button
+          key={totalPages}
+          type="button"
+          onClick={() => handlePageChange(totalPages)}
+          className={`w-8 h-8 rounded-xl text-xs font-bold transition-all ${
+            page === totalPages
+              ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-xs'
+              : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+          }`}
+        >
+          {totalPages}
+        </button>
+      );
+    }
 
-    const currentTarget = observerTarget.current;
-    if (currentTarget) observer.observe(currentTarget);
-
-    return () => {
-      if (currentTarget) observer.unobserve(currentTarget);
-    };
-  }, [view, loading, loadingMore, page, totalPages, fetchAnime, debouncedSearch]);
+    return buttons;
+  };
 
   // Toggle Favorite handler
   const handleToggleFavorite = async (animeId) => {
@@ -1101,6 +1110,7 @@ export default function App() {
             <div className="flex flex-col lg:flex-row gap-8 items-start">
               {/* LEFT / CENTER: Anime List */}
               <div className="flex-1 w-full min-w-0">
+                <div id="catalog-top" />
                 
                 {/* Sort Bar */}
                 <SortBar
@@ -1198,7 +1208,7 @@ export default function App() {
                 {/* List of Anime Cards */}
                 {animeList.length > 0 && (
                   <div className="space-y-4 sm:space-y-5">
-                    {animeList.slice(0, renderedLimit).map((anime) => (
+                    {animeList.map((anime) => (
                       <AnimeCard
                         key={anime.id}
                         anime={anime}
@@ -1216,20 +1226,40 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Infinite Scroll Bottom Anchor */}
-                <div ref={observerTarget} className="py-8 text-center">
-                  {loadingMore && (
-                    <div className="flex items-center justify-center gap-2 text-xs text-neutral-400 font-medium">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Автоматическая загрузка новых тайтлов с AnimeGO...</span>
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-5 sm:px-6 rounded-3xl bg-white dark:bg-[#151518] shadow-sm border border-neutral-100 dark:border-neutral-800">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+                      <span>Страница <strong className="text-neutral-900 dark:text-white">{page}</strong> из <strong className="text-neutral-900 dark:text-white">{totalPages}</strong></span>
+                      <span className="text-neutral-300 dark:text-neutral-700">•</span>
+                      <span>Всего {totalCount} тайтлов</span>
                     </div>
-                  )}
-                  {!loadingMore && searchQuery.trim() && page >= totalPages && animeList.length > 0 && (
-                    <p className="text-xs text-neutral-400">
-                      Больше тайтлов по запросу «{searchQuery.trim()}» не найдено
-                    </p>
-                  )}
-                </div>
+
+                    <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                      <button
+                        type="button"
+                        disabled={page <= 1 || loading}
+                        onClick={() => handlePageChange(page - 1)}
+                        className="px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span className="hidden sm:inline">Предыдущая</span>
+                      </button>
+
+                      {renderPageButtons()}
+
+                      <button
+                        type="button"
+                        disabled={page >= totalPages || loading}
+                        onClick={() => handlePageChange(page + 1)}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed shadow-xs transition-all"
+                      >
+                        <span>Следующая страница</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* RIGHT: Filter Sidebar */}

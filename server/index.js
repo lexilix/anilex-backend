@@ -1840,13 +1840,95 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Неверный ID аниме' });
     }
 
-    const target = db.prepare('SELECT id, slug, title, original_title, year, type, image_url FROM anime WHERE id = ?').get(animeId);
+    const target = db.prepare('SELECT id, slug, title, original_title, year, type, image_url, season, related_json FROM anime WHERE id = ?').get(animeId);
     if (!target) {
       return res.status(404).json({ error: 'Аниме не найдено' });
     }
 
     const resultsMap = new Map();
     const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+
+    // 1. Add target itself
+    resultsMap.set(target.id, {
+      id: target.id,
+      slug: target.slug,
+      title: target.title,
+      originalTitle: target.original_title,
+      year: target.year,
+      type: target.type,
+      imageUrl: target.image_url,
+      relation: target.season || 'Текущий тайтл',
+      isCurrent: true,
+      myScore: null,
+      averageScore: null,
+      ratingCount: 0
+    });
+
+    // 2. Add explicitly linked anime from target's related_json
+    if (target.related_json) {
+      try {
+        const linkedList = JSON.parse(target.related_json);
+        if (Array.isArray(linkedList)) {
+          for (const item of linkedList) {
+            if (item && item.id && Number(item.id) !== target.id) {
+              const fullItem = db.prepare('SELECT id, slug, title, original_title, year, type, image_url, season FROM anime WHERE id = ?').get(Number(item.id));
+              resultsMap.set(Number(item.id), {
+                id: Number(item.id),
+                slug: fullItem ? fullItem.slug : `anime-${item.id}`,
+                title: fullItem ? fullItem.title : (item.title || ''),
+                originalTitle: fullItem ? fullItem.original_title : (item.originalTitle || ''),
+                year: fullItem ? fullItem.year : (item.year || ''),
+                type: fullItem ? fullItem.type : (item.type || 'Сериал'),
+                imageUrl: fullItem ? fullItem.image_url : (item.imageUrl || ''),
+                relation: item.relation || (fullItem && fullItem.season) || 'Связанная часть',
+                isCurrent: false,
+                myScore: null,
+                averageScore: null,
+                ratingCount: 0
+              });
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 3. Add any anime that has linked this target
+    try {
+      const referencingAnime = db.prepare(`
+        SELECT id, slug, title, original_title, year, type, image_url, season, related_json
+        FROM anime
+        WHERE related_json LIKE ?
+      `).all(`%"id":${animeId}%`);
+
+      for (const ref of referencingAnime) {
+        if (ref.id !== target.id && !resultsMap.has(ref.id)) {
+          let relationTag = ref.season || 'Связанная часть';
+          try {
+            const parsed = JSON.parse(ref.related_json || '[]');
+            const linkEntry = parsed.find((x) => Number(x.id) === animeId);
+            if (linkEntry && linkEntry.relation) {
+              // If referencing anime says this target is X, referencing anime might be its counterpart
+              relationTag = ref.season || relationTag;
+            }
+          } catch (e) {}
+          resultsMap.set(ref.id, {
+            id: ref.id,
+            slug: ref.slug,
+            title: ref.title,
+            originalTitle: ref.original_title,
+            year: ref.year,
+            type: ref.type,
+            imageUrl: ref.image_url,
+            relation: relationTag,
+            isCurrent: false,
+            myScore: null,
+            averageScore: null,
+            ratingCount: 0
+          });
+        }
+      }
+    } catch (e) {}
+
     const base = extractFranchiseBase(target.title);
 
     if (base && base.length >= 4) {
@@ -1860,6 +1942,7 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
           a.year,
           a.type,
           a.image_url,
+          a.season,
           ROUND(AVG(r.score), 1) as avg_score,
           COUNT(r.id) as rating_count,
           (SELECT score FROM ratings WHERE anime_id = a.id AND user_id = ?) as my_score
@@ -1881,10 +1964,12 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
         const normCand = normalize(c.title);
         if (!regex.test(normCand)) continue;
 
-        let relation = 'Связанная часть';
+        let relation = c.season || 'Связанная часть';
         const tLower = normCand;
         if (c.id === target.id) {
-          relation = 'Текущий тайтл';
+          relation = target.season || 'Текущий тайтл';
+        } else if (c.season) {
+          relation = c.season;
         } else if (/пролог|prologue/i.test(tLower)) {
           relation = 'Пролог / Спешл';
         } else if (/солнечный день|день девятый|памятный/i.test(tLower)) {
@@ -1909,6 +1994,7 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
           relation = '1-й сезон / Начало';
         }
 
+        const existing = resultsMap.get(c.id);
         resultsMap.set(c.id, {
           id: c.id,
           slug: c.slug,
@@ -1917,7 +2003,7 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
           year: c.year,
           type: c.type,
           imageUrl: c.image_url,
-          relation,
+          relation: (existing && existing.relation !== 'Связанная часть') ? existing.relation : relation,
           isCurrent: c.id === target.id,
           myScore: c.my_score !== null && c.my_score !== undefined ? c.my_score : null,
           averageScore: c.rating_count > 0 && c.avg_score !== null ? Number(c.avg_score) : null,
@@ -3362,7 +3448,7 @@ app.delete('/api/dev/users/:userId/ratings/:animeId', devAdminMiddleware, (req, 
 // Dev: Create New Anime
 app.post('/api/dev/anime', devAdminMiddleware, (req, res) => {
   try {
-    const { title, originalTitle, description, imageUrl, type = 'Сериал', year = '', genres = [] } = req.body;
+    const { title, originalTitle, description, imageUrl, type = 'Сериал', year = '', genres = [], season = '', linkedAnime = [] } = req.body;
     if (!title || typeof title !== 'string' || !title.trim()) {
       return res.status(400).json({ error: 'Укажите название аниме' });
     }
@@ -3373,6 +3459,8 @@ app.post('/api/dev/anime', devAdminMiddleware, (req, res) => {
     const cleanImage = (imageUrl || '').trim();
     const cleanType = (type || 'Сериал').trim();
     const cleanYear = (year || '').trim();
+    const cleanSeason = typeof season === 'string' ? season.trim() : '';
+    const cleanRelatedJson = typeof linkedAnime === 'string' ? linkedAnime : JSON.stringify(Array.isArray(linkedAnime) ? linkedAnime : []);
 
     let returnGenres = [];
     let finalGenresJson = '[]';
@@ -3404,15 +3492,20 @@ app.post('/api/dev/anime', devAdminMiddleware, (req, res) => {
     const slug = `${baseSlug || 'anime'}-${randomSuffix}`;
 
     const stmt = db.prepare(`
-      INSERT INTO anime (slug, title, title_lower, original_title, original_title_lower, description, image_url, type, year, genres, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO anime (slug, title, title_lower, original_title, original_title_lower, description, image_url, type, year, genres, season, related_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `);
-    const info = stmt.run(slug, cleanTitle, titleLower, cleanOriginalTitle, origLower, cleanDesc, cleanImage, cleanType, cleanYear, finalGenresJson);
+    const info = stmt.run(slug, cleanTitle, titleLower, cleanOriginalTitle, origLower, cleanDesc, cleanImage, cleanType, cleanYear, finalGenresJson, cleanSeason, cleanRelatedJson);
     const newId = Number(info.lastInsertRowid);
 
     if (typeof db.saveAccountsBackup === 'function') {
       db.saveAccountsBackup();
     }
+
+    let parsedLinked = [];
+    try {
+      parsedLinked = JSON.parse(cleanRelatedJson);
+    } catch (e) {}
 
     const createdAnime = {
       id: newId,
@@ -3424,6 +3517,8 @@ app.post('/api/dev/anime', devAdminMiddleware, (req, res) => {
       type: cleanType,
       year: cleanYear,
       genres: returnGenres,
+      season: cleanSeason,
+      linkedAnime: parsedLinked,
       averageScore: null,
       ratingCount: 0,
       myScore: null
@@ -3454,7 +3549,7 @@ app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
       return res.status(404).json({ error: 'Тайтл не найден' });
     }
 
-    const { title, originalTitle, description, imageUrl, type, year, genres } = req.body;
+    const { title, originalTitle, description, imageUrl, type, year, genres, season, linkedAnime, related_json } = req.body;
 
     const newTitle = title !== undefined ? String(title).trim() : anime.title;
     const newOriginalTitle = originalTitle !== undefined ? String(originalTitle).trim() : (anime.original_title || '');
@@ -3465,6 +3560,37 @@ app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
     const newImage = imageUrl !== undefined ? String(imageUrl).trim() : anime.image_url;
     const newType = type !== undefined ? String(type) : anime.type;
     const newYear = year !== undefined ? String(year).trim() : anime.year;
+    const newSeason = season !== undefined ? String(season).trim() : (anime.season || '');
+
+    let finalRelatedJson = anime.related_json || '[]';
+    let returnLinked = [];
+    if (linkedAnime !== undefined) {
+      if (Array.isArray(linkedAnime)) {
+        returnLinked = linkedAnime;
+        finalRelatedJson = JSON.stringify(linkedAnime);
+      } else if (typeof linkedAnime === 'string') {
+        try {
+          returnLinked = JSON.parse(linkedAnime);
+          finalRelatedJson = linkedAnime;
+        } catch (e) {
+          returnLinked = [];
+          finalRelatedJson = '[]';
+        }
+      }
+    } else if (related_json !== undefined) {
+      finalRelatedJson = typeof related_json === 'string' ? related_json : JSON.stringify(related_json);
+      try {
+        returnLinked = JSON.parse(finalRelatedJson);
+      } catch (e) {
+        returnLinked = [];
+      }
+    } else {
+      try {
+        returnLinked = JSON.parse(anime.related_json || '[]');
+      } catch (e) {
+        returnLinked = [];
+      }
+    }
 
     let finalGenresJson = anime.genres;
     let returnGenres = [];
@@ -3492,9 +3618,9 @@ app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
 
     db.prepare(`
       UPDATE anime
-      SET title = ?, title_lower = ?, original_title = ?, original_title_lower = ?, description = ?, image_url = ?, type = ?, year = ?, genres = ?, updated_at = CURRENT_TIMESTAMP
+      SET title = ?, title_lower = ?, original_title = ?, original_title_lower = ?, description = ?, image_url = ?, type = ?, year = ?, genres = ?, season = ?, related_json = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(newTitle, newTitleLower, newOriginalTitle, newOriginalTitleLower, newDesc, newImage, newType, newYear, finalGenresJson, animeId);
+    `).run(newTitle, newTitleLower, newOriginalTitle, newOriginalTitleLower, newDesc, newImage, newType, newYear, finalGenresJson, newSeason, finalRelatedJson, animeId);
 
     if (typeof db.saveAccountsBackup === 'function') {
       db.saveAccountsBackup();
@@ -3511,7 +3637,9 @@ app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
         imageUrl: newImage,
         type: newType,
         year: newYear,
-        genres: returnGenres
+        genres: returnGenres,
+        season: newSeason,
+        linkedAnime: returnLinked
       }
     });
   } catch (err) {

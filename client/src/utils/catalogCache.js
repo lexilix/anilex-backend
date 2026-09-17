@@ -6,7 +6,8 @@ import { deduplicateAnimeList } from './animeDeduplicator';
  */
 
 const CACHE_KEY_PREFIX = 'anilex_catalog_cache_';
-const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours TTL
+const PAGE_CACHE_PREFIX = 'anilex_page_cache_';
+const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours TTL
 
 export function getCachedCatalog(key) {
   try {
@@ -32,8 +33,8 @@ export function setCachedCatalog(key, payload) {
       id: it.id,
       aliasIds: it.aliasIds || [it.id],
       title: it.title,
-      originalTitle: it.originalTitle,
-      imageUrl: it.imageUrl,
+      originalTitle: it.originalTitle || it.original_title || '',
+      imageUrl: it.imageUrl || it.image_url || '',
       type: it.type,
       year: it.year,
       genres: it.genres || [],
@@ -43,7 +44,9 @@ export function setCachedCatalog(key, payload) {
       ratingCount: it.ratingCount,
       isFavorite: it.isFavorite,
       isHidden: it.isHidden,
-      commentsCount: it.commentsCount
+      commentsCount: it.commentsCount,
+      season: it.season || '',
+      linkedAnime: it.linkedAnime || []
     }));
 
     const cacheData = {
@@ -58,6 +61,108 @@ export function setCachedCatalog(key, payload) {
   } catch (e) {
     // LocalStorage may be full or disabled, silently ignore
   }
+}
+
+/**
+ * Retrieves a specific page from the per-page cache.
+ */
+export function getCachedPage(filterKey, page) {
+  try {
+    const raw = localStorage.getItem(`${PAGE_CACHE_PREFIX}${filterKey}_p${page}`);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.items)) return null;
+    if (Date.now() - (data.timestamp || 0) > CACHE_TTL_MS) {
+      localStorage.removeItem(`${PAGE_CACHE_PREFIX}${filterKey}_p${page}`);
+      return null;
+    }
+    data.items = deduplicateAnimeList(data.items);
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Stores a specific page (15 items) into the per-page cache.
+ */
+export function setCachedPage(filterKey, page, payload) {
+  try {
+    const deduped = deduplicateAnimeList(payload.items || []);
+    const cleanItems = deduped.map((it) => ({
+      id: it.id,
+      aliasIds: it.aliasIds || [it.id],
+      title: it.title,
+      originalTitle: it.originalTitle || it.original_title || '',
+      imageUrl: it.imageUrl || it.image_url || '',
+      type: it.type,
+      year: it.year,
+      genres: it.genres || [],
+      description: it.description,
+      myScore: it.myScore,
+      averageScore: it.averageScore,
+      ratingCount: it.ratingCount,
+      isFavorite: it.isFavorite,
+      isHidden: it.isHidden,
+      commentsCount: it.commentsCount,
+      season: it.season || '',
+      linkedAnime: it.linkedAnime || []
+    }));
+
+    const cacheData = {
+      timestamp: Date.now(),
+      page: Number(page) || 1,
+      items: cleanItems,
+      total: payload.total || 0,
+      totalPages: payload.totalPages || 1,
+      recommendationGenresCount: payload.recommendationGenresCount || 0
+    };
+    localStorage.setItem(`${PAGE_CACHE_PREFIX}${filterKey}_p${page}`, JSON.stringify(cacheData));
+  } catch (e) {
+    // Silently ignore storage quota
+  }
+}
+
+/**
+ * Collects all unique anime cached across all pages and searches.
+ */
+export function getAllCachedAnime() {
+  const map = new Map();
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const storageKey = localStorage.key(i);
+      if (storageKey && (storageKey.startsWith(CACHE_KEY_PREFIX) || storageKey.startsWith(PAGE_CACHE_PREFIX))) {
+        try {
+          const raw = localStorage.getItem(storageKey);
+          if (!raw) continue;
+          const data = JSON.parse(raw);
+          if (data && Array.isArray(data.items)) {
+            for (const item of data.items) {
+              if (item && item.id && !map.has(Number(item.id))) {
+                map.set(Number(item.id), item);
+              }
+            }
+          }
+        } catch (e) {}
+      }
+    }
+  } catch (e) {}
+  return Array.from(map.values());
+}
+
+/**
+ * Searches across all cached items for matches on title, original title, or description.
+ */
+export function searchCachedAnime(query) {
+  if (!query || !query.trim()) return [];
+  const q = query.trim().toLowerCase();
+  const all = getAllCachedAnime();
+  return all.filter((item) => {
+    const t = (item.title || '').toLowerCase();
+    const ot = (item.originalTitle || item.original_title || '').toLowerCase();
+    const desc = (item.description || '').toLowerCase();
+    return t.includes(q) || ot.includes(q) || desc.includes(q);
+  });
 }
 
 export function updateCachedAnimeItem(animeIdOrItem, updates = null) {
@@ -109,7 +214,7 @@ export function upsertCachedAnimeItem(item) {
     const numId = Number(item.id);
     for (let i = 0; i < localStorage.length; i++) {
       const storageKey = localStorage.key(i);
-      if (storageKey && storageKey.startsWith(CACHE_KEY_PREFIX)) {
+      if (storageKey && (storageKey.startsWith(CACHE_KEY_PREFIX) || storageKey.startsWith(PAGE_CACHE_PREFIX))) {
         try {
           const raw = localStorage.getItem(storageKey);
           if (!raw) continue;
@@ -172,7 +277,7 @@ export function appendCachedAnimeItem(item) {
     const numId = Number(item.id);
     for (let i = 0; i < localStorage.length; i++) {
       const storageKey = localStorage.key(i);
-      if (storageKey && storageKey.startsWith(CACHE_KEY_PREFIX)) {
+      if (storageKey && (storageKey.startsWith(CACHE_KEY_PREFIX) || storageKey.startsWith(PAGE_CACHE_PREFIX))) {
         try {
           const raw = localStorage.getItem(storageKey);
           if (!raw) continue;
@@ -212,7 +317,7 @@ export function removeCachedAnimeItem(animeId) {
     const numId = Number(animeId);
     for (let i = 0; i < localStorage.length; i++) {
       const storageKey = localStorage.key(i);
-      if (storageKey && storageKey.startsWith(CACHE_KEY_PREFIX)) {
+      if (storageKey && (storageKey.startsWith(CACHE_KEY_PREFIX) || storageKey.startsWith(PAGE_CACHE_PREFIX))) {
         try {
           const raw = localStorage.getItem(storageKey);
           if (!raw) continue;

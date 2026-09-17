@@ -48,6 +48,8 @@ export function applyCustomAnimeEdits(item) {
       const bestType = custom.type || item.type;
       const bestYear = custom.year !== undefined ? custom.year : item.year;
       const bestGenres = Array.isArray(custom.genres) ? custom.genres : (item.genres || []);
+      const bestSeason = custom.season !== undefined ? custom.season : (item.season || '');
+      const bestLinked = Array.isArray(custom.linkedAnime) ? custom.linkedAnime : (item.linkedAnime || []);
 
       return {
         ...item,
@@ -60,7 +62,9 @@ export function applyCustomAnimeEdits(item) {
         image_url: bestImg,
         type: bestType,
         year: bestYear,
-        genres: bestGenres
+        genres: bestGenres,
+        season: bestSeason,
+        linkedAnime: bestLinked
       };
     }
   } catch (e) {}

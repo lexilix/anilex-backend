@@ -222,6 +222,16 @@ try {
   if (!animeColNames.includes('original_title_lower')) {
     db.exec('ALTER TABLE anime ADD COLUMN original_title_lower TEXT;');
   }
+  if (!animeColNames.includes('season')) {
+    try {
+      db.exec("ALTER TABLE anime ADD COLUMN season TEXT DEFAULT '';");
+    } catch (e) {}
+  }
+  if (!animeColNames.includes('related_json')) {
+    try {
+      db.exec("ALTER TABLE anime ADD COLUMN related_json TEXT DEFAULT '[]';");
+    } catch (e) {}
+  }
 
   const top5Info = db.prepare('PRAGMA table_info(user_top5)').all();
   const top5ColNames = top5Info.map(c => c.name);
@@ -381,8 +391,8 @@ function restoreAccountsFromBackup() {
     // Restore customAnime
     if (Array.isArray(data.customAnime)) {
       const insertAnimeStmt = db.prepare(`
-        INSERT INTO anime (id, slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO anime (id, slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           title = excluded.title,
           title_lower = excluded.title_lower,
@@ -393,6 +403,8 @@ function restoreAccountsFromBackup() {
           year = excluded.year,
           genres = excluded.genres,
           description = excluded.description,
+          season = excluded.season,
+          related_json = excluded.related_json,
           updated_at = excluded.updated_at
       `);
       for (const a of data.customAnime) {
@@ -411,6 +423,8 @@ function restoreAccountsFromBackup() {
             a.year ? String(a.year) : null,
             typeof a.genres === 'string' ? a.genres : JSON.stringify(a.genres || []),
             a.description || '',
+            a.season || '',
+            typeof a.related_json === 'string' ? a.related_json : JSON.stringify(a.related_json || a.linkedAnime || []),
             a.created_at || new Date().toISOString(),
             a.updated_at || new Date().toISOString()
           );

@@ -29,16 +29,19 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  Sparkles
+  Sparkles,
+  Link
 } from 'lucide-react';
 import { apiUrl } from '../api';
-import { updateCachedAnimeItem, removeCachedAnimeItem, upsertCachedAnimeItem } from '../utils/catalogCache';
+import { updateCachedAnimeItem, removeCachedAnimeItem, upsertCachedAnimeItem, searchCachedAnime } from '../utils/catalogCache';
 import { toggleHiddenAnime } from '../utils/hiddenStorage';
 import { getScoreBadgeClass } from '../utils/scoreColors';
 import { extractPlatformIdentifier, parseAnimeLibContent } from '../utils/importer';
 import { getCachedUserRatings, updateCachedUserRating } from '../utils/profileCache';
+import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 import {
   saveCustomAnimeEdit,
+  getCustomAnimeEdits,
   applyCustomAnimeEdits,
   saveCustomUserEdit,
   applyCustomUserEdits
@@ -347,6 +350,12 @@ export default function DevConsolePage({
   const [editType, setEditType] = useState('Сериал');
   const [editYear, setEditYear] = useState('');
   const [editGenres, setEditGenres] = useState([]);
+  const [editSeason, setEditSeason] = useState('');
+  const [editLinkedAnime, setEditLinkedAnime] = useState([]);
+  const [linkSearchQuery, setLinkSearchQuery] = useState('');
+  const [linkSearchResults, setLinkSearchResults] = useState([]);
+  const [isSearchingLinks, setIsSearchingLinks] = useState(false);
+  const [selectedLinkRelation, setSelectedLinkRelation] = useState('2-й сезон');
   const [genresInput, setGenresInput] = useState('');
   const [saveAnimeLoading, setSaveAnimeLoading] = useState(false);
   const fileInputRef = useRef(null);
@@ -360,6 +369,8 @@ export default function DevConsolePage({
   const [createType, setCreateType] = useState('Сериал');
   const [createYear, setCreateYear] = useState(String(new Date().getFullYear()));
   const [createGenres, setCreateGenres] = useState([]);
+  const [createSeason, setCreateSeason] = useState('1-й сезон');
+  const [createLinkedAnime, setCreateLinkedAnime] = useState([]);
   const [createAnimeLoading, setCreateAnimeLoading] = useState(false);
   const createFileInputRef = useRef(null);
 
@@ -788,6 +799,89 @@ export default function DevConsolePage({
       }
     }
     setEditGenres(gList);
+
+    // Custom edits and season/relations
+    const customEdits = getCustomAnimeEdits();
+    const custom = customEdits[Number(anime.id)] || {};
+    setEditSeason(custom.season || anime.season || '');
+
+    let existingLinked = [];
+    if (Array.isArray(custom.linkedAnime)) {
+      existingLinked = custom.linkedAnime;
+    } else if (Array.isArray(anime.linkedAnime)) {
+      existingLinked = anime.linkedAnime;
+    } else if (anime.related_json) {
+      try {
+        existingLinked = JSON.parse(anime.related_json);
+      } catch (e) {}
+    }
+    setEditLinkedAnime(existingLinked);
+    setLinkSearchQuery('');
+    setLinkSearchResults([]);
+    setSelectedLinkRelation('2-й сезон');
+  };
+
+  const handleSearchLinkCandidate = async (query) => {
+    setLinkSearchQuery(query);
+    if (!query || query.trim().length < 2) {
+      setLinkSearchResults([]);
+      return;
+    }
+    const cleanQ = query.trim().toLowerCase();
+
+    // Search cached and local list
+    const cachedMatches = searchCachedAnime(cleanQ);
+    const localMatches = animeList.filter((a) => {
+      const t = (a.title || '').toLowerCase();
+      const ot = (a.originalTitle || a.original_title || '').toLowerCase();
+      return t.includes(cleanQ) || ot.includes(cleanQ) || String(a.id) === cleanQ;
+    });
+
+    const combined = deduplicateAnimeList([...localMatches, ...cachedMatches]);
+    setLinkSearchResults(combined.slice(0, 8));
+
+    try {
+      setIsSearchingLinks(true);
+      const res = await fetch(apiUrl(`/api/anime?search=${encodeURIComponent(query.trim())}&limit=8`));
+      if (res.ok) {
+        const data = await res.json();
+        const serverItems = data.items || [];
+        setLinkSearchResults((prev) => deduplicateAnimeList([...prev, ...serverItems]).slice(0, 10));
+      }
+    } catch (e) {
+    } finally {
+      setIsSearchingLinks(false);
+    }
+  };
+
+  const handleAddLinkedAnime = (candidate) => {
+    if (!candidate || !candidate.id) return;
+    const numId = Number(candidate.id);
+    if (editingAnime && Number(editingAnime.id) === numId) {
+      showToast('Нельзя связать тайтл с самим собой', 'error');
+      return;
+    }
+    if (editLinkedAnime.some((it) => Number(it.id) === numId)) {
+      showToast('Этот тайтл уже добавлен в связанные', 'error');
+      return;
+    }
+    const newEntry = {
+      id: numId,
+      title: candidate.title,
+      originalTitle: candidate.originalTitle || candidate.original_title || '',
+      year: candidate.year || '',
+      type: candidate.type || 'Сериал',
+      imageUrl: candidate.imageUrl || candidate.image_url || '',
+      relation: selectedLinkRelation.trim() || 'Связанная часть'
+    };
+    setEditLinkedAnime((prev) => [...prev, newEntry]);
+    setLinkSearchQuery('');
+    setLinkSearchResults([]);
+    showToast(`Связан тайтл «${candidate.title}» (${newEntry.relation})`);
+  };
+
+  const handleRemoveLinkedAnime = (linkedId) => {
+    setEditLinkedAnime((prev) => prev.filter((it) => Number(it.id) !== Number(linkedId)));
   };
 
   const handleImageFileChange = (e) => {
@@ -917,7 +1011,10 @@ export default function DevConsolePage({
         image_url: finalImg,
         type: editType,
         year: editYear.trim(),
-        genres: editGenres
+        genres: editGenres,
+        season: editSeason.trim(),
+        linkedAnime: editLinkedAnime,
+        related_json: JSON.stringify(editLinkedAnime)
       };
 
       const updatedItem = {
@@ -2558,6 +2655,179 @@ export default function DevConsolePage({
                 selectedGenres={editGenres}
                 onChange={setEditGenres}
               />
+
+              {/* Season / Part */}
+              <div className="space-y-2 p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/60 dark:border-neutral-800">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-neutral-900 dark:text-white flex items-center gap-1.5">
+                    <Film className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Сезон / Часть тайтла</span>
+                  </label>
+                  <span className="text-[11px] text-neutral-400">
+                    Отображается в хронологии франшизы
+                  </span>
+                </div>
+                
+                <input
+                  type="text"
+                  value={editSeason}
+                  onChange={(e) => setEditSeason(e.target.value)}
+                  placeholder="Например: 1-й сезон, 2-й сезон, Фильм, Финал..."
+                  className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs border border-neutral-200 dark:border-neutral-700 font-semibold"
+                />
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {['1-й сезон', '2-й сезон', '3-й сезон', '4-й сезон', 'Фильм', 'OVA', 'ONA', 'Спешл', 'Спин-офф', 'Приквел', 'Сиквел'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setEditSeason(preset)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                        editSeason === preset
+                          ? 'bg-amber-500 text-white font-bold shadow-xs'
+                          : 'bg-neutral-200/70 dark:bg-neutral-700/60 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-300 dark:hover:bg-neutral-600'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Linked Anime & Franchise */}
+              <div className="space-y-3 p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/60 dark:border-neutral-800">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-neutral-900 dark:text-white flex items-center gap-1.5">
+                    <Link className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Связанные тайтлы и сезоны ({editLinkedAnime.length})</span>
+                  </label>
+                  <span className="text-[11px] text-neutral-400">
+                    Франшиза и продолжения
+                  </span>
+                </div>
+
+                {/* List of currently linked anime */}
+                {editLinkedAnime.length > 0 && (
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {editLinkedAnime.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-700 gap-2.5 shadow-xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-11 rounded-lg bg-neutral-200 dark:bg-neutral-800 overflow-hidden shrink-0">
+                            {item.imageUrl ? (
+                              <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-[10px] text-neutral-400">?</div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-neutral-900 dark:text-white truncate">
+                              {item.title}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[10px] text-neutral-400">
+                              <span>ID: {item.id}</span>
+                              {item.year && <span>• {item.year}</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="px-2 py-0.5 rounded-lg bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[10px] font-bold border border-blue-200/50 dark:border-blue-800/50">
+                            {item.relation || 'Связанная часть'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveLinkedAnime(item.id)}
+                            className="p-1 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                            title="Удалить связь"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add new link search & picker */}
+                <div className="pt-2 border-t border-neutral-200/60 dark:border-neutral-700/60 space-y-2">
+                  <div className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-400">
+                    Добавить связь с тайтлом:
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-2">
+                    <div className="relative flex-1 w-full">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-neutral-400" />
+                      <input
+                        type="text"
+                        value={linkSearchQuery}
+                        onChange={(e) => handleSearchLinkCandidate(e.target.value)}
+                        placeholder="Поиск тайтла по названию или ID..."
+                        className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs border border-neutral-200 dark:border-neutral-700"
+                      />
+                      {isSearchingLinks && (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin absolute right-3 top-2.5 text-neutral-400" />
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <select
+                        value={selectedLinkRelation}
+                        onChange={(e) => setSelectedLinkRelation(e.target.value)}
+                        className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs font-semibold border border-neutral-200 dark:border-neutral-700 flex-1 sm:flex-initial"
+                      >
+                        <option value="1-й сезон">1-й сезон</option>
+                        <option value="2-й сезон">2-й сезон</option>
+                        <option value="3-й сезон">3-й сезон</option>
+                        <option value="4-й сезон">4-й сезон</option>
+                        <option value="Фильм">Фильм</option>
+                        <option value="OVA">OVA</option>
+                        <option value="ONA">ONA</option>
+                        <option value="Спешл">Спешл</option>
+                        <option value="Спин-офф">Спин-офф</option>
+                        <option value="Приквел">Приквел</option>
+                        <option value="Сиквел">Сиквел</option>
+                        <option value="Связанная часть">Связанная часть</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Search Results Dropdown */}
+                  {linkSearchResults.length > 0 && (
+                    <div className="p-1.5 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 max-h-44 overflow-y-auto space-y-1 shadow-md">
+                      {linkSearchResults.map((cand) => (
+                        <div
+                          key={cand.id}
+                          onClick={() => handleAddLinkedAnime(cand)}
+                          className="flex items-center justify-between p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-6 h-8 rounded bg-neutral-200 dark:bg-neutral-800 overflow-hidden shrink-0">
+                              {cand.imageUrl || cand.image_url ? (
+                                <img src={cand.imageUrl || cand.image_url} alt="" className="w-full h-full object-cover" />
+                              ) : null}
+                            </div>
+                            <div className="min-w-0 text-left">
+                              <div className="text-xs font-bold text-neutral-900 dark:text-white truncate">
+                                {cand.title}
+                              </div>
+                              <div className="text-[10px] text-neutral-400">
+                                ID: {cand.id} {cand.year ? `• ${cand.year}` : ''}
+                              </div>
+                            </div>
+                          </div>
+
+                          <span className="text-[11px] font-bold text-blue-500 dark:text-blue-400 shrink-0 ml-2">
+                            + Связать как {selectedLinkRelation}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {/* Description */}
               <div>
