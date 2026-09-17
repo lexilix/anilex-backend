@@ -416,12 +416,7 @@ export default function App() {
             const img = (item.imageUrl || '').toLowerCase();
             const t = (item.title || '').toLowerCase();
             const orig = (item.originalTitle || '').toLowerCase();
-            if (
-              img.includes('missing_original') ||
-              img.includes('404') ||
-              img.includes('placeholder') ||
-              img.includes('placehold.co')
-            ) {
+            if (!isSearching && (img.includes('missing_original') || img.includes('404'))) {
               return false;
             }
             if (t.includes('сникерс') || orig.includes('snickers')) {
@@ -439,7 +434,7 @@ export default function App() {
             if (activeSort === 'unrated' && item.myScore !== null && item.myScore !== undefined) {
               return false;
             }
-            const key = `${(item.title || '').trim().toLowerCase()}_${item.year || ''}`;
+            const key = isSearching ? String(item.id) : `${(item.title || '').trim().toLowerCase()}_${item.year || ''}`;
             if (seen.has(key)) return false;
             seen.add(key);
             return true;

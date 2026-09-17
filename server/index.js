@@ -3359,6 +3359,88 @@ app.delete('/api/dev/users/:userId/ratings/:animeId', devAdminMiddleware, (req, 
   }
 });
 
+// Dev: Create New Anime
+app.post('/api/dev/anime', devAdminMiddleware, (req, res) => {
+  try {
+    const { title, originalTitle, description, imageUrl, type = 'Сериал', year = '', genres = [] } = req.body;
+    if (!title || typeof title !== 'string' || !title.trim()) {
+      return res.status(400).json({ error: 'Укажите название аниме' });
+    }
+
+    const cleanTitle = title.trim();
+    const cleanOriginalTitle = (originalTitle || '').trim();
+    const cleanDesc = (description || '').trim();
+    const cleanImage = (imageUrl || '').trim();
+    const cleanType = (type || 'Сериал').trim();
+    const cleanYear = (year || '').trim();
+
+    let returnGenres = [];
+    let finalGenresJson = '[]';
+    if (Array.isArray(genres)) {
+      returnGenres = genres.map((g) => String(g).trim()).filter(Boolean);
+      finalGenresJson = JSON.stringify(returnGenres);
+    } else if (typeof genres === 'string') {
+      try {
+        const parsed = JSON.parse(genres);
+        returnGenres = Array.isArray(parsed) ? parsed : [genres];
+        finalGenresJson = JSON.stringify(returnGenres);
+      } catch (e) {
+        returnGenres = genres.split(',').map((g) => g.trim()).filter(Boolean);
+        finalGenresJson = JSON.stringify(returnGenres);
+      }
+    }
+
+    const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+    const titleLower = normalize(cleanTitle);
+    const origLower = normalize(cleanOriginalTitle);
+
+    // Generate unique slug
+    const baseSlug = cleanTitle
+      .toLowerCase()
+      .replace(/[^a-zа-яё0-9\s-]/gi, '')
+      .trim()
+      .replace(/\s+/g, '-');
+    const randomSuffix = Math.random().toString(36).substring(2, 7);
+    const slug = `${baseSlug || 'anime'}-${randomSuffix}`;
+
+    const stmt = db.prepare(`
+      INSERT INTO anime (slug, title, title_lower, original_title, original_title_lower, description, image_url, type, year, genres, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `);
+    const info = stmt.run(slug, cleanTitle, titleLower, cleanOriginalTitle, origLower, cleanDesc, cleanImage, cleanType, cleanYear, finalGenresJson);
+    const newId = Number(info.lastInsertRowid);
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    const createdAnime = {
+      id: newId,
+      slug,
+      title: cleanTitle,
+      originalTitle: cleanOriginalTitle,
+      description: cleanDesc,
+      imageUrl: cleanImage,
+      type: cleanType,
+      year: cleanYear,
+      genres: returnGenres,
+      averageScore: null,
+      ratingCount: 0,
+      myScore: null
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(201).json({
+      success: true,
+      anime: createdAnime
+    });
+  } catch (err) {
+    console.error('Dev create anime error:', err);
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(500).json({ error: 'Ошибка создания тайтла: ' + err.message });
+  }
+});
+
 // Dev: Update Anime (Title, Description, Image, Year, Type, Genres)
 app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
   try {
@@ -3371,6 +3453,7 @@ app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
     const { title, originalTitle, description, imageUrl, type, year, genres } = req.body;
 
     const newTitle = title !== undefined ? String(title).trim() : anime.title;
+    const newOriginalTitle = originalTitle !== undefined ? String(originalTitle).trim() : (anime.original_title || '');
     const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
     const newTitleLower = normalize(newTitle);
     const newOriginalTitleLower = normalize(newOriginalTitle);

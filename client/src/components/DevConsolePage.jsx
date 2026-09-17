@@ -32,7 +32,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { apiUrl } from '../api';
-import { updateCachedAnimeItem, removeCachedAnimeItem } from '../utils/catalogCache';
+import { updateCachedAnimeItem, removeCachedAnimeItem, upsertCachedAnimeItem } from '../utils/catalogCache';
 import { toggleHiddenAnime } from '../utils/hiddenStorage';
 import { getScoreBadgeClass } from '../utils/scoreColors';
 import { extractPlatformIdentifier, parseAnimeLibContent } from '../utils/importer';
@@ -140,6 +140,158 @@ function parseRawTextRatings(text) {
 }
 
 
+const POPULAR_GENRES = [
+  'Экшен',
+  'Приключения',
+  'Комедия',
+  'Драма',
+  'Фэнтези',
+  'Сёнен',
+  'Романтика',
+  'Детектив',
+  'Триллер',
+  'Мистика',
+  'Фантастика',
+  'Повседневность',
+  'Сверхъестественное',
+  'Психология',
+  'Этти',
+  'Гарем',
+  'Меха',
+  'Военное',
+  'Исторический',
+  'Спорт',
+  'Музыка',
+  'Вампиры',
+  'Киберпанк',
+  'Хоррор',
+  'Сёдзё',
+  'Магия',
+  'Школа',
+  'Демоны',
+  'Игры',
+  'Самураи',
+  'Суперсила',
+  'Космос',
+  'Боевые искусства',
+  'Сэйнэн'
+];
+
+function GenreEditor({ selectedGenres, onChange }) {
+  const [customInput, setCustomInput] = useState('');
+
+  const handleToggle = (genre) => {
+    if (selectedGenres.includes(genre)) {
+      onChange(selectedGenres.filter((g) => g !== genre));
+    } else {
+      onChange([...selectedGenres, genre]);
+    }
+  };
+
+  const handleAddCustom = () => {
+    const trimmed = customInput.trim();
+    if (!trimmed) return;
+    const parts = trimmed.split(',').map((p) => p.trim()).filter(Boolean);
+    const newItems = parts.filter((p) => !selectedGenres.includes(p));
+    if (newItems.length > 0) {
+      onChange([...selectedGenres, ...newItems]);
+    }
+    setCustomInput('');
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddCustom();
+    }
+  };
+
+  const handleRemove = (genre) => {
+    onChange(selectedGenres.filter((g) => g !== genre));
+  };
+
+  return (
+    <div className="space-y-2.5">
+      <div>
+        <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
+          Жанры ({selectedGenres.length})
+        </label>
+        <div className="min-h-[42px] p-2 rounded-2xl bg-neutral-100 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-700/60 flex flex-wrap gap-1.5 items-center">
+          {selectedGenres.length === 0 ? (
+            <span className="text-xs text-neutral-400 italic px-1">
+              Жанры не выбраны. Выберите из списка ниже или введите свой.
+            </span>
+          ) : (
+            selectedGenres.map((g) => (
+              <span
+                key={g}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold text-xs border border-amber-500/30 transition-all shadow-xs"
+              >
+                <span>{g}</span>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(g)}
+                  className="w-4 h-4 rounded-full hover:bg-rose-500 hover:text-white flex items-center justify-center text-[10px] transition-colors"
+                  title="Удалить жанр"
+                >
+                  ✕
+                </button>
+              </span>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Add Custom Genre Input */}
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={customInput}
+          onChange={(e) => setCustomInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Добавить свой жанр (например: Киберпанк или несколько через запятую)..."
+          className="flex-1 px-3.5 py-2 text-xs rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 border border-neutral-200/80 dark:border-neutral-700/80 focus:border-amber-500 transition-colors"
+        />
+        <button
+          type="button"
+          onClick={handleAddCustom}
+          disabled={!customInput.trim()}
+          className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black text-xs font-bold transition-all shrink-0 flex items-center gap-1"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Добавить</span>
+        </button>
+      </div>
+
+      {/* Quick Select from Popular Genres */}
+      <div>
+        <label className="block text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">
+          Быстрый выбор из существующих:
+        </label>
+        <div className="max-h-32 overflow-y-auto p-2 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/60 dark:border-neutral-800 flex flex-wrap gap-1.5 custom-scrollbar">
+          {POPULAR_GENRES.map((genre) => {
+            const isSelected = selectedGenres.includes(genre);
+            return (
+              <button
+                key={genre}
+                type="button"
+                onClick={() => handleToggle(genre)}
+                className={`px-2.5 py-1 rounded-xl text-xs font-medium transition-all ${
+                  isSelected
+                    ? 'bg-amber-500 text-black font-bold shadow-xs'
+                    : 'bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 border border-neutral-200/60 dark:border-neutral-700/60'
+                }`}
+              >
+                {isSelected ? `✓ ${genre}` : `+ ${genre}`}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DevConsolePage({
   user,
   onNavigate,
@@ -198,6 +350,18 @@ export default function DevConsolePage({
   const [genresInput, setGenresInput] = useState('');
   const [saveAnimeLoading, setSaveAnimeLoading] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Create Anime Modal
+  const [isCreateAnimeOpen, setIsCreateAnimeOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState('');
+  const [createOriginalTitle, setCreateOriginalTitle] = useState('');
+  const [createDescription, setCreateDescription] = useState('');
+  const [createImageUrl, setCreateImageUrl] = useState('');
+  const [createType, setCreateType] = useState('Сериал');
+  const [createYear, setCreateYear] = useState(String(new Date().getFullYear()));
+  const [createGenres, setCreateGenres] = useState([]);
+  const [createAnimeLoading, setCreateAnimeLoading] = useState(false);
+  const createFileInputRef = useRef(null);
 
   // Delete Anime Modal
   const [deletingAnime, setDeletingAnime] = useState(null);
@@ -602,7 +766,7 @@ export default function DevConsolePage({
   }, [userRatings, ratingsSearch, ratingsScoreFilter, ratingsTypeFilter, ratingsGenreFilter, ratingsSortFilter]);
 
   // ----------------------------------------------------
-  // ANIME EDIT & DELETE HANDLERS
+  // ANIME EDIT, CREATE & DELETE HANDLERS
   // ----------------------------------------------------
   const handleOpenEditAnime = (anime) => {
     setEditingAnime(anime);
@@ -612,9 +776,18 @@ export default function DevConsolePage({
     setEditImageUrl(anime.imageUrl || anime.image_url || '');
     setEditType(anime.type || 'Сериал');
     setEditYear(anime.year || '');
-    const gList = Array.isArray(anime.genres) ? anime.genres : [];
+    let gList = [];
+    if (Array.isArray(anime.genres)) {
+      gList = anime.genres;
+    } else if (typeof anime.genres === 'string') {
+      try {
+        const parsed = JSON.parse(anime.genres);
+        gList = Array.isArray(parsed) ? parsed : [anime.genres];
+      } catch (e) {
+        gList = anime.genres.split(',').map((g) => g.trim()).filter(Boolean);
+      }
+    }
     setEditGenres(gList);
-    setGenresInput(gList.join(', '));
   };
 
   const handleImageFileChange = (e) => {
@@ -631,6 +804,99 @@ export default function DevConsolePage({
     reader.readAsDataURL(file);
   };
 
+  const handleOpenCreateAnime = () => {
+    setCreateTitle('');
+    setCreateOriginalTitle('');
+    setCreateDescription('');
+    setCreateImageUrl('');
+    setCreateType('Сериал');
+    setCreateYear(String(new Date().getFullYear()));
+    setCreateGenres([]);
+    setIsCreateAnimeOpen(true);
+  };
+
+  const handleCreateImageFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      showToast('Файл превышает 8 МБ', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCreateImageUrl(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCreateAnime = async (e) => {
+    e.preventDefault();
+    if (!createTitle.trim()) {
+      showToast('Укажите название аниме', 'error');
+      return;
+    }
+    setCreateAnimeLoading(true);
+
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      const payload = {
+        title: createTitle.trim(),
+        originalTitle: createOriginalTitle.trim(),
+        description: createDescription.trim(),
+        imageUrl: createImageUrl.trim(),
+        type: createType,
+        year: createYear.trim(),
+        genres: createGenres
+      };
+
+      const res = await fetch(apiUrl('/api/dev/anime'), {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Ошибка сервера при создании тайтла');
+      }
+
+      const data = await res.json();
+      const created = data.anime;
+
+      // 1. Immediately persist to localStorage custom edits so changes are NEVER lost
+      saveCustomAnimeEdit(created.id, created);
+
+      // 2. Add to catalog cache
+      upsertCachedAnimeItem(created);
+
+      // 3. Update Dev Console state
+      setAnimeList((prev) => [created, ...prev]);
+      setAnimeTotal((prev) => prev + 1);
+
+      // 4. Notify app
+      if (onAnimeUpdated) onAnimeUpdated(created);
+      if (onCatalogUpdated) onCatalogUpdated(created);
+
+      showToast(`Тайтл «${created.title}» успешно добавлен!`);
+      setIsCreateAnimeOpen(false);
+      setCreateTitle('');
+      setCreateOriginalTitle('');
+      setCreateDescription('');
+      setCreateImageUrl('');
+      setCreateType('Сериал');
+      setCreateYear(String(new Date().getFullYear()));
+      setCreateGenres([]);
+    } catch (err) {
+      showToast('Ошибка создания тайтла: ' + err.message, 'error');
+    } finally {
+      setCreateAnimeLoading(false);
+    }
+  };
+
   const handleSaveAnime = async (e) => {
     e.preventDefault();
     if (!editingAnime) return;
@@ -639,10 +905,6 @@ export default function DevConsolePage({
     try {
       const token = localStorage.getItem('anime_auth_token');
       const animeId = Number(editingAnime.id);
-      const cleanGenres = genresInput
-        .split(',')
-        .map((g) => g.trim())
-        .filter(Boolean);
 
       const payload = {
         id: animeId,
@@ -652,7 +914,7 @@ export default function DevConsolePage({
         imageUrl: editImageUrl.trim(),
         type: editType,
         year: editYear.trim(),
-        genres: cleanGenres
+        genres: editGenres
       };
 
       const updatedItem = {
@@ -680,7 +942,7 @@ export default function DevConsolePage({
       }
 
       // 5. Send PUT /api/dev/anime/:id to server
-      fetch(apiUrl(`/api/dev/anime/${animeId}`), {
+      const res = await fetch(apiUrl(`/api/dev/anime/${animeId}`), {
         method: 'PUT',
         headers: {
           'Accept': 'application/json',
@@ -688,9 +950,12 @@ export default function DevConsolePage({
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(payload)
-      }).catch((err) => {
-        console.warn('Backend update anime warning:', err);
       });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.warn('Backend update anime warning:', errData.error);
+      }
 
       showToast(`Тайтл «${editTitle}» успешно сохранен!`);
       setEditingAnime(null);
@@ -1412,9 +1677,19 @@ export default function DevConsolePage({
                 className="w-full pl-10 pr-4 py-2 text-xs rounded-2xl bg-white dark:bg-[#151518] text-neutral-900 dark:text-white placeholder-neutral-400 border border-neutral-200 dark:border-neutral-800"
               />
             </div>
-            <span className="text-xs text-neutral-400 font-medium">
-              Всего в каталоге: {animeTotal}
-            </span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleOpenCreateAnime}
+                className="px-3.5 py-2 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>+ Добавить новый тайтл</span>
+              </button>
+              <span className="text-xs text-neutral-400 font-medium whitespace-nowrap">
+                Всего в каталоге: {animeTotal}
+              </span>
+            </div>
           </div>
 
           {animeLoading ? (
@@ -2243,8 +2518,8 @@ export default function DevConsolePage({
                 </div>
               </div>
 
-              {/* Type, Year, Genres */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Type & Year */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">
                     Тип
@@ -2273,19 +2548,13 @@ export default function DevConsolePage({
                     className="w-full px-3.5 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">
-                    Жанры (через запятую)
-                  </label>
-                  <input
-                    type="text"
-                    value={genresInput}
-                    onChange={(e) => setGenresInput(e.target.value)}
-                    placeholder="Экшен, Комедия..."
-                    className="w-full px-3.5 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs"
-                  />
-                </div>
               </div>
+
+              {/* Genre Editor */}
+              <GenreEditor
+                selectedGenres={editGenres}
+                onChange={setEditGenres}
+              />
 
               {/* Description */}
               <div>
@@ -2293,7 +2562,7 @@ export default function DevConsolePage({
                   Описание сюжета
                 </label>
                 <textarea
-                  rows={5}
+                  rows={4}
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   placeholder="Подробное описание аниме..."
@@ -2317,6 +2586,180 @@ export default function DevConsolePage({
                 >
                   <Check className="w-4 h-4 text-emerald-400" />
                   <span>{saveAnimeLoading ? 'Сохранение...' : 'Сохранить изменения'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* MODAL: CREATE ANIME */}
+      {/* ---------------------------------------------------- */}
+      {isCreateAnimeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div
+            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#151518] p-6 sm:p-7 shadow-2xl border border-neutral-200 dark:border-neutral-800 space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Plus className="w-5 h-5 text-amber-500 stroke-[2.5]" />
+                <h3 className="text-base font-bold text-neutral-900 dark:text-white">
+                  Добавление нового тайтла
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateAnimeOpen(false)}
+                className="p-1 rounded-full text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAnime} className="space-y-4">
+              {/* Poster and Preview */}
+              <div className="flex items-start gap-4">
+                <div className="w-24 aspect-[5/7] rounded-2xl overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0 border border-neutral-200 dark:border-neutral-800">
+                  {createImageUrl ? (
+                    <img src={createImageUrl} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-neutral-400 text-[11px] text-center p-2">
+                      <Image className="w-6 h-6 mb-1 opacity-50" />
+                      <span>Нет фото</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 space-y-2">
+                  <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                    Обложка (Постер тайтла)
+                  </label>
+                  <input
+                    type="text"
+                    value={createImageUrl}
+                    onChange={(e) => setCreateImageUrl(e.target.value)}
+                    placeholder="https://... ссылка на картинку"
+                    className="w-full px-3.5 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs border border-transparent focus:border-neutral-400"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => createFileInputRef.current && createFileInputRef.current.click()}
+                      className="px-3 py-1.5 rounded-xl bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold flex items-center gap-1.5"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Загрузить с ПК</span>
+                    </button>
+                    <input
+                      ref={createFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleCreateImageFileChange}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Title & Original Title */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">
+                    Название (русское) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={createTitle}
+                    onChange={(e) => setCreateTitle(e.target.value)}
+                    placeholder="Например: Магическая битва"
+                    className="w-full px-3.5 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">
+                    Оригинальное / Английское название
+                  </label>
+                  <input
+                    type="text"
+                    value={createOriginalTitle}
+                    onChange={(e) => setCreateOriginalTitle(e.target.value)}
+                    placeholder="Например: Jujutsu Kaisen"
+                    className="w-full px-3.5 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Type & Year */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">
+                    Тип
+                  </label>
+                  <select
+                    value={createType}
+                    onChange={(e) => setCreateType(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs font-semibold"
+                  >
+                    {['Сериал', 'Фильм', 'OVA', 'ONA', 'Спешл'].map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">
+                    Год выпуска
+                  </label>
+                  <input
+                    type="text"
+                    value={createYear}
+                    onChange={(e) => setCreateYear(e.target.value)}
+                    placeholder="2025"
+                    className="w-full px-3.5 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Genre Editor */}
+              <GenreEditor
+                selectedGenres={createGenres}
+                onChange={setCreateGenres}
+              />
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">
+                  Описание сюжета
+                </label>
+                <textarea
+                  rows={4}
+                  value={createDescription}
+                  onChange={(e) => setCreateDescription(e.target.value)}
+                  placeholder="Подробное описание аниме..."
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs leading-relaxed"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-neutral-100 dark:border-neutral-800">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateAnimeOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-xs font-semibold text-neutral-600 dark:text-neutral-300"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  disabled={createAnimeLoading}
+                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                  <span>{createAnimeLoading ? 'Создание...' : 'Создать тайтл'}</span>
                 </button>
               </div>
             </form>

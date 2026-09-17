@@ -167,6 +167,7 @@ export default function ProfilePage({
   const [showAllRatedGenres, setShowAllRatedGenres] = useState(false);
   const [selectedType, setSelectedType] = useState('all');
   const [selectedScore, setSelectedScore] = useState('all');
+  const [totalRatedCount, setTotalRatedCount] = useState(0);
 
   // Favorites state
   const [favoritesList, setFavoritesList] = useState([]);
@@ -304,21 +305,23 @@ export default function ProfilePage({
       });
       if (res.ok) {
         const data = await res.json();
-        let items = deduplicateAnimeList(data.items || []);
+        let allItems = deduplicateAnimeList(data.items || []);
+        if (data.total !== undefined) {
+          setTotalRatedCount(data.total);
+        } else if (!searchQuery.trim() && selectedType === 'all' && activeRatedGenres.length === 0 && selectedScore === 'all') {
+          setTotalRatedCount(allItems.length);
+        }
+
+        let items = allItems;
         if (selectedScore === 'top5') {
           const ordered = [];
           myTop5Ids.forEach((id) => {
-            const found = items.find((it) => Number(it.id) === Number(id));
+            const found = allItems.find((it) => Number(it.id) === Number(id));
             if (found) ordered.push(found);
           });
-          items.forEach((it) => {
-            if (!ordered.some((o) => Number(o.id) === Number(it.id))) {
-              ordered.push(it);
-            }
-          });
-          items = ordered;
+          items = ordered.slice(0, 5);
         } else if (selectedScore !== 'all') {
-          items = items.filter((it) => it.myScore === parseInt(selectedScore, 10));
+          items = allItems.filter((it) => it.myScore === parseInt(selectedScore, 10));
         }
         setRatedAnime(items);
         if (!searchQuery.trim() && selectedType === 'all' && activeRatedGenres.length === 0 && selectedScore === 'all') {
@@ -1060,7 +1063,7 @@ export default function ProfilePage({
                   : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
               }`}
             >
-              Мои оценки ({ratedAnime.length})
+              Мои оценки ({totalRatedCount || ratedAnime.length})
             </button>
             <button
               onClick={() => setActiveTab('favorites')}
