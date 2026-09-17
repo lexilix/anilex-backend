@@ -769,12 +769,12 @@ export default function ProfilePage({
         </div>
 
         {/* User Avatar & Info Row */}
-        <div className="px-6 sm:px-8 pb-6 sm:pb-8 pt-0 relative">
-          <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-4 -mt-12 sm:-mt-16 mb-5">
+        <div className="px-6 sm:px-8 pb-6 sm:pb-8 pt-0 relative z-10">
+          <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-4 -mt-12 sm:-mt-16 mb-5 relative z-20">
             
             <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 text-center sm:text-left">
               {/* Avatar */}
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-3xl font-bold flex items-center justify-center shrink-0 shadow-xl ring-4 ring-white dark:ring-[#151518]">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-3xl font-bold flex items-center justify-center shrink-0 shadow-2xl ring-4 ring-white dark:ring-[#151518] relative z-20">
                 {user.avatarUrl ? (
                   <img src={user.avatarUrl} alt={user.nickname} className="w-full h-full object-cover" />
                 ) : (
@@ -1102,10 +1102,12 @@ export default function ProfilePage({
             <div className="py-20 text-center rounded-3xl bg-white dark:bg-[#151518] p-8 shadow-sm">
               <Film className="w-12 h-12 mx-auto text-neutral-300 dark:text-neutral-700 mb-3" />
               <h3 className="text-base font-bold text-neutral-900 dark:text-white">
-                Нет оцененных тайтлов
+                {selectedScore === 'top5' ? 'В Топ-5 пока ничего не закреплено' : 'Нет оцененных тайтлов'}
               </h3>
               <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 max-w-sm mx-auto">
-                Пока нет аниме, подходящих под выбранные фильтры.
+                {selectedScore === 'top5'
+                  ? 'Вы можете закрепить до 5 любимых тайтлов кнопкой «+ Топ-5» в списке ваших оценок.'
+                  : 'Пока нет аниме, подходящих под выбранные фильтры.'}
               </p>
             </div>
           ) : (
@@ -1809,18 +1811,18 @@ export default function ProfilePage({
                   <button
                     type="button"
                     onClick={() => setSelectedFriend(null)}
-                    className="absolute right-4 top-4 w-8 h-8 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-md text-white flex items-center justify-center transition-colors z-10"
+                    className="absolute right-4 top-4 w-8 h-8 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-md text-white flex items-center justify-center transition-colors z-30"
                   >
                     ✕
                   </button>
                 </div>
 
                 {/* Friend Content */}
-                <div className="p-6 sm:p-8 pt-0 space-y-6">
+                <div className="px-6 sm:px-8 pb-6 sm:pb-8 pt-0 space-y-6 relative z-10">
                   {/* Friend Header with Avatar overlapping banner */}
-                  <div className="flex items-end justify-between gap-4 -mt-10 sm:-mt-12">
+                  <div className="flex items-end justify-between gap-4 -mt-12 sm:-mt-16 relative z-20">
                     <div className="flex items-end gap-4">
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl overflow-hidden bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-bold text-2xl flex items-center justify-center shrink-0 shadow-xl ring-4 ring-white dark:ring-[#151518]">
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-bold text-2xl sm:text-3xl flex items-center justify-center shrink-0 shadow-2xl ring-4 ring-white dark:ring-[#151518] relative z-20">
                         {selectedFriend.avatarUrl ? (
                           <img src={selectedFriend.avatarUrl} alt={selectedFriend.nickname} className="w-full h-full object-cover" />
                         ) : (
@@ -1828,7 +1830,7 @@ export default function ProfilePage({
                         )}
                       </div>
 
-                      <div className="mb-1">
+                      <div className="mb-1.5">
                         <h3 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">
                           {selectedFriend.nickname}
                         </h3>
@@ -1997,7 +1999,10 @@ export default function ProfilePage({
 
                       let displayedRatings = [];
                       if (friendScoreFilter === 'top5') {
-                        displayedRatings = filteredByGenre.slice(0, 5);
+                        // STRICTLY ONLY pinned items in Top-5! Do not fill with random 10s!
+                        displayedRatings = filteredByGenre.filter((item) =>
+                          Boolean(item.isPinned || (isMrTechProfile && (item.isSecretTop || item.title === 'Лимонные девочки')))
+                        ).slice(0, 5);
                       } else if (friendScoreFilter === 'all') {
                         displayedRatings = filteredByGenre;
                       } else {
@@ -2025,7 +2030,9 @@ export default function ProfilePage({
                               )}
                             </div>
                             <span className="text-[11px] text-neutral-400">
-                              Показано {displayedRatings.length} из {filteredByGenre.length}
+                              {friendScoreFilter === 'top5'
+                                ? `Закреплено ${displayedRatings.length} из 5`
+                                : `Показано ${displayedRatings.length} из ${filteredByGenre.length}`}
                             </span>
                           </div>
 
@@ -2035,13 +2042,16 @@ export default function ProfilePage({
                               <button
                                 type="button"
                                 onClick={() => setFriendScoreFilter('top5')}
-                                className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                                className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1 ${
                                   friendScoreFilter === 'top5'
                                     ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 shadow-sm'
                                     : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
                                 }`}
                               >
-                                Топ-5
+                                <span>📌 Топ-5</span>
+                                <span className="text-[10px] opacity-75">
+                                  ({cleanFriendRatings.filter(it => it.isPinned || (isMrTechProfile && (it.isSecretTop || it.title === 'Лимонные девочки'))).length}/5)
+                                </span>
                               </button>
                               <button
                                 type="button"
@@ -2120,9 +2130,13 @@ export default function ProfilePage({
                               У этого пользователя пока нет оценок.
                             </p>
                           ) : displayedRatings.length === 0 ? (
-                            <p className="text-xs text-neutral-400 py-6 text-center">
-                              Тайтлы с выбранными фильтрами не найдены.
-                            </p>
+                            <div className="py-10 text-center rounded-2xl bg-neutral-50 dark:bg-neutral-900/40 p-6 border border-neutral-100 dark:border-neutral-800/60">
+                              <p className="text-xs text-neutral-400">
+                                {friendScoreFilter === 'top5'
+                                  ? 'Пользователь пока не закрепил тайтлы в Топ-5.'
+                                  : 'Тайтлы с выбранными фильтрами не найдены.'}
+                              </p>
+                            </div>
                           ) : (
                             <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
                               {displayedRatings.map((item) => (
