@@ -136,6 +136,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS user_top5 (
     user_id INTEGER NOT NULL,
     anime_id INTEGER NOT NULL,
+    position INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY(user_id, anime_id),
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -220,6 +221,14 @@ try {
   }
   if (!animeColNames.includes('original_title_lower')) {
     db.exec('ALTER TABLE anime ADD COLUMN original_title_lower TEXT;');
+  }
+
+  const top5Info = db.prepare('PRAGMA table_info(user_top5)').all();
+  const top5ColNames = top5Info.map(c => c.name);
+  if (!top5ColNames.includes('position')) {
+    try {
+      db.exec('ALTER TABLE user_top5 ADD COLUMN position INTEGER DEFAULT 0;');
+    } catch (e) {}
   }
 
   // Create indexes for fast search
@@ -359,12 +368,12 @@ function restoreAccountsFromBackup() {
     // Restore user_top5
     if (Array.isArray(data.userTop5)) {
       const insertTop5Stmt = db.prepare(`
-        INSERT OR IGNORE INTO user_top5 (user_id, anime_id, created_at)
-        VALUES (?, ?, ?)
+        INSERT OR REPLACE INTO user_top5 (user_id, anime_id, created_at, position)
+        VALUES (?, ?, ?, ?)
       `);
       for (const t of data.userTop5) {
         try {
-          insertTop5Stmt.run(t.user_id, t.anime_id, t.created_at || new Date().toISOString());
+          insertTop5Stmt.run(t.user_id, t.anime_id, t.created_at || new Date().toISOString(), t.position ?? 0);
         } catch (e) {}
       }
     }

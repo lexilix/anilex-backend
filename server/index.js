@@ -870,7 +870,7 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
     `).get(targetUserId);
 
     // Fetch user top 5 IDs
-    const top5Rows = db.prepare('SELECT anime_id FROM user_top5 WHERE user_id = ? ORDER BY created_at ASC').all(targetUserId);
+    const top5Rows = db.prepare('SELECT anime_id FROM user_top5 WHERE user_id = ? ORDER BY position ASC, created_at ASC').all(targetUserId);
     let top5Ids = top5Rows.map(r => r.anime_id);
 
     const lemonAnime = db.prepare("SELECT id, slug, title, image_url, type, year, genres FROM anime WHERE title = 'Лимонные девочки'").get();
@@ -2343,7 +2343,7 @@ app.get('/api/user/top5', authMiddleware, (req, res) => {
     const userId = req.user.id;
     const isMrTech = userId === 20 || req.user.nickname === 'MrTech';
     const isVenicek = userId === 21 || req.user.nickname === 'Venicek';
-    const rows = db.prepare('SELECT anime_id FROM user_top5 WHERE user_id = ? ORDER BY created_at ASC').all(userId);
+    const rows = db.prepare('SELECT anime_id FROM user_top5 WHERE user_id = ? ORDER BY position ASC, created_at ASC').all(userId);
     let ids = rows.map(r => r.anime_id);
 
     const lemonAnime = db.prepare("SELECT id FROM anime WHERE title = 'Лимонные девочки'").get();
@@ -2394,14 +2394,14 @@ app.post('/api/user/top5/toggle', authMiddleware, (req, res) => {
       if (count >= 5) {
         return res.status(400).json({ error: 'В Топ-5 можно добавить только 5 аниме, больше нельзя!' });
       }
-      db.prepare('INSERT OR IGNORE INTO user_top5 (user_id, anime_id) VALUES (?, ?)').run(userId, animeId);
+      db.prepare('INSERT OR IGNORE INTO user_top5 (user_id, anime_id, position) VALUES (?, ?, ?)').run(userId, animeId, count);
     }
 
     if (typeof db.saveAccountsBackup === 'function') {
       db.saveAccountsBackup();
     }
 
-    const rows = db.prepare('SELECT anime_id FROM user_top5 WHERE user_id = ? ORDER BY created_at ASC').all(userId);
+    const rows = db.prepare('SELECT anime_id FROM user_top5 WHERE user_id = ? ORDER BY position ASC, created_at ASC').all(userId);
     let ids = rows.map(r => r.anime_id);
     if (isMrTech && !ids.includes(lemonId)) ids.unshift(lemonId);
     if (isVenicek) ids = ids.filter(id => id !== lemonId);
@@ -2440,10 +2440,10 @@ app.post('/api/user/top5/set', authMiddleware, (req, res) => {
     const finalIds = animeIds.slice(0, 5);
 
     db.prepare('DELETE FROM user_top5 WHERE user_id = ?').run(userId);
-    const insertStmt = db.prepare('INSERT OR IGNORE INTO user_top5 (user_id, anime_id) VALUES (?, ?)');
-    for (const aId of finalIds) {
-      insertStmt.run(userId, Number(aId));
-    }
+    const insertStmt = db.prepare('INSERT OR REPLACE INTO user_top5 (user_id, anime_id, position) VALUES (?, ?, ?)');
+    finalIds.forEach((aId, idx) => {
+      insertStmt.run(userId, Number(aId), idx);
+    });
 
     if (typeof db.saveAccountsBackup === 'function') {
       db.saveAccountsBackup();
@@ -3055,9 +3055,10 @@ app.put('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
       const cleanBanner = (updatedBanner || '').split('#top5=')[0];
       updatedBanner = cleanBanner + (top5Ids.length > 0 ? '#top5=' + top5Ids.join(',') : '');
       db.prepare('DELETE FROM user_top5 WHERE user_id = ?').run(targetUserId);
-      for (const aId of top5Ids.slice(0, 5)) {
-        db.prepare('INSERT OR IGNORE INTO user_top5 (user_id, anime_id) VALUES (?, ?)').run(targetUserId, aId);
-      }
+      const top5InsertStmt = db.prepare('INSERT OR REPLACE INTO user_top5 (user_id, anime_id, position) VALUES (?, ?, ?)');
+      top5Ids.slice(0, 5).forEach((aId, idx) => {
+        top5InsertStmt.run(targetUserId, Number(aId), idx);
+      });
     }
 
     db.prepare(`
@@ -3370,8 +3371,9 @@ app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
     const { title, originalTitle, description, imageUrl, type, year, genres } = req.body;
 
     const newTitle = title !== undefined ? String(title).trim() : anime.title;
-    const newOriginalTitle = originalTitle !== undefined ? String(originalTitle).trim() : anime.original_title;
-    const newTitleLower = newTitle.toLowerCase();
+    const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+    const newTitleLower = normalize(newTitle);
+    const newOriginalTitleLower = normalize(newOriginalTitle);
     const newDesc = description !== undefined ? String(description).trim() : anime.description;
     const newImage = imageUrl !== undefined ? String(imageUrl).trim() : anime.image_url;
     const newType = type !== undefined ? String(type) : anime.type;
@@ -3403,9 +3405,9 @@ app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
 
     db.prepare(`
       UPDATE anime
-      SET title = ?, title_lower = ?, original_title = ?, description = ?, image_url = ?, type = ?, year = ?, genres = ?, updated_at = CURRENT_TIMESTAMP
+      SET title = ?, title_lower = ?, original_title = ?, original_title_lower = ?, description = ?, image_url = ?, type = ?, year = ?, genres = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(newTitle, newTitleLower, newOriginalTitle, newDesc, newImage, newType, newYear, finalGenresJson, animeId);
+    `).run(newTitle, newTitleLower, newOriginalTitle, newOriginalTitleLower, newDesc, newImage, newType, newYear, finalGenresJson, animeId);
 
     if (typeof db.saveAccountsBackup === 'function') {
       db.saveAccountsBackup();

@@ -196,6 +196,7 @@ export default function ProfilePage({
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [friendRatings, setFriendRatings] = useState([]);
   const [friendTop5Anime, setFriendTop5Anime] = useState([]);
+  const [friendTop5Ids, setFriendTop5Ids] = useState([]);
   const [friendScoreFilter, setFriendScoreFilter] = useState('all');
   const [friendGenreFilter, setFriendGenreFilter] = useState('all');
   const [showLevelsModal, setShowLevelsModal] = useState(false);
@@ -305,7 +306,17 @@ export default function ProfilePage({
         const data = await res.json();
         let items = deduplicateAnimeList(data.items || []);
         if (selectedScore === 'top5') {
-          items = items.filter((it) => myTop5Ids.includes(it.id));
+          const ordered = [];
+          myTop5Ids.forEach((id) => {
+            const found = items.find((it) => Number(it.id) === Number(id));
+            if (found) ordered.push(found);
+          });
+          items.forEach((it) => {
+            if (!ordered.some((o) => Number(o.id) === Number(it.id))) {
+              ordered.push(it);
+            }
+          });
+          items = ordered;
         } else if (selectedScore !== 'all') {
           items = items.filter((it) => it.myScore === parseInt(selectedScore, 10));
         }
@@ -666,6 +677,80 @@ export default function ProfilePage({
     } catch (err) {}
   };
 
+  // Move Top-5 item up (-1) or down (+1) to customize rank #1 to #5 (Photo 1)
+  const handleMoveTop5Item = async (e, animeId, direction) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const numId = Number(animeId);
+    const isMrTech = user?.nickname === 'MrTech' || user?.id === 20;
+
+    const curIdx = myTop5Ids.findIndex((id) => Number(id) === numId);
+    if (curIdx === -1) return;
+    const targetIdx = curIdx + direction;
+    if (targetIdx < 0 || targetIdx >= myTop5Ids.length) return;
+
+    // For MrTech: Lemon Girls must always stay at #1 (index 0)
+    if (isMrTech && (curIdx === 0 || targetIdx === 0)) {
+      setTop5Toast('Лимонные девочки всегда на 1-м месте у MrTech');
+      setTimeout(() => setTop5Toast(null), 2500);
+      return;
+    }
+
+    const newOrder = [...myTop5Ids];
+    const temp = newOrder[curIdx];
+    newOrder[curIdx] = newOrder[targetIdx];
+    newOrder[targetIdx] = temp;
+
+    setMyTop5Ids(newOrder);
+    localStorage.setItem('anilex_top5_' + user?.id, JSON.stringify(newOrder));
+    if (user?.nickname) {
+      localStorage.setItem('anilex_top5_' + user.nickname, JSON.stringify(newOrder));
+    }
+
+    // Immediately reorder ratedAnime state if viewing top5
+    setRatedAnime((prev) => {
+      const copy = [...prev];
+      copy.sort((a, b) => {
+        const idxA = newOrder.indexOf(Number(a.id));
+        const idxB = newOrder.indexOf(Number(b.id));
+        if (idxA === -1 && idxB === -1) return 0;
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+      });
+      return copy;
+    });
+
+    // Also update friendTop5Ids if current user's profile is opened in modal
+    if (selectedFriend?.id === user?.id) {
+      setFriendTop5Ids(newOrder);
+    }
+
+    setTop5Toast(`Позиция изменена на #${targetIdx + 1}`);
+    setTimeout(() => setTop5Toast(null), 2000);
+
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      if (token) {
+        fetch(apiUrl('/api/user/top5/set'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ animeIds: newOrder })
+        }).catch(() => {});
+
+        const cleanBanner = (user?.bannerUrl || '').split('#top5=')[0];
+        const newBannerUrl = cleanBanner + (newOrder.length > 0 ? '#top5=' + newOrder.join(',') : '');
+        fetch(apiUrl('/api/auth/profile'), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ bannerUrl: newBannerUrl })
+        }).catch(() => {});
+      }
+    } catch (err) {}
+  };
+
   // Load friend public profile
   const handleOpenFriend = async (friendId) => {
     try {
@@ -755,6 +840,7 @@ export default function ProfilePage({
         }));
 
         setFriendRatings(ratings);
+        setFriendTop5Ids(friendTop5);
         const pinnedList = ratings.filter((r) => r.isPinned);
         setFriendScoreFilter(pinnedList.length > 0 ? 'top5' : 'all');
         setFriendGenreFilter('all');
@@ -1177,50 +1263,127 @@ export default function ProfilePage({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {ratedAnime.map((anime) => (
-                <div
-                  key={anime.id}
-                  onClick={() => onSelectAnime(anime.id)}
-                  className="rounded-3xl bg-white dark:bg-[#151518] p-4 shadow-sm flex gap-4 cursor-pointer hover:shadow-md transition-all group relative"
-                >
-                  <div className="w-20 aspect-[5/7] rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 shrink-0">
-                    <img
-                      src={getImageUrl(anime.imageUrl)}
-                      alt={anime.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+            <div className="space-y-4">
+              {/* Top-5 Reorder Banner */}
+              {selectedScore === 'top5' && ratedAnime.length > 0 && (
+                <div className="p-4 sm:p-5 rounded-3xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500 text-black font-black flex items-center justify-center text-lg shadow-sm shrink-0">
+                      📌
+                    </div>
                     <div>
-                      <div className="flex items-center gap-2 text-[10px] text-neutral-400 mb-1">
-                        {anime.type && <span>{anime.type}</span>}
-                        {anime.year && <span>• {anime.year}</span>}
-                      </div>
-                      <h4 className="text-sm font-bold text-neutral-900 dark:text-white truncate group-hover:text-neutral-600 dark:group-hover:text-neutral-300 transition-colors">
-                        {anime.title}
-                      </h4>
-                      <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-2 mt-1">
-                        {anime.description}
+                      <h3 className="text-sm font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">
+                        ТОП-5 ЛУЧШИХ ТАЙТЛОВ ({ratedAnime.length} ИЗ 5)
+                      </h3>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">
+                        Настраивайте порядок стрелками <span className="font-bold">▲</span> и <span className="font-bold">▼</span> — тайтлы будут отображаться с 1 по 5 место в вашем профиле и у друзей.
                       </p>
                     </div>
+                  </div>
+                  <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15 px-3 py-1 rounded-xl self-start sm:self-auto shrink-0">
+                    {ratedAnime.length}/5 закреплено
+                  </span>
+                </div>
+              )}
 
-                    <div className="mt-3 flex items-center justify-between text-xs pt-2 border-t border-transparent">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] text-neutral-400">Моя оценка:</span>
-                        <span className={`px-2 py-0.5 rounded-lg font-bold text-xs ${getScoreBadgeClass(anime.myScore)}`}>
-                          {anime.myScore} / 10
-                        </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {ratedAnime.map((anime) => {
+                  const numId = Number(anime.id);
+                  const isInTop5 = myTop5Ids.map(Number).includes(numId);
+                  const top5Idx = myTop5Ids.findIndex((id) => Number(id) === numId);
+                  const isMrTechPermanent = (user?.nickname === 'MrTech' || user?.id === 20) && (numId === 7170 || anime.title === 'Лимонные девочки');
 
-                        {/* Quick Top-5 Pin Button (Photo 1 & 2) */}
-                        {(() => {
-                          const isInTop5 = myTop5Ids.includes(anime.id);
-                          const isMrTechPermanent = (user?.nickname === 'MrTech' || user?.id === 20) && (anime.id === 7170 || anime.title === 'Лимонные девочки');
-                          return (
+                  return (
+                    <div
+                      key={anime.id}
+                      onClick={() => onSelectAnime(anime.id)}
+                      className="rounded-3xl bg-white dark:bg-[#151518] p-4 shadow-sm flex gap-4 cursor-pointer hover:shadow-md transition-all group relative border border-neutral-100 dark:border-neutral-800/60"
+                    >
+                      {/* Top-5 Rank Badge Floating */}
+                      {top5Idx !== -1 && (
+                        <div className="absolute -top-2 -left-2 z-10">
+                          <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs shadow-md ${
+                            top5Idx === 0
+                              ? 'bg-amber-500 text-black shadow-amber-500/30 ring-2 ring-white dark:ring-[#151518]'
+                              : top5Idx === 1
+                              ? 'bg-neutral-300 dark:bg-neutral-600 text-neutral-900 dark:text-white ring-2 ring-white dark:ring-[#151518]'
+                              : top5Idx === 2
+                              ? 'bg-amber-700 text-white ring-2 ring-white dark:ring-[#151518]'
+                              : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 ring-2 ring-white dark:ring-[#151518]'
+                          }`}>
+                            #{top5Idx + 1}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="w-20 aspect-[5/7] rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 shrink-0">
+                        <img
+                          src={getImageUrl(anime.imageUrl)}
+                          alt={anime.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      </div>
+
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 text-[10px] text-neutral-400 mb-1">
+                            {anime.type && <span>{anime.type}</span>}
+                            {anime.year && <span>• {anime.year}</span>}
+                          </div>
+                          <h4 className="text-sm font-bold text-neutral-900 dark:text-white truncate group-hover:text-amber-500 transition-colors">
+                            {anime.title}
+                          </h4>
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-2 mt-1">
+                            {anime.description}
+                          </p>
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between text-xs pt-2 border-t border-neutral-100 dark:border-neutral-800/60">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[11px] text-neutral-400">Оценка:</span>
+                            <span className={`px-2 py-0.5 rounded-lg font-bold text-xs ${getScoreBadgeClass(anime.myScore)}`}>
+                              {anime.myScore} / 10
+                            </span>
+
+                            {/* Reorder Arrows for Top-5 (Photo 1) */}
+                            {top5Idx !== -1 && !isMrTechPermanent && (
+                              <div
+                                className="flex items-center bg-neutral-100 dark:bg-neutral-800/90 rounded-lg p-0.5 border border-neutral-200/80 dark:border-neutral-700/80 ml-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  disabled={top5Idx <= 0}
+                                  onClick={(e) => handleMoveTop5Item(e, anime.id, -1)}
+                                  title={top5Idx <= 0 ? 'Уже на 1 месте' : `Поднять выше (на #${top5Idx} место)`}
+                                  className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-black transition-all ${
+                                    top5Idx <= 0
+                                      ? 'text-neutral-300 dark:text-neutral-600 cursor-not-allowed opacity-30'
+                                      : 'text-neutral-700 dark:text-neutral-200 hover:bg-amber-500 hover:text-black active:scale-95'
+                                  }`}
+                                >
+                                  ▲
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={top5Idx >= myTop5Ids.length - 1}
+                                  onClick={(e) => handleMoveTop5Item(e, anime.id, 1)}
+                                  title={top5Idx >= myTop5Ids.length - 1 ? 'Уже на последнем месте' : `Опустить ниже (на #${top5Idx + 2} место)`}
+                                  className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-black transition-all ${
+                                    top5Idx >= myTop5Ids.length - 1
+                                      ? 'text-neutral-300 dark:text-neutral-600 cursor-not-allowed opacity-30'
+                                      : 'text-neutral-700 dark:text-neutral-200 hover:bg-amber-500 hover:text-black active:scale-95'
+                                  }`}
+                                >
+                                  ▼
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Quick Top-5 Pin Button */}
                             <button
                               type="button"
                               onClick={(e) => handleToggleTop5(e, anime)}
@@ -1235,39 +1398,39 @@ export default function ProfilePage({
                                 isMrTechPermanent
                                   ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-not-allowed opacity-90'
                                   : isInTop5
-                                  ? 'bg-amber-500 text-white shadow-sm hover:bg-amber-600 font-bold'
+                                  ? 'bg-amber-500 text-black shadow-xs font-bold'
                                   : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-neutral-700'
                               }`}
                             >
                               <span>📌</span>
                               <span className="text-[10px]">
-                                {isInTop5 ? 'В Топ-5' : '+ Топ-5'}
+                                {isInTop5 ? `#${top5Idx + 1} в Топ-5` : '+ Топ-5'}
                               </span>
                             </button>
-                          );
-                        })()}
 
-                        {/* Quick Delete Rating on Hover (Photo 2) */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleDeleteRating(e, anime.id)}
-                          title="Удалить оценку"
-                          className="opacity-60 sm:opacity-0 sm:group-hover:opacity-100 p-1 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all ml-0.5 shrink-0"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                            {/* Quick Delete Rating on Hover */}
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteRating(e, anime.id)}
+                              title="Удалить оценку"
+                              className="opacity-60 sm:opacity-0 sm:group-hover:opacity-100 p-1 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all ml-0.5 shrink-0"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
 
-                      {anime.averageScore !== null && (
-                        <div className="flex items-center gap-1 text-neutral-500 text-[11px]">
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          <span>{anime.averageScore}</span>
+                          {anime.averageScore !== null && (
+                            <div className="flex items-center gap-1 text-neutral-500 text-[11px] shrink-0">
+                              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                              <span>{anime.averageScore}</span>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -2071,7 +2234,24 @@ export default function ProfilePage({
 
                       let displayedRatings = [];
                       if (friendScoreFilter === 'top5') {
-                        displayedRatings = pinnedAnimeList.slice(0, 5);
+                        // Strictly sort by custom order (friendTop5Ids, or myTop5Ids if viewing self)
+                        const activeTopOrder = (
+                          selectedFriend?.id === user?.id
+                            ? myTop5Ids
+                            : (friendTop5Ids.length > 0 ? friendTop5Ids : myTop5Ids)
+                        ).map(Number);
+
+                        const orderedList = [];
+                        activeTopOrder.forEach((id) => {
+                          const found = filteredByGenre.find((item) => Number(item.id) === Number(id));
+                          if (found) orderedList.push(found);
+                        });
+                        pinnedAnimeList.forEach((item) => {
+                          if (!orderedList.some((o) => Number(o.id) === Number(item.id))) {
+                            orderedList.push(item);
+                          }
+                        });
+                        displayedRatings = orderedList.slice(0, 5);
                       } else if (friendScoreFilter === 'all') {
                         displayedRatings = filteredByGenre;
                       } else {
@@ -2219,13 +2399,45 @@ export default function ProfilePage({
                                 >
                                   <div className="flex items-center gap-3 min-w-0">
                                     {friendScoreFilter === 'top5' && (
-                                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-xs shrink-0 ${
-                                        idx === 0 ? 'bg-amber-500 text-black shadow-xs' :
-                                        idx === 1 ? 'bg-neutral-300 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200' :
-                                        idx === 2 ? 'bg-amber-700/80 text-white' :
-                                        'bg-neutral-200/80 dark:bg-neutral-800 text-neutral-500'
-                                      }`}>
-                                        #{idx + 1}
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-xs shrink-0 ${
+                                          idx === 0 ? 'bg-amber-500 text-black shadow-xs' :
+                                          idx === 1 ? 'bg-neutral-300 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200' :
+                                          idx === 2 ? 'bg-amber-700/80 text-white' :
+                                          'bg-neutral-200/80 dark:bg-neutral-800 text-neutral-500'
+                                        }`}>
+                                          #{idx + 1}
+                                        </div>
+
+                                        {selectedFriend?.id === user?.id && (
+                                          <div
+                                            className="flex flex-col gap-0.5 bg-neutral-200/60 dark:bg-neutral-800/80 p-0.5 rounded-md"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <button
+                                              type="button"
+                                              disabled={idx <= 0}
+                                              onClick={(e) => handleMoveTop5Item(e, item.id, -1)}
+                                              title="Поднять выше"
+                                              className={`w-4 h-3.5 rounded flex items-center justify-center text-[8px] font-black ${
+                                                idx <= 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-amber-500 hover:text-black text-neutral-700 dark:text-neutral-200'
+                                              }`}
+                                            >
+                                              ▲
+                                            </button>
+                                            <button
+                                              type="button"
+                                              disabled={idx >= displayedRatings.length - 1}
+                                              onClick={(e) => handleMoveTop5Item(e, item.id, 1)}
+                                              title="Опустить ниже"
+                                              className={`w-4 h-3.5 rounded flex items-center justify-center text-[8px] font-black ${
+                                                idx >= displayedRatings.length - 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-amber-500 hover:text-black text-neutral-700 dark:text-neutral-200'
+                                              }`}
+                                            >
+                                              ▼
+                                            </button>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
 

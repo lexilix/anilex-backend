@@ -12,10 +12,11 @@ import NotificationToast from './components/NotificationToast';
 import DevConsolePage from './components/DevConsolePage';
 import { Sparkles, Film, Loader2 } from 'lucide-react';
 import { apiUrl } from './api';
-import { getCachedCatalog, setCachedCatalog, hasCatalogChanged, updateCachedAnimeItem, removeCachedAnimeItem } from './utils/catalogCache';
+import { getCachedCatalog, setCachedCatalog, hasCatalogChanged, updateCachedAnimeItem, upsertCachedAnimeItem, removeCachedAnimeItem } from './utils/catalogCache';
 import { getHiddenAnimeIds, toggleHiddenAnime } from './utils/hiddenStorage';
 import { getCachedUserProfile, setCachedUserProfile, clearCachedUserProfile, updateCachedUserRating } from './utils/profileCache';
 import { deduplicateAnimeList } from './utils/animeDeduplicator';
+import { getCustomAnimeEdits, saveCustomAnimeEdit } from './utils/customEditsStorage';
 
 export default function App() {
   // Theme state
@@ -483,6 +484,66 @@ export default function App() {
           }
         }
 
+        // 1. If searching, ensure custom edited anime matching the search query appear in search!
+        if (isSearching) {
+          const searchLower = debouncedSearch.trim().toLowerCase();
+          const customEdits = getCustomAnimeEdits();
+          const matchingCustoms = Object.values(customEdits).filter((item) => {
+            if (!item || !item.id || !item.title) return false;
+            if (deletedAnimeIds.has(Number(item.id))) return false;
+            const t = (item.title || '').toLowerCase();
+            const ot = (item.originalTitle || '').toLowerCase();
+            const desc = (item.description || '').toLowerCase();
+            return t.includes(searchLower) || ot.includes(searchLower) || desc.includes(searchLower);
+          });
+
+          for (const cItem of matchingCustoms) {
+            const idx = sanitized.findIndex((it) => Number(it.id) === Number(cItem.id));
+            if (idx !== -1) {
+              sanitized[idx] = { ...sanitized[idx], ...cItem };
+            } else {
+              sanitized.unshift({
+                ...cItem,
+                aliasIds: [cItem.id],
+                myScore: null,
+                averageScore: null,
+                ratingCount: 0,
+                isFavorite: false,
+                isHidden: false,
+                commentsCount: 0
+              });
+            }
+          }
+          sanitized = deduplicateAnimeList(sanitized);
+        }
+
+        // 2. On main feed (page 1, not searching), ensure custom edited anime appear in the feed!
+        if (!isSearching && targetPage === 1 && activeSort !== 'unrated') {
+          const customEdits = getCustomAnimeEdits();
+          const customItems = Object.values(customEdits)
+            .filter((item) => item && item.id && item.title && !deletedAnimeIds.has(Number(item.id)))
+            .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+          for (const cItem of customItems) {
+            const idx = sanitized.findIndex((it) => Number(it.id) === Number(cItem.id));
+            if (idx !== -1) {
+              sanitized[idx] = { ...sanitized[idx], ...cItem };
+            } else {
+              sanitized.unshift({
+                ...cItem,
+                aliasIds: [cItem.id],
+                myScore: null,
+                averageScore: null,
+                ratingCount: 0,
+                isFavorite: false,
+                isHidden: false,
+                commentsCount: 0
+              });
+            }
+          }
+          sanitized = deduplicateAnimeList(sanitized);
+        }
+
         if (isAppend) {
           setAnimeList((prev) => {
             const combined = deduplicateAnimeList([...prev, ...sanitized]);
@@ -922,10 +983,17 @@ export default function App() {
             onNavigate={navigateTo}
             onAnimeUpdated={(updatedAnime) => {
               if (updatedAnime && updatedAnime.id) {
+                saveCustomAnimeEdit(updatedAnime.id, updatedAnime);
                 updateCachedAnimeItem(updatedAnime.id, updatedAnime);
-                setAnimeList((prev) =>
-                  prev.map((item) => (Number(item.id) === Number(updatedAnime.id) ? { ...item, ...updatedAnime } : item))
-                );
+                upsertCachedAnimeItem(updatedAnime);
+                setAnimeList((prev) => {
+                  const exists = prev.some((item) => Number(item.id) === Number(updatedAnime.id));
+                  if (exists) {
+                    return prev.map((item) => (Number(item.id) === Number(updatedAnime.id) ? { ...item, ...updatedAnime } : item));
+                  } else {
+                    return [updatedAnime, ...prev];
+                  }
+                });
               }
             }}
             onAnimeDeleted={(deletedId) => {
@@ -957,10 +1025,17 @@ export default function App() {
                 setAnimeList((prev) => prev.filter((item) => Number(item.id) !== numId));
                 setTotalCount((prev) => Math.max(0, prev - 1));
               } else if (change && change.id) {
+                saveCustomAnimeEdit(change.id, change);
                 updateCachedAnimeItem(change.id, change);
-                setAnimeList((prev) =>
-                  prev.map((item) => (Number(item.id) === Number(change.id) ? { ...item, ...change } : item))
-                );
+                upsertCachedAnimeItem(change);
+                setAnimeList((prev) => {
+                  const exists = prev.some((item) => Number(item.id) === Number(change.id));
+                  if (exists) {
+                    return prev.map((item) => (Number(item.id) === Number(change.id) ? { ...item, ...change } : item));
+                  } else {
+                    return [change, ...prev];
+                  }
+                });
               }
             }}
             onUserUpdated={(updatedUser) => {
