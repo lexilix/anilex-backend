@@ -7,6 +7,7 @@ import { getStoredHiddenAnimeList, setAnimeHiddenLocally, toggleHiddenAnime } fr
 import { getCachedUserRatings, setCachedUserRatings, updateCachedUserRating } from '../utils/profileCache';
 import { executeImportWorkflow } from '../utils/importer';
 import { deduplicateAnimeList } from '../utils/animeDeduplicator';
+import { applyCustomUserEdits } from '../utils/customEditsStorage';
 
 function LevelIcon({ iconName, className = 'w-5 h-5' }) {
   switch (iconName) {
@@ -469,12 +470,12 @@ export default function ProfilePage({
 
       if (requestsRes.ok) {
         const data = await requestsRes.json();
-        setIncomingRequests((data.incoming || []).filter(u => u.nickname?.toLowerCase() !== 'inspector'));
-        setOutgoingRequests((data.outgoing || []).filter(u => u.nickname?.toLowerCase() !== 'inspector'));
+        setIncomingRequests((data.incoming || []).map(u => applyCustomUserEdits(u)).filter(u => u.nickname?.toLowerCase() !== 'inspector'));
+        setOutgoingRequests((data.outgoing || []).map(u => applyCustomUserEdits(u)).filter(u => u.nickname?.toLowerCase() !== 'inspector'));
       }
       if (myFriendsRes.ok) {
         const data = await myFriendsRes.json();
-        setMyFriends((data.friends || []).filter(u => u.nickname?.toLowerCase() !== 'inspector'));
+        setMyFriends((data.friends || []).map(u => applyCustomUserEdits(u)).filter(u => u.nickname?.toLowerCase() !== 'inspector'));
       }
     } catch (err) {
       console.error('Error fetching friends data:', err);
@@ -673,7 +674,7 @@ export default function ProfilePage({
       const res = await fetch(apiUrl(`/api/users/${friendId}/profile`), { headers });
       if (res.ok) {
         const data = await res.json();
-        setSelectedFriend(data.user);
+        setSelectedFriend(applyCustomUserEdits(data.user));
         let ratings = data.ratings || [];
 
         // Strictly purge Lemon Girls from Venicek (Photo 1)

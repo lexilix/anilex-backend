@@ -37,6 +37,12 @@ import { toggleHiddenAnime } from '../utils/hiddenStorage';
 import { getScoreBadgeClass } from '../utils/scoreColors';
 import { extractPlatformIdentifier, parseAnimeLibContent } from '../utils/importer';
 import { getCachedUserRatings, updateCachedUserRating } from '../utils/profileCache';
+import {
+  saveCustomAnimeEdit,
+  applyCustomAnimeEdits,
+  saveCustomUserEdit,
+  applyCustomUserEdits
+} from '../utils/customEditsStorage';
 
 const DEV_GENRES = [
   'Все жанры',
@@ -340,7 +346,9 @@ export default function DevConsolePage({
           deletedAnimeIds = new Set(JSON.parse(localStorage.getItem('anilex_deleted_anime_ids') || '[]').map(Number));
         } catch (e) {}
         const rawItems = data.items || [];
-        const filtered = rawItems.filter((it) => !deletedAnimeIds.has(Number(it.id)));
+        const filtered = rawItems
+          .filter((it) => !deletedAnimeIds.has(Number(it.id)))
+          .map((it) => applyCustomAnimeEdits(it));
         setAnimeList(filtered);
         setAnimeTotal(Math.max(0, (data.total || filtered.length) - (rawItems.length - filtered.length)));
       }
@@ -393,12 +401,14 @@ export default function DevConsolePage({
         }
       }
 
-      // Filter out 'inspector' and permanently deleted users
+      // Filter out 'inspector' and permanently deleted users, and apply custom edits
       let deletedUserIds = new Set();
       try {
         deletedUserIds = new Set(JSON.parse(localStorage.getItem('anilex_deleted_user_ids') || '[]').map(Number));
       } catch (e) {}
-      users = users.filter((u) => u.nickname?.toLowerCase() !== 'inspector' && !deletedUserIds.has(Number(u.id)));
+      users = users
+        .filter((u) => u.nickname?.toLowerCase() !== 'inspector' && !deletedUserIds.has(Number(u.id)))
+        .map((u) => applyCustomUserEdits(u));
       setUsersList(users);
 
       if (!selectedUserId && users.length > 0) {
@@ -628,12 +638,14 @@ export default function DevConsolePage({
 
     try {
       const token = localStorage.getItem('anime_auth_token');
+      const animeId = Number(editingAnime.id);
       const cleanGenres = genresInput
         .split(',')
         .map((g) => g.trim())
         .filter(Boolean);
 
       const payload = {
+        id: animeId,
         title: editTitle.trim(),
         originalTitle: editOriginalTitle.trim(),
         description: editDescription.trim(),
@@ -643,33 +655,44 @@ export default function DevConsolePage({
         genres: cleanGenres
       };
 
-      // 1. Try server PUT /api/dev/anime/:id
-      const res = await fetch(apiUrl(`/api/dev/anime/${editingAnime.id}`), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      }).catch(() => null);
-
-      // 2. Update local caches & storage so changes appear everywhere immediately
       const updatedItem = {
         ...editingAnime,
         ...payload
       };
-      updateCachedAnimeItem(updatedItem);
 
-      // Update in current dev list
+      // 1. Immediately persist to localStorage custom edits so changes are NEVER lost
+      saveCustomAnimeEdit(animeId, payload);
+
+      // 2. Update catalog cache across all cached pages
+      updateCachedAnimeItem(animeId, payload);
+
+      // 3. Update in current dev list
       setAnimeList((prev) =>
-        prev.map((a) => (a.id === editingAnime.id ? updatedItem : a))
+        prev.map((a) => (Number(a.id) === animeId ? updatedItem : a))
       );
 
+      // 4. Notify main catalog and app state
+      if (onAnimeUpdated) {
+        onAnimeUpdated(updatedItem);
+      }
       if (onCatalogUpdated) {
         onCatalogUpdated(updatedItem);
       }
 
-      showToast(`Тайтл «${editTitle}» успешно обновлен!`);
+      // 5. Send PUT /api/dev/anime/:id to server
+      fetch(apiUrl(`/api/dev/anime/${animeId}`), {
+        method: 'PUT',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      }).catch((err) => {
+        console.warn('Backend update anime warning:', err);
+      });
+
+      showToast(`Тайтл «${editTitle}» успешно сохранен!`);
       setEditingAnime(null);
     } catch (err) {
       showToast('Ошибка сохранения тайтла: ' + err.message, 'error');
@@ -803,45 +826,57 @@ export default function DevConsolePage({
 
     try {
       const token = localStorage.getItem('anime_auth_token');
+      const targetUserId = Number(editingUser.id);
       const payload = {
+        id: targetUserId,
         nickname: editUserNick.trim(),
         email: editUserEmail.trim(),
         avatarUrl: editUserAvatar || null,
         bannerUrl: editUserBanner || null
       };
 
-      // 1. Try /api/dev/users/:id
-      let res = await fetch(apiUrl(`/api/dev/users/${editingUser.id}`), {
+      const updatedObj = { ...editingUser, ...payload };
+
+      // 1. Immediately persist custom user edits to localStorage
+      saveCustomUserEdit(targetUserId, payload);
+
+      // 2. Update users list in dev console state
+      setUsersList((prev) =>
+        prev.map((u) => (Number(u.id) === targetUserId ? updatedObj : u))
+      );
+
+      // 3. If editing currently logged in user, notify app
+      if (targetUserId === user?.id && onUserUpdated) {
+        onUserUpdated(updatedObj, token);
+      }
+
+      // 4. Send PUT /api/dev/users/:id to server
+      fetch(apiUrl(`/api/dev/users/${targetUserId}`), {
         method: 'PUT',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(payload)
-      }).catch(() => null);
+      }).catch((err) => {
+        console.warn('Backend update user warning:', err);
+      });
 
-      // If updating self and dev route returned 404, fallback to /api/auth/profile
-      if ((!res || !res.ok) && editingUser.id === user?.id) {
-        res = await fetch(apiUrl('/api/auth/profile'), {
+      // Fallback to /api/auth/profile if updating self
+      if (targetUserId === user?.id) {
+        fetch(apiUrl('/api/auth/profile'), {
           method: 'PUT',
           headers: {
+            'Accept': 'application/json',
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`
           },
           body: JSON.stringify(payload)
-        });
+        }).catch(() => {});
       }
 
-      const updatedObj = { ...editingUser, ...payload };
-      setUsersList((prev) =>
-        prev.map((u) => (u.id === editingUser.id ? updatedObj : u))
-      );
-
-      if (editingUser.id === user?.id && onUserUpdated) {
-        onUserUpdated(updatedObj, token);
-      }
-
-      showToast(`Профиль ${editUserNick} успешно сохранен!`);
+      showToast(`Профиль «${editUserNick}» успешно сохранен!`);
       setEditingUser(null);
     } catch (err) {
       showToast('Ошибка сохранения профиля: ' + err.message, 'error');

@@ -1,3 +1,5 @@
+import { applyCustomAnimeEdits } from './customEditsStorage';
+
 /**
  * Client-side anime deduplication utility.
  * Unifies duplicate titles (e.g. number-words vs digits, alternate titles with same romanized Japanese title,
@@ -149,22 +151,24 @@ const NUMBER_WORDS_MAP = {
   function deduplicateAnimeList(items) {
     if (!Array.isArray(items)) return [];
     const deletedIds = getDeletedAnimeIds();
-    const cleanItems = items.filter((it) => it && !deletedIds.has(Number(it.id)));
+    const cleanItems = items
+      .filter((it) => it && !deletedIds.has(Number(it.id)))
+      .map((it) => applyCustomAnimeEdits(it));
     if (cleanItems.length <= 1) return cleanItems;
 
     const result = [];
     const mergedIds = new Set();
 
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
+    for (let i = 0; i < cleanItems.length; i++) {
+      const item = cleanItems[i];
       if (!item || mergedIds.has(item.id)) continue;
 
       let merged = { ...item };
       merged.aliasIds = Array.isArray(merged.aliasIds) ? [...merged.aliasIds] : [merged.id];
       let hasRating = merged.myScore !== null && merged.myScore !== undefined;
 
-      for (let j = i + 1; j < items.length; j++) {
-        const other = items[j];
+      for (let j = i + 1; j < cleanItems.length; j++) {
+        const other = cleanItems[j];
         if (!other || mergedIds.has(other.id)) continue;
 
         if (areSameAnime(merged, other)) {

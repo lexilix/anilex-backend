@@ -60,9 +60,19 @@ export function setCachedCatalog(key, payload) {
   }
 }
 
-export function updateCachedAnimeItem(animeId, updates) {
+export function updateCachedAnimeItem(animeIdOrItem, updates = null) {
   try {
-    const numId = Number(animeId);
+    let numId;
+    let patch;
+    if (typeof animeIdOrItem === 'object' && animeIdOrItem !== null) {
+      numId = Number(animeIdOrItem.id);
+      patch = updates ? { ...animeIdOrItem, ...updates } : animeIdOrItem;
+    } else {
+      numId = Number(animeIdOrItem);
+      patch = updates || {};
+    }
+    if (!numId || isNaN(numId)) return;
+
     for (let i = 0; i < localStorage.length; i++) {
       const storageKey = localStorage.key(i);
       if (storageKey && storageKey.startsWith(CACHE_KEY_PREFIX)) {
@@ -75,7 +85,7 @@ export function updateCachedAnimeItem(animeId, updates) {
             data.items = data.items.map((item) => {
               if (Number(item.id) === numId) {
                 modified = true;
-                return { ...item, ...updates };
+                return { ...item, ...patch };
               }
               return item;
             });

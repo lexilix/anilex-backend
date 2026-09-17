@@ -4,6 +4,7 @@ import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
 import SimilarAnimeFeed from './SimilarAnimeFeed';
 import { deduplicateAnimeList } from '../utils/animeDeduplicator';
+import { applyCustomAnimeEdits } from '../utils/customEditsStorage';
 
 export default function AnimeDetailPage({
   animeId,
@@ -264,7 +265,8 @@ export default function AnimeDetailPage({
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await fetch(apiUrl(`/api/anime/${animeId}`), { headers });
       if (!res.ok) throw new Error('Not found');
-      const data = await res.json();
+      let data = await res.json();
+      data = applyCustomAnimeEdits(data);
 
       // Guard for Naruto: guarantee full description, genres, and Venicek rating 10
       const isNaruto =
