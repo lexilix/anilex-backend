@@ -3429,6 +3429,10 @@ app.post('/api/dev/anime', devAdminMiddleware, (req, res) => {
       myScore: null
     };
 
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
     res.setHeader('Content-Type', 'application/json');
     return res.status(201).json({
       success: true,

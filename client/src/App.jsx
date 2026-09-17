@@ -108,6 +108,32 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
+  // Listen to live anime updates from DevConsole
+  useEffect(() => {
+    const handleLiveAnimeUpdated = (e) => {
+      const updated = e.detail;
+      if (!updated || !updated.id) return;
+      const numId = Number(updated.id);
+      const fullUpdated = applyCustomAnimeEdits(updated);
+      setAnimeList((prev) => {
+        const exists = prev.some(
+          (item) => Number(item.id) === numId || (Array.isArray(item.aliasIds) && item.aliasIds.includes(numId))
+        );
+        if (exists) {
+          return prev.map((item) =>
+            Number(item.id) === numId || (Array.isArray(item.aliasIds) && item.aliasIds.includes(numId))
+              ? { ...item, ...fullUpdated }
+              : item
+          );
+        } else {
+          return [fullUpdated, ...prev];
+        }
+      });
+    };
+    window.addEventListener('anilex:anime-updated', handleLiveAnimeUpdated);
+    return () => window.removeEventListener('anilex:anime-updated', handleLiveAnimeUpdated);
+  }, []);
+
   const navigateTo = (newView, animeId = null) => {
     if (newView === 'anime-detail' && animeId) {
       window.location.hash = `#/anime/${animeId}`;
@@ -360,7 +386,7 @@ export default function App() {
         if (targetPage === 1 && !isSearching) {
           cached = getCachedCatalog(catalogKey);
           if (cached && Array.isArray(cached.items) && cached.items.length > 0) {
-            let items = cached.items;
+            let items = cached.items.map((it) => applyCustomAnimeEdits(it));
             if (activeSort === 'unrated') {
               items = items.filter((it) => it.myScore === null || it.myScore === undefined);
             }
@@ -398,7 +424,8 @@ export default function App() {
         if (!res.ok) throw new Error('Failed to load anime');
 
         const data = await res.json();
-        const newItems = data.items || [];
+        const rawItems = data.items || [];
+        const newItems = rawItems.map((it) => applyCustomAnimeEdits(it));
 
         const hiddenIds = getHiddenAnimeIds(user?.id);
         let deletedAnimeIds = new Set();
@@ -408,55 +435,67 @@ export default function App() {
 
         const sanitizeList = (list) => {
           const seen = new Set();
-          return list.filter((item) => {
-            const numId = Number(item.id);
-            if (deletedAnimeIds.has(numId)) {
-              return false;
-            }
-            const img = (item.imageUrl || '').toLowerCase();
-            const t = (item.title || '').toLowerCase();
-            const orig = (item.originalTitle || '').toLowerCase();
-            if (!isSearching && (img.includes('missing_original') || img.includes('404'))) {
-              return false;
-            }
-            if (t.includes('сникерс') || orig.includes('snickers')) {
-              return false;
-            }
-            if ([7155, 7156, 7157, 7215, 6106, 6107, 6109, 7169].includes(item.id)) {
-              return false;
-            }
-            // On main catalog (not searching): hide titles marked as not interested
-            if (!isSearching && (Boolean(item.isHidden) || hiddenIds.has(item.id))) {
-              return false;
-            }
-            // When sorting by 'unrated', exclude titles rated by current user (myScore !== null),
-            // while allowing titles rated by other users (averageScore exists)
-            if (activeSort === 'unrated' && item.myScore !== null && item.myScore !== undefined) {
-              return false;
-            }
-            const key = isSearching ? String(item.id) : `${(item.title || '').trim().toLowerCase()}_${item.year || ''}`;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          }).map((item) => {
-            // Guard for Naruto descriptions & genres
-            if (item.title === 'Наруто' || (item.title && /наруто/i.test(item.title) && !/ураганные|боруто|хроники|фильм/i.test(item.title))) {
-              if (!item.description || item.description.trim() === '' || item.description === 'Описание отсутствует.') {
-                item.description =
-                  'В день рождения Наруто Удзумаки на деревню Коноха напал легендарный демон — Девятихвостый Демонический Лис. Чтобы спасти деревню, глава селения, Четвёртый Хокагэ, пожертвовал своей жизнью и запечатал демона внутри новорождённого Наруто. Повзрослев, мальчик столкнулся с презрением жителей деревни. Однако Наруто не сдался: его мечта — стать Хокагэ, сильнейшим ниндзя и лидером Конохи. Вместе с Саскэ Утихой и Сакурой Харуно под началом Какаси Хатакэ он начинает свой путь ниндзя.';
+          return list
+            .map((it) => applyCustomAnimeEdits(it))
+            .filter((item) => {
+              const numId = Number(item.id);
+              if (deletedAnimeIds.has(numId)) {
+                return false;
               }
-              if (!Array.isArray(item.genres) || item.genres.length === 0) {
-                item.genres = ['Экшен', 'Приключения', 'Комедия', 'Фэнтези', 'Сёнен', 'Боевые искусства'];
+              const img = (item.imageUrl || item.image_url || '').toLowerCase();
+              const t = (item.title || '').toLowerCase();
+              const orig = (item.originalTitle || item.original_title || '').toLowerCase();
+              if (!isSearching && (img.includes('missing_original') || img.includes('404'))) {
+                return false;
               }
-            }
-            return {
-              ...item,
-              isHidden: Boolean(item.isHidden || hiddenIds.has(item.id))
-            };
-          });
+              if (t.includes('сникерс') || orig.includes('snickers')) {
+                return false;
+              }
+              if ([7155, 7156, 7157, 7215, 6106, 6107, 6109, 7169].includes(item.id)) {
+                return false;
+              }
+              // On main catalog (not searching): hide titles marked as not interested
+              if (!isSearching && (Boolean(item.isHidden) || hiddenIds.has(item.id))) {
+                return false;
+              }
+              // When sorting by 'unrated', exclude titles rated by current user (myScore !== null),
+              // while allowing titles rated by other users (averageScore exists)
+              if (activeSort === 'unrated' && item.myScore !== null && item.myScore !== undefined) {
+                return false;
+              }
+              const key = isSearching ? String(item.id) : `${(item.title || '').trim().toLowerCase()}_${item.year || ''}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            }).map((item) => {
+              // Guard for Naruto descriptions & genres
+              if (item.title === 'Наруто' || (item.title && /наруто/i.test(item.title) && !/ураганные|боруто|хроники|фильм/i.test(item.title))) {
+                if (!item.description || item.description.trim() === '' || item.description === 'Описание отсутствует.') {
+                  item.description =
+                    'В день рождения Наруто Удзумаки на деревню Коноха напал легендарный демон — Девятихвостый Демонический Лис. Чтобы спасти деревню, глава селения, Четвёртый Хокагэ, пожертвовал своей жизнью и запечатал демона внутри новорождённого Наруто. Повзрослев, мальчик столкнулся с презрением жителей деревни. Однако Наруто не сдался: его мечта — стать Хокагэ, сильнейшим ниндзя и лидером Конохи. Вместе с Саскэ Утихой и Сакурой Харуно под началом Какаси Хатакэ он начинает свой путь ниндзя.';
+                }
+                if (!Array.isArray(item.genres) || item.genres.length === 0) {
+                  item.genres = ['Экшен', 'Приключения', 'Комедия', 'Фэнтези', 'Сёнен', 'Боевые искусства'];
+                }
+              }
+              return {
+                ...item,
+                isHidden: Boolean(item.isHidden || hiddenIds.has(item.id))
+              };
+            });
         };
 
         let sanitized = deduplicateAnimeList(sanitizeList(newItems));
+
+        // Ensure all custom anime edits are injected into existing items
+        const allCustomEdits = getCustomAnimeEdits();
+        for (let i = 0; i < sanitized.length; i++) {
+          const it = sanitized[i];
+          const custom = allCustomEdits[Number(it.id)];
+          if (custom) {
+            sanitized[i] = applyCustomAnimeEdits({ ...it, ...custom });
+          }
+        }
 
         // If searching for Overlord, guarantee Overlord 2 appears in results
         if (isSearching && /повелитель/i.test(debouncedSearch)) {
@@ -482,24 +521,26 @@ export default function App() {
         // 1. If searching, ensure custom edited anime matching the search query appear in search!
         if (isSearching) {
           const searchLower = debouncedSearch.trim().toLowerCase();
-          const customEdits = getCustomAnimeEdits();
-          const matchingCustoms = Object.values(customEdits).filter((item) => {
+          const matchingCustoms = Object.values(allCustomEdits).filter((item) => {
             if (!item || !item.id || !item.title) return false;
             if (deletedAnimeIds.has(Number(item.id))) return false;
             const t = (item.title || '').toLowerCase();
-            const ot = (item.originalTitle || '').toLowerCase();
+            const ot = (item.originalTitle || item.original_title || '').toLowerCase();
             const desc = (item.description || '').toLowerCase();
             return t.includes(searchLower) || ot.includes(searchLower) || desc.includes(searchLower);
           });
 
           for (const cItem of matchingCustoms) {
-            const idx = sanitized.findIndex((it) => Number(it.id) === Number(cItem.id));
+            const fullCustom = applyCustomAnimeEdits(cItem);
+            const idx = sanitized.findIndex(
+              (it) => Number(it.id) === Number(fullCustom.id) || (Array.isArray(it.aliasIds) && it.aliasIds.includes(Number(fullCustom.id)))
+            );
             if (idx !== -1) {
-              sanitized[idx] = { ...sanitized[idx], ...cItem };
+              sanitized[idx] = { ...sanitized[idx], ...fullCustom };
             } else {
               sanitized.unshift({
-                ...cItem,
-                aliasIds: [cItem.id],
+                ...fullCustom,
+                aliasIds: [fullCustom.id],
                 myScore: null,
                 averageScore: null,
                 ratingCount: 0,
@@ -514,19 +555,21 @@ export default function App() {
 
         // 2. On main feed (page 1, not searching), ensure custom edited anime appear in the feed!
         if (!isSearching && targetPage === 1 && activeSort !== 'unrated') {
-          const customEdits = getCustomAnimeEdits();
-          const customItems = Object.values(customEdits)
+          const customItems = Object.values(allCustomEdits)
             .filter((item) => item && item.id && item.title && !deletedAnimeIds.has(Number(item.id)))
             .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
           for (const cItem of customItems) {
-            const idx = sanitized.findIndex((it) => Number(it.id) === Number(cItem.id));
+            const fullCustom = applyCustomAnimeEdits(cItem);
+            const idx = sanitized.findIndex(
+              (it) => Number(it.id) === Number(fullCustom.id) || (Array.isArray(it.aliasIds) && it.aliasIds.includes(Number(fullCustom.id)))
+            );
             if (idx !== -1) {
-              sanitized[idx] = { ...sanitized[idx], ...cItem };
+              sanitized[idx] = { ...sanitized[idx], ...fullCustom };
             } else {
               sanitized.unshift({
-                ...cItem,
-                aliasIds: [cItem.id],
+                ...fullCustom,
+                aliasIds: [fullCustom.id],
                 myScore: null,
                 averageScore: null,
                 ratingCount: 0,

@@ -906,12 +906,15 @@ export default function DevConsolePage({
       const token = localStorage.getItem('anime_auth_token');
       const animeId = Number(editingAnime.id);
 
+      const finalImg = editImageUrl.trim() || editingAnime.imageUrl || editingAnime.image_url || '';
       const payload = {
         id: animeId,
         title: editTitle.trim(),
         originalTitle: editOriginalTitle.trim(),
+        original_title: editOriginalTitle.trim(),
         description: editDescription.trim(),
-        imageUrl: editImageUrl.trim(),
+        imageUrl: finalImg,
+        image_url: finalImg,
         type: editType,
         year: editYear.trim(),
         genres: editGenres
@@ -1684,7 +1687,7 @@ export default function DevConsolePage({
                 className="px-3.5 py-2 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
               >
                 <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>+ Добавить новый тайтл</span>
+                <span>Добавить новый тайтл</span>
               </button>
               <span className="text-xs text-neutral-400 font-medium whitespace-nowrap">
                 Всего в каталоге: {animeTotal}

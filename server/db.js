@@ -378,7 +378,47 @@ function restoreAccountsFromBackup() {
       }
     }
 
-    console.log('[Database] Auto-restored accounts, friendships, ratings, and top5 from accounts_backup.json.');
+    // Restore customAnime
+    if (Array.isArray(data.customAnime)) {
+      const insertAnimeStmt = db.prepare(`
+        INSERT INTO anime (id, slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          title = excluded.title,
+          title_lower = excluded.title_lower,
+          original_title = excluded.original_title,
+          original_title_lower = excluded.original_title_lower,
+          image_url = excluded.image_url,
+          type = excluded.type,
+          year = excluded.year,
+          genres = excluded.genres,
+          description = excluded.description,
+          updated_at = excluded.updated_at
+      `);
+      for (const a of data.customAnime) {
+        try {
+          const tLower = normalizeSearchText(a.title);
+          const oLower = normalizeSearchText(a.original_title || a.originalTitle || '');
+          insertAnimeStmt.run(
+            a.id,
+            a.slug || `anime-${a.id}`,
+            a.title,
+            tLower,
+            a.original_title || a.originalTitle || null,
+            oLower || null,
+            a.image_url || a.imageUrl || null,
+            a.type || 'Сериал',
+            a.year ? String(a.year) : null,
+            typeof a.genres === 'string' ? a.genres : JSON.stringify(a.genres || []),
+            a.description || '',
+            a.created_at || new Date().toISOString(),
+            a.updated_at || new Date().toISOString()
+          );
+        } catch (e) {}
+      }
+    }
+
+    console.log('[Database] Auto-restored accounts, friendships, ratings, top5, and custom anime from accounts_backup.json.');
   } catch (err) {
     console.error('[Database] Failed to restore from accounts_backup.json:', err.message);
   }
@@ -396,6 +436,7 @@ function saveAccountsBackup() {
     const comments = db.prepare('SELECT * FROM comments').all();
     const hiddenAnime = db.prepare('SELECT * FROM user_hidden_anime').all();
     const userTop5 = db.prepare('SELECT * FROM user_top5').all();
+    const customAnime = db.prepare('SELECT * FROM anime WHERE id > 7000').all();
 
     const snapshot = {
       version: 1,
@@ -405,7 +446,8 @@ function saveAccountsBackup() {
       friendRequests,
       comments,
       hiddenAnime,
-      userTop5
+      userTop5,
+      customAnime
     };
 
     fs.writeFileSync(backupFile, JSON.stringify(snapshot, null, 2), 'utf8');

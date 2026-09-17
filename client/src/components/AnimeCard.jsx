@@ -18,11 +18,17 @@ export default function AnimeCard({
 }) {
   const [expandedDesc, setExpandedDesc] = useState(false);
   const [showFriendsScores, setShowFriendsScores] = useState(false);
-  const [imgSrc, setImgSrc] = useState(anime.imageUrl);
+  const currentImage = anime.imageUrl || anime.image_url;
+  const [imgSrc, setImgSrc] = useState(currentImage);
   const [imageFailed, setImageFailed] = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [hideLoading, setHideLoading] = useState(false);
+
+  useEffect(() => {
+    setImgSrc(anime.imageUrl || anime.image_url);
+    setImageFailed(false);
+  }, [anime.imageUrl, anime.image_url]);
 
   // Optimistic hidden state synced with anime prop and local storage
   const [localHidden, setLocalHidden] = useState(() => {
@@ -42,10 +48,10 @@ export default function AnimeCard({
   const friendsRatings = anime.friendsRatings || [];
   const commentsCount = anime.commentsCount || 0;
 
-
   const handleImageError = () => {
-    if (imgSrc === anime.imageUrl && anime.imageUrl) {
-      setImgSrc(getImageUrl(anime.imageUrl));
+    const raw = anime.imageUrl || anime.image_url;
+    if (imgSrc === raw && raw) {
+      setImgSrc(getImageUrl(raw));
     } else {
       setImageFailed(true);
     }

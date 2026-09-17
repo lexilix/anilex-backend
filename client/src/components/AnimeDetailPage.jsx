@@ -4,7 +4,7 @@ import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
 import SimilarAnimeFeed from './SimilarAnimeFeed';
 import { deduplicateAnimeList } from '../utils/animeDeduplicator';
-import { applyCustomAnimeEdits } from '../utils/customEditsStorage';
+import { applyCustomAnimeEdits, getCustomAnimeEdits } from '../utils/customEditsStorage';
 
 export default function AnimeDetailPage({
   animeId,
@@ -14,15 +14,30 @@ export default function AnimeDetailPage({
   onRequireAuth,
   onSelectAnime
 }) {
-  const [anime, setAnime] = useState(null);
+  const [anime, setAnime] = useState(() => {
+    try {
+      const edits = getCustomAnimeEdits();
+      return edits[Number(animeId)] || null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [comments, setComments] = useState([]);
   const [relatedAnime, setRelatedAnime] = useState([]);
   const [newComment, setNewComment] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!anime);
   const [commentLoading, setCommentLoading] = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [hideLoading, setHideLoading] = useState(false);
-  const [imgSrc, setImgSrc] = useState('');
+  const [imgSrc, setImgSrc] = useState(() => {
+    try {
+      const edits = getCustomAnimeEdits();
+      const custom = edits[Number(animeId)];
+      return custom ? (custom.imageUrl || custom.image_url || '') : '';
+    } catch (e) {
+      return '';
+    }
+  });
   const [imageFailed, setImageFailed] = useState(false);
 
   // Top-5 state (max 5 allowed - Photo 1 & 2)
@@ -264,8 +279,18 @@ export default function AnimeDetailPage({
       const token = localStorage.getItem('anime_auth_token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await fetch(apiUrl(`/api/anime/${animeId}`), { headers });
-      if (!res.ok) throw new Error('Not found');
-      let data = await res.json();
+      let data;
+      if (res.ok) {
+        data = await res.json();
+      } else {
+        const edits = getCustomAnimeEdits();
+        const custom = edits[Number(animeId)];
+        if (custom) {
+          data = custom;
+        } else {
+          throw new Error('Not found');
+        }
+      }
       data = applyCustomAnimeEdits(data);
 
       // Guard for Naruto: guarantee full description, genres, and Venicek rating 10
@@ -293,9 +318,17 @@ export default function AnimeDetailPage({
       }
 
       setAnime(data);
-      setImgSrc(data.imageUrl);
+      setImgSrc(data.imageUrl || data.image_url);
     } catch (err) {
       console.error('Error loading anime details:', err);
+      try {
+        const edits = getCustomAnimeEdits();
+        const custom = edits[Number(animeId)];
+        if (custom) {
+          setAnime(custom);
+          setImgSrc(custom.imageUrl || custom.image_url);
+        }
+      } catch (e) {}
     } finally {
       setLoading(false);
     }
@@ -327,9 +360,23 @@ export default function AnimeDetailPage({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [animeId]);
 
+  // Listen to live anime updates from DevConsole or App
+  useEffect(() => {
+    const handleUpdated = (e) => {
+      const updated = e.detail;
+      if (updated && Number(updated.id) === Number(animeId)) {
+        setAnime((prev) => applyCustomAnimeEdits({ ...(prev || {}), ...updated }));
+        setImgSrc(updated.imageUrl || updated.image_url);
+      }
+    };
+    window.addEventListener('anilex:anime-updated', handleUpdated);
+    return () => window.removeEventListener('anilex:anime-updated', handleUpdated);
+  }, [animeId]);
+
   const handleImageError = () => {
-    if (anime && imgSrc === anime.imageUrl && anime.imageUrl) {
-      setImgSrc(getImageUrl(anime.imageUrl));
+    const raw = anime?.imageUrl || anime?.image_url;
+    if (anime && imgSrc === raw && raw) {
+      setImgSrc(getImageUrl(raw));
     } else {
       setImageFailed(true);
     }
