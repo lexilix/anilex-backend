@@ -10,7 +10,7 @@ export default function ProfileEditPage({
   const [nickname, setNickname] = useState(user ? user.nickname : '');
   const [email, setEmail] = useState(user ? user.email : '');
   const [avatarUrl, setAvatarUrl] = useState(user ? user.avatarUrl || '' : '');
-  const [bannerUrl, setBannerUrl] = useState(user ? user.bannerUrl || '' : '');
+  const [bannerUrl, setBannerUrl] = useState(user ? (user.bannerUrl || '').split('#top5=')[0] : '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
@@ -49,7 +49,6 @@ export default function ProfileEditPage({
     const reader = new FileReader();
     reader.onload = () => {
       setUrl(reader.result);
-      setError('');
     };
     reader.readAsDataURL(file);
   };
@@ -62,11 +61,31 @@ export default function ProfileEditPage({
 
     try {
       const token = localStorage.getItem('anime_auth_token');
+
+      let finalBanner = bannerUrl ? bannerUrl.split('#top5=')[0] : null;
+      let top5Frag = '';
+      if (user?.bannerUrl && user.bannerUrl.includes('#top5=')) {
+        top5Frag = '#top5=' + user.bannerUrl.split('#top5=')[1];
+      } else {
+        try {
+          const saved = localStorage.getItem('anilex_top5_' + user?.id);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.length > 0) top5Frag = '#top5=' + parsed.join(',');
+          }
+        } catch (err) {}
+      }
+      if (finalBanner && top5Frag) {
+        finalBanner = finalBanner + top5Frag;
+      } else if (!finalBanner && top5Frag) {
+        finalBanner = top5Frag;
+      }
+
       const body = {
         nickname: nickname.trim(),
         email: email.trim(),
         avatarUrl: avatarUrl || null,
-        bannerUrl: bannerUrl || null
+        bannerUrl: finalBanner
       };
 
       if (newPassword.trim()) {

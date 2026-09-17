@@ -618,47 +618,51 @@ export default function ProfilePage({
       return;
     }
 
-    const isAlreadyIn = myTop5Ids.includes(animeId);
+    const isAlreadyIn = myTop5Ids.map(Number).includes(Number(animeId));
+    let updated;
     if (isAlreadyIn) {
-      const updated = myTop5Ids.filter((id) => id !== animeId);
+      updated = myTop5Ids.filter((id) => Number(id) !== Number(animeId));
       setMyTop5Ids(updated);
       localStorage.setItem('anilex_top5_' + user?.id, JSON.stringify(updated));
+      if (user?.nickname) {
+        localStorage.setItem('anilex_top5_' + user.nickname, JSON.stringify(updated));
+      }
       setTop5Toast(`«${anime.title}» убран из Топ-5`);
       setTimeout(() => setTop5Toast(null), 2500);
-
-      try {
-        const token = localStorage.getItem('anime_auth_token');
-        if (token) {
-          fetch(apiUrl('/api/user/top5/toggle'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ animeId })
-          }).catch(() => {});
-        }
-      } catch (err) {}
     } else {
       if (myTop5Ids.length >= 5) {
         setTop5Toast('В Топ-5 можно добавить только 5 аниме, больше нельзя!');
         setTimeout(() => setTop5Toast(null), 3000);
         return;
       }
-      const updated = [...myTop5Ids, animeId];
+      updated = [...myTop5Ids, Number(animeId)];
       setMyTop5Ids(updated);
       localStorage.setItem('anilex_top5_' + user?.id, JSON.stringify(updated));
+      if (user?.nickname) {
+        localStorage.setItem('anilex_top5_' + user.nickname, JSON.stringify(updated));
+      }
       setTop5Toast(`«${anime.title}» добавлен в Топ-5 (${updated.length}/5)`);
       setTimeout(() => setTop5Toast(null), 2500);
-
-      try {
-        const token = localStorage.getItem('anime_auth_token');
-        if (token) {
-          fetch(apiUrl('/api/user/top5/toggle'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ animeId })
-          }).catch(() => {});
-        }
-      } catch (err) {}
     }
+
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      if (token) {
+        fetch(apiUrl('/api/user/top5/toggle'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ animeId })
+        }).catch(() => {});
+
+        const cleanBanner = (user?.bannerUrl || '').split('#top5=')[0];
+        const newBannerUrl = cleanBanner + (updated.length > 0 ? '#top5=' + updated.join(',') : '');
+        fetch(apiUrl('/api/auth/profile'), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ bannerUrl: newBannerUrl })
+        }).catch(() => {});
+      }
+    } catch (err) {}
   };
 
   // Load friend public profile
@@ -696,18 +700,40 @@ export default function ProfilePage({
           });
         }
 
-        // Retrieve top5Ids for friend from data or localStorage
-        let friendTop5 = Array.isArray(data.top5Ids) ? data.top5Ids : [];
+        // Retrieve top5Ids for friend from data or bannerUrl or localStorage
+        let friendTop5 = [];
+        if (Array.isArray(data.top5Ids) && data.top5Ids.length > 0) {
+          friendTop5 = data.top5Ids.map(Number);
+        }
+        if (friendTop5.length === 0 && data.user?.bannerUrl && data.user.bannerUrl.includes('#top5=')) {
+          try {
+            const raw = data.user.bannerUrl.split('#top5=')[1];
+            if (raw) {
+              friendTop5 = raw.split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n) && n > 0);
+            }
+          } catch (e) {}
+        }
         if (friendTop5.length === 0) {
           try {
             const saved = localStorage.getItem('anilex_top5_' + (data.user?.id || friendId));
-            if (saved) friendTop5 = JSON.parse(saved);
+            if (saved) friendTop5 = JSON.parse(saved).map(Number);
+          } catch (e) {}
+        }
+        if (friendTop5.length === 0 && data.user?.nickname) {
+          try {
+            const savedNick = localStorage.getItem('anilex_top5_' + data.user.nickname);
+            if (savedNick) friendTop5 = JSON.parse(savedNick).map(Number);
           } catch (e) {}
         }
         if (friendTop5.length === 0 && Array.isArray(ratings)) {
-          friendTop5 = ratings.filter((r) => r.isPinned).map((r) => r.id);
+          friendTop5 = ratings.filter((r) => r.isPinned).map((r) => Number(r.id));
         }
-        if ((data.user?.nickname === 'Just' || friendId === 5) && friendTop5.length === 0) {
+
+        // Known default fallbacks
+        if ((data.user?.nickname === 'Katsu' || friendId === 15 || data.user?.id === 15) && friendTop5.length === 0) {
+          friendTop5 = [6080, 3495, 2143, 1807];
+        }
+        if ((data.user?.nickname === 'Just' || friendId === 5 || data.user?.id === 5) && friendTop5.length === 0) {
           friendTop5 = [3495, 1803, 1807, 2040, 2646];
         }
         if (data.user?.nickname === 'MrTech' || data.user?.id === 20 || friendId === 20) {
@@ -722,41 +748,14 @@ export default function ProfilePage({
           isPinned: Boolean(
             r.isPinned ||
             r.isPermanentPin ||
-            (r.isSecretTop && (data.user?.nickname === 'MrTech' || friendId === 20)) ||
-            friendTop5.includes(r.id)
+            (r.isSecretTop && (data.user?.nickname === 'MrTech' || friendId === 20 || data.user?.id === 20)) ||
+            friendTop5.map(Number).includes(Number(r.id))
           )
         }));
 
-        // Build top5 anime cards array
-        let top5Items = Array.isArray(data.top5Anime) && data.top5Anime.length > 0 ? data.top5Anime : [];
-        if (top5Items.length === 0 && friendTop5.length > 0) {
-          top5Items = friendTop5.map((id) => ratings.find((r) => r.id === id)).filter(Boolean);
-        }
-
-        if (data.user?.nickname === 'MrTech' || data.user?.id === 20 || friendId === 20) {
-          top5Items = top5Items.filter(r => r.title !== 'Лимонные девочки' && r.id !== 7170);
-          top5Items.unshift({
-            id: 7170,
-            slug: 'shiki-82476',
-            title: 'Лимонные девочки',
-            imageUrl: 'https://cdn.myanimelist.net/images/anime/2/82476l.jpg',
-            type: 'OVA',
-            year: '2016',
-            genres: ['Хентай'],
-            score: 10,
-            isSecretTop: true,
-            isPinned: true,
-            isPermanentPin: true
-          });
-        }
-
-        if (data.user?.nickname === 'Venicek' || data.user?.id === 21 || friendId === 21) {
-          top5Items = top5Items.filter(r => r.title !== 'Лимонные девочки' && r.id !== 7170 && !r.isSecretTop);
-        }
-
-        setFriendTop5Anime(top5Items.slice(0, 5));
         setFriendRatings(ratings);
-        setFriendScoreFilter('all');
+        const pinnedList = ratings.filter((r) => r.isPinned);
+        setFriendScoreFilter(pinnedList.length > 0 ? 'top5' : 'all');
         setFriendGenreFilter('all');
       }
     } catch (err) {
@@ -809,7 +808,7 @@ export default function ProfilePage({
         <div className="relative h-44 sm:h-56 w-full bg-neutral-200 dark:bg-neutral-800">
           {user.bannerUrl ? (
             <img
-              src={user.bannerUrl}
+              src={user.bannerUrl.split('#top5=')[0]}
               alt="Баннер"
               className="w-full h-full object-cover"
             />
@@ -1848,7 +1847,7 @@ export default function ProfilePage({
                 <div className="relative h-36 sm:h-48 w-full bg-neutral-200 dark:bg-neutral-800 shrink-0 overflow-hidden">
                   {selectedFriend.bannerUrl ? (
                     <img
-                      src={selectedFriend.bannerUrl}
+                      src={selectedFriend.bannerUrl.split('#top5=')[0]}
                       alt="Баннер профиля"
                       className="w-full h-full object-cover"
                     />
@@ -1952,114 +1951,7 @@ export default function ProfilePage({
                   );
                 })()}
 
-                {/* Friend Top-5 Showcase - Visible for ALL users and friends */}
-                {(() => {
-                  const isMrTechProfile = selectedFriend?.nickname === 'MrTech' || selectedFriend?.id === 20;
-                  const isVenicekProfile = selectedFriend?.nickname === 'Venicek' || selectedFriend?.id === 21;
 
-                  let displayTop5 = [...friendTop5Anime];
-                  if (isVenicekProfile) {
-                    displayTop5 = displayTop5.filter(
-                      (item) => item.title !== 'Лимонные девочки' && item.id !== 7170 && !item.isSecretTop
-                    );
-                  }
-                  if (isMrTechProfile) {
-                    displayTop5 = displayTop5.filter((item) => item.title !== 'Лимонные девочки' && item.id !== 7170);
-                    displayTop5.unshift({
-                      id: 7170,
-                      slug: 'shiki-82476',
-                      title: 'Лимонные девочки',
-                      imageUrl: 'https://cdn.myanimelist.net/images/anime/2/82476l.jpg',
-                      type: 'OVA',
-                      year: '2016',
-                      genres: ['Хентай'],
-                      score: 10,
-                      isSecretTop: true,
-                      isPinned: true,
-                      isPermanentPin: true
-                    });
-                  }
-                  displayTop5 = displayTop5.slice(0, 5);
-
-                  return (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-4 rounded-full bg-amber-500" />
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-900 dark:text-white flex items-center gap-1.5">
-                            <span>📌 Топ-5 лучших тайтлов</span>
-                          </h4>
-                        </div>
-                        <span className="text-[11px] font-medium text-neutral-400">
-                          {displayTop5.length > 0 ? `Закреплено ${displayTop5.length} из 5` : '0 из 5'}
-                        </span>
-                      </div>
-
-                      {displayTop5.length === 0 ? (
-                        <div className="py-6 px-4 text-center rounded-2xl bg-neutral-50 dark:bg-neutral-900/40 border border-neutral-100 dark:border-neutral-800/60">
-                          <p className="text-xs text-neutral-400">
-                            Пользователь пока не закрепил тайтлы в Топ-5.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          {displayTop5.map((item, idx) => (
-                            <div
-                              key={item.id}
-                              onClick={() => {
-                                setSelectedFriend(null);
-                                onSelectAnime(item.id);
-                              }}
-                              className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/70 border border-neutral-200/60 dark:border-neutral-800/70 flex items-center justify-between gap-3 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800/80 transition-all hover:scale-[1.01] group shadow-xs"
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-xs shrink-0 ${
-                                  idx === 0 ? 'bg-amber-500 text-black shadow-xs' :
-                                  idx === 1 ? 'bg-neutral-300 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200' :
-                                  idx === 2 ? 'bg-amber-700/80 text-white' :
-                                  'bg-neutral-200/80 dark:bg-neutral-800 text-neutral-500'
-                                }`}>
-                                  #{idx + 1}
-                                </div>
-
-                                <div className="w-10 aspect-[5/7] rounded-lg overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0 shadow-xs">
-                                  <img
-                                    src={getImageUrl(item.imageUrl)}
-                                    alt={item.title}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                                    onError={(e) => {
-                                      e.target.style.display = 'none';
-                                    }}
-                                  />
-                                </div>
-                                <div className="min-w-0">
-                                  <span className="text-xs font-bold text-neutral-900 dark:text-white truncate block group-hover:text-amber-500 transition-colors">
-                                    {item.title}
-                                  </span>
-                                  <div className="flex items-center gap-1.5 text-[11px] text-neutral-400 mt-0.5 flex-wrap">
-                                    {item.year && <span>{item.year}</span>}
-                                    {Array.isArray(item.genres) &&
-                                      item.genres.slice(0, 2).map((g) => (
-                                        <span key={g} className="text-[10px] text-neutral-400">
-                                          • {g}
-                                        </span>
-                                      ))}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <span className={`px-2.5 py-1 rounded-xl font-black text-xs ${getScoreBadgeClass(item.score)}`}>
-                                  {item.score} / 10
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
 
                 {/* Friend Full Ratings list or Privacy Lock */}
                 {!selectedFriend.isFriend ? (
@@ -2160,8 +2052,14 @@ export default function ProfilePage({
                         );
                       }
 
+                      const pinnedAnimeList = filteredByGenre.filter(
+                        (item) => item.isPinned || (isMrTechProfile && (item.isSecretTop || item.title === 'Лимонные девочки'))
+                      );
+
                       let displayedRatings = [];
-                      if (friendScoreFilter === 'all') {
+                      if (friendScoreFilter === 'top5') {
+                        displayedRatings = pinnedAnimeList.slice(0, 5);
+                      } else if (friendScoreFilter === 'all') {
                         displayedRatings = filteredByGenre;
                       } else {
                         const targetScore = parseInt(friendScoreFilter, 10);
@@ -2175,7 +2073,9 @@ export default function ProfilePage({
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                                {friendScoreFilter === 'all'
+                                {friendScoreFilter === 'top5'
+                                  ? `Топ-5 лучших тайтлов (${displayedRatings.length} из 5)`
+                                  : friendScoreFilter === 'all'
                                   ? `Все оценки (${filteredByGenre.length})`
                                   : `Оценка ${friendScoreFilter} / 10 (${displayedRatings.length})`}
                               </h4>
@@ -2190,9 +2090,24 @@ export default function ProfilePage({
                             </span>
                           </div>
 
-                          {/* Filter Chips by Score */}
-                          {friendRatings.length > 0 && (
+                          {/* Filter Chips by Score & Top-5 */}
+                          {cleanFriendRatings.length > 0 && (
                             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                              <button
+                                type="button"
+                                onClick={() => setFriendScoreFilter('top5')}
+                                className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap flex items-center gap-1 transition-colors ${
+                                  friendScoreFilter === 'top5'
+                                    ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 shadow-sm'
+                                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                                }`}
+                              >
+                                <span>📌 Топ-5</span>
+                                <span className="text-[10px] opacity-75">
+                                  ({pinnedAnimeList.slice(0, 5).length}/5)
+                                </span>
+                              </button>
+
                               <button
                                 type="button"
                                 onClick={() => setFriendScoreFilter('all')}
@@ -2204,6 +2119,7 @@ export default function ProfilePage({
                               >
                                 Все ({filteredByGenre.length})
                               </button>
+
                               {availableScores.map((sc) => {
                                 const count = filteredByGenre.filter((it) => it.score === sc).length;
                                 if (count === 0 && friendGenreFilter !== 'all') return null;
@@ -2243,7 +2159,7 @@ export default function ProfilePage({
                                 Все
                               </button>
                               {availableGenres.map((genre) => {
-                                const count = friendRatings.filter((it) =>
+                                const count = cleanFriendRatings.filter((it) =>
                                   Array.isArray(it.genres) && it.genres.includes(genre)
                                 ).length;
                                 return (
@@ -2265,40 +2181,53 @@ export default function ProfilePage({
                             </div>
                           )}
 
-                          {friendRatings.length === 0 ? (
+                          {cleanFriendRatings.length === 0 ? (
                             <p className="text-xs text-neutral-400 py-6 text-center">
                               У этого пользователя пока нет оценок.
                             </p>
                           ) : displayedRatings.length === 0 ? (
                             <div className="py-10 text-center rounded-2xl bg-neutral-50 dark:bg-neutral-900/40 p-6 border border-neutral-100 dark:border-neutral-800/60">
                               <p className="text-xs text-neutral-400">
-                                Тайтлы с выбранными фильтрами не найдены.
+                                {friendScoreFilter === 'top5'
+                                  ? 'Пользователь пока не закрепил тайтлы в Топ-5.'
+                                  : 'Тайтлы с выбранными фильтрами не найдены.'}
                               </p>
                             </div>
                           ) : (
                             <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
-                              {displayedRatings.map((item) => (
+                              {displayedRatings.map((item, idx) => (
                                 <div
                                   key={item.id}
                                   onClick={() => {
                                     setSelectedFriend(null);
                                     onSelectAnime(item.id);
                                   }}
-                                  className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 flex items-center justify-between gap-3 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                                  className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 flex items-center justify-between gap-3 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors group shadow-xs"
                                 >
                                   <div className="flex items-center gap-3 min-w-0">
+                                    {friendScoreFilter === 'top5' && (
+                                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-xs shrink-0 ${
+                                        idx === 0 ? 'bg-amber-500 text-black shadow-xs' :
+                                        idx === 1 ? 'bg-neutral-300 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200' :
+                                        idx === 2 ? 'bg-amber-700/80 text-white' :
+                                        'bg-neutral-200/80 dark:bg-neutral-800 text-neutral-500'
+                                      }`}>
+                                        #{idx + 1}
+                                      </div>
+                                    )}
+
                                     <div className="w-10 aspect-[5/7] rounded-lg overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0">
                                       <img
                                         src={getImageUrl(item.imageUrl)}
                                         alt={item.title}
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                         onError={(e) => {
                                           e.target.style.display = 'none';
                                         }}
                                       />
                                     </div>
                                     <div className="min-w-0">
-                                      <span className="text-xs font-semibold text-neutral-900 dark:text-white truncate block">
+                                      <span className="text-xs font-semibold text-neutral-900 dark:text-white truncate block group-hover:text-amber-500 transition-colors">
                                         {item.title}
                                       </span>
                                       <div className="flex items-center gap-1.5 text-[11px] text-neutral-400 mt-0.5 flex-wrap">
