@@ -3979,10 +3979,8 @@ if (require.main === module) {
       isCatalogUpdating = false;
     }
 
-    // Schedule: Once every 5 hours (5 * 60 * 60 * 1000 = 18,000,000 ms)
+    // Schedule: Strictly once every 5 hours (5 * 60 * 60 * 1000 = 18,000,000 ms)
     setInterval(runPeriodicCatalogUpdate, 5 * 60 * 60 * 1000);
-    // Background initial run after 30s so server starts up instantly
-    setTimeout(runPeriodicCatalogUpdate, 30 * 1000);
   }
 
   startServer().catch(console.error);

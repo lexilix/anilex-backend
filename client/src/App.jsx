@@ -28,7 +28,7 @@ import {
 import { getHiddenAnimeIds, toggleHiddenAnime } from './utils/hiddenStorage';
 import { getCachedUserProfile, setCachedUserProfile, clearCachedUserProfile, updateCachedUserRating } from './utils/profileCache';
 import { deduplicateAnimeList } from './utils/animeDeduplicator';
-import { getCustomAnimeEdits, saveCustomAnimeEdit } from './utils/customEditsStorage';
+import { getCustomAnimeEdits, saveCustomAnimeEdit, applyCustomAnimeEdits } from './utils/customEditsStorage';
 import initialCatalog from './data/initialCatalog.json';
 
 export default function App() {
