@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { apiUrl, getImageUrl } from '../api';
 import { getScoreBadgeClass } from '../utils/scoreColors';
+import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 
 const ROTATION_INTERVAL_SEC = 10; // 10 seconds auto-rotation
 const DISPLAY_COUNT = 10; // Exactly 10 anime in the tape feed
@@ -108,9 +109,10 @@ export default function SimilarAnimeFeed({
 
         if (res.ok) {
           const data = await res.json();
-          if (isMounted && data.items && data.items.length > 0) {
-            setCandidates(data.items);
-            setDisplayedAnime(data.items.slice(0, DISPLAY_COUNT));
+          const deduped = deduplicateAnimeList(data.items || []);
+          if (isMounted && deduped.length > 0) {
+            setCandidates(deduped);
+            setDisplayedAnime(deduped.slice(0, DISPLAY_COUNT));
             setLoading(false);
             return;
           }
@@ -121,7 +123,7 @@ export default function SimilarAnimeFeed({
 
       // Fallback if backend route fails
       if (isMounted) {
-        const fallback = getClientFallbackCandidates(currentAnime);
+        const fallback = deduplicateAnimeList(getClientFallbackCandidates(currentAnime));
         if (fallback.length > 0) {
           setCandidates(fallback);
           setDisplayedAnime(fallback.slice(0, DISPLAY_COUNT));

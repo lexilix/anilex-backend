@@ -1462,12 +1462,16 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       });
     }
 
+    const dedupedItems = db.deduplicateAnimeList ? db.deduplicateAnimeList(formattedItems) : formattedItems;
+    const countReduction = formattedItems.length - dedupedItems.length;
+    const adjustedTotal = Math.max(dedupedItems.length, (totalRow ? totalRow.total : 0) - Math.max(0, countReduction));
+
     return res.json({
-      items: formattedItems,
-      total: totalRow ? totalRow.total : 0,
+      items: dedupedItems,
+      total: adjustedTotal,
       page: pageNum,
       limit: limitNum,
-      totalPages: isCatalogEndless ? Math.max(pageNum + 20, 500) : Math.ceil((totalRow ? totalRow.total : 0) / limitNum),
+      totalPages: isCatalogEndless ? Math.max(pageNum + 20, 500) : Math.ceil(adjustedTotal / limitNum),
       recommendationGenresCount: recommendedGenres.length
     });
   } catch (err) {

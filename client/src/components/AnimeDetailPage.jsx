@@ -3,6 +3,7 @@ import { ArrowLeft, Star, MessageSquare, Send, Trash2, Calendar, Film, User, Boo
 import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
 import SimilarAnimeFeed from './SimilarAnimeFeed';
+import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 
 export default function AnimeDetailPage({
   animeId,
@@ -31,7 +32,7 @@ export default function AnimeDetailPage({
       const res = await fetch(apiUrl(`/api/anime/${animeId}/related`), { headers });
       if (res.ok) {
         const data = await res.json();
-        setRelatedAnime(data.items || []);
+        setRelatedAnime(deduplicateAnimeList(data.items || []));
       }
     } catch (err) {
       console.error('Error loading related anime:', err);

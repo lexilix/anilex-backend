@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
 import { getHiddenAnimeIds } from '../utils/hiddenStorage';
+import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 
 export default function FeaturedCarousel({
   onSelectAnime,
@@ -33,7 +34,7 @@ export default function FeaturedCarousel({
         .then(data => {
           if (isMounted) {
             const hiddenIds = getHiddenAnimeIds(user?.id);
-            const filtered = (data.items || []).filter(it => !hiddenIds.has(it.id));
+            const filtered = deduplicateAnimeList((data.items || []).filter(it => !hiddenIds.has(it.id)));
             setItems(filtered);
             setLoading(false);
           }
@@ -54,7 +55,7 @@ export default function FeaturedCarousel({
       .then(data => {
         if (isMounted) {
           const hiddenIds = getHiddenAnimeIds(user?.id);
-          const filtered = (data.items || []).filter(it => !hiddenIds.has(it.id));
+          const filtered = deduplicateAnimeList((data.items || []).filter(it => !hiddenIds.has(it.id)));
           setItems(filtered);
           setLoading(false);
         }

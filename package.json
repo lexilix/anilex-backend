@@ -4,7 +4,7 @@
   "description": "Minimalist anime rating website for friends with AnimeGO catalog",
   "main": "server/index.js",
   "engines": {
-    "node": ">=22.14.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "server": "node --experimental-sqlite server/index.js",

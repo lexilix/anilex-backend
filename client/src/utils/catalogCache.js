@@ -1,3 +1,5 @@
+import { deduplicateAnimeList } from './animeDeduplicator';
+
 /**
  * Client-side cache for anime catalog pages.
  * Supports instant loading from storage and change detection (image, description, count).
@@ -16,6 +18,7 @@ export function getCachedCatalog(key) {
       localStorage.removeItem(`${CACHE_KEY_PREFIX}${key}`);
       return null;
     }
+    data.items = deduplicateAnimeList(data.items);
     return data;
   } catch (e) {
     return null;
@@ -24,8 +27,10 @@ export function getCachedCatalog(key) {
 
 export function setCachedCatalog(key, payload) {
   try {
-    const cleanItems = (payload.items || []).map((it) => ({
+    const deduped = deduplicateAnimeList(payload.items || []);
+    const cleanItems = deduped.map((it) => ({
       id: it.id,
+      aliasIds: it.aliasIds || [it.id],
       title: it.title,
       originalTitle: it.originalTitle,
       imageUrl: it.imageUrl,

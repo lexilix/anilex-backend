@@ -654,8 +654,144 @@ function deduplicateAnimeDatabase() {
   }
 }
 
+function areSameAnime(a, b) {
+  if (!a || !b) return false;
+  if (a.id === b.id) return true;
+
+  const aYear = String(a.year || '').trim();
+  const bYear = String(b.year || '').trim();
+  if (aYear && bYear && Math.abs(parseInt(aYear, 10) - parseInt(bYear, 10)) > 1) {
+    return false;
+  }
+
+  const aIsOva = /ova|спешл|спецвыпуск/i.test(a.title || '') || a.type === 'OVA' || a.type === 'Спешл';
+  const bIsOva = /ova|спешл|спецвыпуск/i.test(b.title || '') || b.type === 'OVA' || b.type === 'Спешл';
+  if (aIsOva !== bIsOva) return false;
+
+  const aIsMovie = a.type === 'Фильм' || /\b(фильм|movie)\b/i.test(a.title || '');
+  const bIsMovie = b.type === 'Фильм' || /\b(фильм|movie)\b/i.test(b.title || '');
+  if (aIsMovie !== bIsMovie) return false;
+
+  const aSeason = extractSeasonNumber(a.title);
+  const bSeason = extractSeasonNumber(b.title);
+  const aHasExplicitSeason = aSeason !== null;
+  const bHasExplicitSeason = bSeason !== null;
+  if (aHasExplicitSeason !== bHasExplicitSeason && ((aSeason || 1) > 1 || (bSeason || 1) > 1)) {
+    return false;
+  }
+  if (aHasExplicitSeason && bHasExplicitSeason && aSeason !== bSeason) {
+    return false;
+  }
+
+  const aNorm = normalizeSearchText(a.title);
+  const bNorm = normalizeSearchText(b.title);
+  if (aNorm && bNorm && aNorm === bNorm) return true;
+
+  const aNumNorm = normalizeNumberWords(a.title);
+  const bNumNorm = normalizeNumberWords(b.title);
+  if (aNumNorm && bNumNorm && aNumNorm === bNumNorm) return true;
+
+  const aKey = getWordKey(a.title);
+  const bKey = getWordKey(b.title);
+  if (aKey && bKey && aKey.length >= 8 && aKey === bKey) return true;
+
+  const aOrigs = getOriginalTitles(a.original_title || a.originalTitle);
+  const bOrigs = getOriginalTitles(b.original_title || b.originalTitle);
+  if (aOrigs.length > 0 && bOrigs.length > 0) {
+    for (const ao of aOrigs) {
+      if (ao.length >= 8 && bOrigs.includes(ao)) {
+        return true;
+      }
+    }
+  }
+
+  const aAllOrig = normalizeSearchText(a.original_title || a.originalTitle || '');
+  const bAllOrig = normalizeSearchText(b.original_title || b.originalTitle || '');
+  if (aNorm && aNorm.length >= 10 && (bAllOrig.includes(aNorm) || bNorm === aNorm)) return true;
+  if (bNorm && bNorm.length >= 10 && (aAllOrig.includes(bNorm) || aNorm === bNorm)) return true;
+
+  return false;
+}
+
+function deduplicateAnimeList(items) {
+  if (!Array.isArray(items) || items.length <= 1) return items || [];
+  const result = [];
+  const mergedIds = new Set();
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (!item || mergedIds.has(item.id)) continue;
+
+    let merged = { ...item };
+    merged.aliasIds = Array.isArray(merged.aliasIds) ? [...merged.aliasIds] : [merged.id];
+    let hasRating = merged.myScore !== null && merged.myScore !== undefined;
+
+    for (let j = i + 1; j < items.length; j++) {
+      const other = items[j];
+      if (!other || mergedIds.has(other.id)) continue;
+
+      if (areSameAnime(merged, other)) {
+        mergedIds.add(other.id);
+        merged.aliasIds.push(other.id);
+
+        const otherHasRating = other.myScore !== null && other.myScore !== undefined;
+        if (!hasRating && otherHasRating) {
+          merged.myScore = other.myScore;
+          hasRating = true;
+        }
+
+        if ((!merged.averageScore || merged.averageScore === 0) && other.averageScore) {
+          merged.averageScore = other.averageScore;
+          merged.ratingCount = other.ratingCount;
+        } else if (other.ratingCount > (merged.ratingCount || 0)) {
+          merged.averageScore = other.averageScore;
+          merged.ratingCount = other.ratingCount;
+        }
+
+        if (/[0-9]/.test(other.title) && !/[0-9]/.test(merged.title)) {
+          merged.title = other.title;
+        }
+
+        const g1 = Array.isArray(merged.genres) ? merged.genres : [];
+        const g2 = Array.isArray(other.genres) ? other.genres : [];
+        merged.genres = Array.from(new Set([...g1, ...g2]));
+
+        const d1 = merged.description || '';
+        const d2 = other.description || '';
+        if (d2.length > d1.length && d2.length > 40) {
+          merged.description = d2;
+        }
+
+        const o1 = merged.originalTitle || merged.original_title || '';
+        const o2 = other.originalTitle || other.original_title || '';
+        if (o2 && !o1.toLowerCase().includes(o2.toLowerCase().slice(0, 15))) {
+          merged.originalTitle = o1 ? `${o1} / ${o2}` : o2;
+          merged.original_title = merged.originalTitle;
+        }
+
+        const f1 = Array.isArray(merged.friendsRatings) ? merged.friendsRatings : [];
+        const f2 = Array.isArray(other.friendsRatings) ? other.friendsRatings : [];
+        const friendMap = new Map();
+        [...f1, ...f2].forEach((f) => {
+          if (f && f.userId && !friendMap.has(f.userId)) {
+            friendMap.set(f.userId, f);
+          }
+        });
+        merged.friendsRatings = Array.from(friendMap.values());
+
+        merged.isFavorite = Boolean(merged.isFavorite || other.isFavorite);
+        merged.isHidden = Boolean(merged.isHidden || other.isHidden);
+      }
+    }
+    result.push(merged);
+  }
+  return result;
+}
+
 db.normalizeNumberWords = normalizeNumberWords;
 db.getWordKey = getWordKey;
+db.areSameAnime = areSameAnime;
+db.deduplicateAnimeList = deduplicateAnimeList;
 
 deduplicateAnimeDatabase();
 

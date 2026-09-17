@@ -6,6 +6,7 @@ import { getUserLevel, LEVELS_CONFIG } from '../utils/levels';
 import { getStoredHiddenAnimeList, setAnimeHiddenLocally, toggleHiddenAnime } from '../utils/hiddenStorage';
 import { getCachedUserRatings, setCachedUserRatings, updateCachedUserRating } from '../utils/profileCache';
 import { executeImportWorkflow } from '../utils/importer';
+import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 
 function LevelIcon({ iconName, className = 'w-5 h-5' }) {
   switch (iconName) {
@@ -282,7 +283,7 @@ export default function ProfilePage({
       });
       if (res.ok) {
         const data = await res.json();
-        let items = data.items || [];
+        let items = deduplicateAnimeList(data.items || []);
         if (selectedScore !== 'all') {
           items = items.filter((it) => it.myScore === parseInt(selectedScore, 10));
         }
@@ -321,7 +322,7 @@ export default function ProfilePage({
       });
       if (res.ok) {
         const data = await res.json();
-        setFavoritesList(data.items || []);
+        setFavoritesList(deduplicateAnimeList(data.items || []));
       }
     } catch (err) {
       console.error('Error fetching favorites:', err);
@@ -361,7 +362,7 @@ export default function ProfilePage({
     setHiddenLoading(true);
     try {
       // 1. Instantly load from local storage
-      const localList = getStoredHiddenAnimeList(user?.id);
+      const localList = deduplicateAnimeList(getStoredHiddenAnimeList(user?.id));
       if (localList.length > 0) {
         setHiddenList(localList);
       }
@@ -377,7 +378,7 @@ export default function ProfilePage({
         });
         if (res.ok) {
           const data = await res.json();
-          const serverItems = data.items || [];
+          const serverItems = deduplicateAnimeList(data.items || []);
           setHiddenList(serverItems);
           serverItems.forEach((it) => setAnimeHiddenLocally(it, true, user?.id));
         }

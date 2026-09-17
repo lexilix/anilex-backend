@@ -14,6 +14,7 @@ import { apiUrl } from './api';
 import { getCachedCatalog, setCachedCatalog, hasCatalogChanged, updateCachedAnimeItem } from './utils/catalogCache';
 import { getHiddenAnimeIds, toggleHiddenAnime } from './utils/hiddenStorage';
 import { getCachedUserProfile, setCachedUserProfile, clearCachedUserProfile, updateCachedUserRating } from './utils/profileCache';
+import { deduplicateAnimeList } from './utils/animeDeduplicator';
 
 export default function App() {
   // Theme state
@@ -409,17 +410,12 @@ export default function App() {
           }));
         };
 
-        const sanitized = sanitizeList(newItems);
+        const sanitized = deduplicateAnimeList(sanitizeList(newItems));
 
         if (isAppend) {
           setAnimeList((prev) => {
-            const existingKeys = new Set(prev.map((i) => `${(i.title || '').trim().toLowerCase()}_${i.year || ''}`));
-            const existingIds = new Set(prev.map((i) => i.id));
-            const filtered = sanitized.filter((i) => {
-              const key = `${(i.title || '').trim().toLowerCase()}_${i.year || ''}`;
-              return !existingIds.has(i.id) && !existingKeys.has(key);
-            });
-            const updated = sanitizeList([...prev, ...filtered]);
+            const combined = deduplicateAnimeList([...prev, ...sanitized]);
+            const updated = sanitizeList(combined);
             // Save cumulative list to user's cache
             if (!isSearching) {
               setCachedCatalog(catalogKey, {
@@ -447,7 +443,9 @@ export default function App() {
           }
         }
 
-        setTotalCount(data.total || 0);
+        const countReduction = newItems.length - sanitized.length;
+        const adjustedTotal = Math.max(sanitized.length, (data.total || 0) - Math.max(0, countReduction));
+        setTotalCount(adjustedTotal);
         setTotalPages(data.totalPages || 1);
         setPage(targetPage);
         setRecommendationCount(data.recommendationGenresCount || 0);
@@ -569,7 +567,7 @@ export default function App() {
 
       setAnimeList((prev) =>
         prev.map((item) =>
-          item.id === animeId
+          (item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId)))
             ? { ...item, isFavorite: data.isFavorite }
             : item
         )
@@ -586,20 +584,20 @@ export default function App() {
       return;
     }
 
-    const animeObj = animeList.find((it) => it.id === animeId) || { id: animeId };
+    const animeObj = animeList.find((it) => it.id === animeId || (it.aliasIds && it.aliasIds.includes(animeId))) || { id: animeId };
     const newHidden = await toggleHiddenAnime(animeObj, token, user?.id, forcedState);
 
     const isSearching = Boolean(debouncedSearch.trim());
 
     if (!isSearching && newHidden) {
       // Main catalog: remove immediately from list
-      setAnimeList((prev) => prev.filter((item) => item.id !== animeId));
+      setAnimeList((prev) => prev.filter((item) => item.id !== animeId && !(item.aliasIds && item.aliasIds.includes(animeId))));
       setTotalCount((prev) => Math.max(0, prev - 1));
     } else {
       // Search mode (Photo 1) or un-hiding: update isHidden in current animeList to dim/undim
       setAnimeList((prev) =>
         prev.map((item) =>
-          item.id === animeId ? { ...item, isHidden: newHidden } : item
+          (item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId))) ? { ...item, isHidden: newHidden } : item
         )
       );
     }
@@ -642,10 +640,10 @@ export default function App() {
       const data = await res.json();
 
       // Update in local state
-      const targetAnime = animeList.find((it) => it.id === animeId);
+      const targetAnime = animeList.find((it) => it.id === animeId || (it.aliasIds && it.aliasIds.includes(animeId)));
       setAnimeList((prev) =>
         prev.map((item) =>
-          item.id === animeId
+          (item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId)))
             ? {
                 ...item,
                 myScore: data.myScore,
@@ -663,6 +661,15 @@ export default function App() {
         averageScore: data.averageScore,
         ratingCount: data.ratingCount
       });
+      if (targetAnime?.aliasIds) {
+        targetAnime.aliasIds.forEach((aid) => {
+          updateCachedAnimeItem(aid, {
+            myScore: data.myScore,
+            averageScore: data.averageScore,
+            ratingCount: data.ratingCount
+          });
+        });
+      }
       updateCachedUserRating(user?.id, animeId, data.myScore, targetAnime);
 
       fetchMetadata();
