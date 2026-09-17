@@ -569,13 +569,13 @@ async function searchShikimori(query) {
               if (relRes.ok) {
                 const relData = await relRes.json();
                 if (Array.isArray(relData)) {
-                  for (const r of relData) {
-                    if (r.anime && (r.relation_russian === 'Предыстория' || r.relation === 'prequel' || r.relation_russian === 'Основная история' || r.relation_russian === 'Продолжение' || r.relation === 'sequel')) {
+                    if (r.anime && r.anime.kind !== 'cm' && (r.relation_russian === 'Предыстория' || r.relation === 'prequel' || r.relation_russian === 'Основная история' || r.relation_russian === 'Продолжение' || r.relation === 'sequel')) {
                       const relA = r.anime;
                       const relSlug = `shiki-${relA.id}`;
                       const relTitle = relA.russian || relA.name;
                       const relImg = relA.image?.original ? (relA.image.original.startsWith('http') ? relA.image.original : `https://shikimori.one${relA.image.original}`) : '';
-                      if (relTitle && relSlug && relImg && !items.some(it => it.slug === relSlug)) {
+                      const isSnickers = (relTitle && /сникерс/i.test(relTitle)) || (relA.name && /snickers/i.test(relA.name));
+                      if (relTitle && relSlug && relImg && !isSnickers && !items.some(it => it.slug === relSlug)) {
                         items.push({
                           slug: relSlug,
                           title: relTitle,

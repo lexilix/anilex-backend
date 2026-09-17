@@ -1762,15 +1762,23 @@ export default function ProfilePage({
                 ) : (
                   <div className="space-y-3">
                     {(() => {
-                      const sortedFriendRatings = [...friendRatings].sort(
+                      // Separate secret top item if present (e.g. Lemon Girls for MrTech)
+                      const secretItem = friendRatings.find(
+                        (item) => item.isSecretTop || item.title === 'Лимонные девочки'
+                      );
+                      const standardRatings = friendRatings.filter(
+                        (item) => !item.isSecretTop && item.title !== 'Лимонные девочки'
+                      );
+
+                      const sortedFriendRatings = [...standardRatings].sort(
                         (a, b) => (b.score || 0) - (a.score || 0)
                       );
                       const availableScores = Array.from(
-                        new Set(friendRatings.map((item) => item.score))
+                        new Set(standardRatings.map((item) => item.score))
                       ).sort((a, b) => b - a);
 
                       const availableGenres = Array.from(
-                        new Set(friendRatings.flatMap((item) => (Array.isArray(item.genres) ? item.genres : [])))
+                        new Set(standardRatings.flatMap((item) => (Array.isArray(item.genres) ? item.genres : [])))
                       ).sort((a, b) => a.localeCompare(b, 'ru'));
 
                       let filteredByGenre = sortedFriendRatings;
@@ -1782,7 +1790,11 @@ export default function ProfilePage({
 
                       let displayedRatings = [];
                       if (friendScoreFilter === 'top5') {
-                        displayedRatings = filteredByGenre.slice(0, 5);
+                        if (secretItem && (friendGenreFilter === 'all' || (Array.isArray(secretItem.genres) && secretItem.genres.includes(friendGenreFilter)))) {
+                          displayedRatings = [secretItem, ...filteredByGenre.slice(0, 4)];
+                        } else {
+                          displayedRatings = filteredByGenre.slice(0, 5);
+                        }
                       } else if (friendScoreFilter === 'all') {
                         displayedRatings = filteredByGenre;
                       } else {

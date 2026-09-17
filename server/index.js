@@ -57,7 +57,7 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.get('/api/version', (req, res) => {
   res.json({
     status: 'ok',
-    version: '1.0.6',
+    version: '1.0.7',
     nodeVersion: process.version,
     hasLowerUtf8: Boolean(db.hasLowerUtf8)
   });
@@ -856,9 +856,12 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
       }
     }
 
+    // Compute stats (for MrTech, exclude secret title from public count so it stays unchanged)
     const stats = db.prepare(`
-      SELECT COUNT(id) as rated_count, ROUND(AVG(score), 1) as avg_score
-      FROM ratings WHERE user_id = ?
+      SELECT COUNT(r.id) as rated_count, ROUND(AVG(r.score), 1) as avg_score
+      FROM ratings r
+      JOIN anime a ON r.anime_id = a.id
+      WHERE r.user_id = ? AND a.title != 'Лимонные девочки'
     `).get(targetUserId);
 
     // Ratings list is sent ONLY if isFriend is true!
@@ -869,7 +872,9 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
         FROM ratings r
         JOIN anime a ON r.anime_id = a.id
         WHERE r.user_id = ?
-        ORDER BY r.score DESC, r.updated_at DESC
+        ORDER BY
+          (CASE WHEN a.title = 'Лимонные девочки' THEN 999 ELSE r.score END) DESC,
+          r.updated_at DESC
       `).all(targetUserId);
     }
 
@@ -880,8 +885,8 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
         avatarUrl: user.avatar_url,
         bannerUrl: user.banner_url,
         createdAt: user.created_at,
-        ratedCount: stats.rated_count || 0,
-        avgScore: isFriend && stats.avg_score !== null ? Number(stats.avg_score) : null,
+        ratedCount: stats ? (stats.rated_count || 0) : 0,
+        avgScore: isFriend && stats && stats.avg_score !== null ? Number(stats.avg_score) : null,
         isFriend,
         friendshipStatus,
         requestId
@@ -895,6 +900,7 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
         year: r.year,
         genres: JSON.parse(r.genres || '[]'),
         score: r.score,
+        isSecretTop: r.title === 'Лимонные девочки',
         updatedAt: r.updated_at
       })),
       isRestricted: !isFriend,
@@ -1246,19 +1252,19 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       }
     }
 
-    // Status filter
+    // Status filter or unrated sort (Photo 1)
     if (filterStatus === 'friends_rated') {
       whereClauses.push('(SELECT COUNT(*) FROM ratings WHERE anime_id = a.id) > 0');
     } else if (filterStatus === 'my_rated' && currentUserId) {
       whereClauses.push('(SELECT COUNT(*) FROM ratings WHERE anime_id = a.id AND user_id = ?) > 0');
       params.push(currentUserId);
-    } else if (filterStatus === 'my_unrated' && currentUserId) {
+    } else if ((filterStatus === 'my_unrated' || sort === 'unrated') && currentUserId) {
       whereClauses.push('(SELECT COUNT(*) FROM ratings WHERE anime_id = a.id AND user_id = ?) = 0');
       params.push(currentUserId);
     }
 
-    // Exclude missing / 404 placeholder covers from catalog (Photo 3)
-    whereClauses.push("a.image_url NOT LIKE '%missing_original%' AND a.image_url NOT LIKE '%404%' AND a.image_url NOT LIKE '%placeholder%'");
+    // Exclude missing / 404 / placehold.co covers and promo commercial junk (Photo 3 & Photo 4)
+    whereClauses.push("a.image_url NOT LIKE '%missing_original%' AND a.image_url NOT LIKE '%404%' AND a.image_url NOT LIKE '%placeholder%' AND a.image_url NOT LIKE '%placehold.co%' AND a.title NOT LIKE '%сникерс%' AND a.original_title NOT LIKE '%snickers%'");
 
     // Exclude anime marked as 'not interested' (hidden) by current user on main catalog (Photo 1 & Photo 4)
     // When searching, keep them in results so they can be shown dimmed / marked as not interested
@@ -1333,7 +1339,6 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
     } else if (sort === 'unrated') {
       orderBySql = `
         ORDER BY
-          (CASE WHEN my_score IS NULL THEN 0 ELSE 1 END) ASC,
           (CASE WHEN avg_score IS NOT NULL THEN 1 ELSE 0 END) DESC,
           avg_score DESC,
           rating_count DESC,
@@ -1760,6 +1765,11 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
         FROM anime a
         LEFT JOIN ratings r ON a.id = r.anime_id
         WHERE a.title_lower LIKE ?
+          AND a.image_url NOT LIKE '%placehold.co%'
+          AND a.image_url NOT LIKE '%placeholder%'
+          AND a.image_url NOT LIKE '%missing_original%'
+          AND a.title NOT LIKE '%сникерс%'
+          AND a.original_title NOT LIKE '%snickers%'
         GROUP BY a.id
       `).all(currentUserId || -1, `${normBase}%`);
 
@@ -1774,6 +1784,14 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
         const tLower = normCand;
         if (c.id === target.id) {
           relation = 'Текущий тайтл';
+        } else if (/пролог|prologue/i.test(tLower)) {
+          relation = 'Пролог / Спешл';
+        } else if (/солнечный день|день девятый|памятный/i.test(tLower)) {
+          relation = 'Спешл';
+        } else if (/спешл|ova|ona|спецвыпуск/i.test(tLower) || c.type === 'OVA' || c.type === 'Спешл') {
+          relation = 'Спешл / OVA';
+        } else if (/фильм|movie/i.test(tLower) || c.type === 'Фильм') {
+          relation = 'Фильм';
         } else if (/часть\s*2|part\s*2/i.test(tLower)) {
           relation = 'Часть 2';
         } else if (/часть\s*3|part\s*3/i.test(tLower)) {
@@ -1786,10 +1804,6 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
           relation = '4-й сезон / Финал';
         } else if (/мини-аниме|спин-офф/i.test(tLower)) {
           relation = 'Мини-аниме / Спин-офф';
-        } else if (/фильм|movie/i.test(tLower) || c.type === 'Фильм') {
-          relation = 'Фильм';
-        } else if (/ova|спешл|ona/i.test(tLower) || c.type === 'OVA' || c.type === 'Спешл') {
-          relation = 'Спешл / OVA';
         } else if (!/[0-9]/.test(tLower)) {
           relation = '1-й сезон / Начало';
         }
@@ -2229,7 +2243,7 @@ app.get('/api/user/rated-anime', authMiddleware, (req, res) => {
     const { search, genres, type, sort = 'my_score_desc' } = req.query;
 
     const params = [userId];
-    let whereClauses = ['r.user_id = ?'];
+    let whereClauses = ['r.user_id = ?', "a.title != 'Лимонные девочки'"];
 
     if (search && search.trim()) {
       const tCol = db.lowerSql ? db.lowerSql('a.title') : 'LOWER(a.title)';
@@ -2647,15 +2661,31 @@ app.get('/api/notifications', authMiddleware, (req, res) => {
     `).get(userId);
 
     return res.json({
-      notifications: notifications.map(n => ({
-        id: n.id,
-        type: n.type,
-        title: n.title,
-        message: n.message,
-        data: JSON.parse(n.data || '{}'),
-        isRead: Boolean(n.is_read),
-        createdAt: n.created_at
-      })),
+      notifications: notifications.map(n => {
+        const data = JSON.parse(n.data || '{}');
+        let isAccepted = false;
+        let isRejected = false;
+        if (n.type === 'friend_request' && data.requestId) {
+          const reqRow = db.prepare('SELECT status FROM friend_requests WHERE id = ?').get(data.requestId);
+          if (reqRow) {
+            if (reqRow.status === 'accepted') isAccepted = true;
+            if (reqRow.status === 'rejected') isRejected = true;
+          } else if (n.is_read) {
+            isAccepted = true;
+          }
+        }
+        return {
+          id: n.id,
+          type: n.type,
+          title: n.title,
+          message: n.message,
+          data,
+          isRead: Boolean(n.is_read),
+          isAccepted,
+          isRejected,
+          createdAt: n.created_at
+        };
+      }),
       unreadCount: unreadRow ? unreadRow.count : 0
     });
   } catch (err) {
@@ -2718,6 +2748,19 @@ module.exports = app;
 if (require.main === module) {
   async function startServer() {
     console.log('[Server] Initializing database & catalog...');
+    try {
+      db.prepare("DELETE FROM ratings WHERE anime_id IN (SELECT id FROM anime WHERE image_url LIKE '%placehold.co%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%')").run();
+      db.prepare("DELETE FROM favorites WHERE anime_id IN (SELECT id FROM anime WHERE image_url LIKE '%placehold.co%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%')").run();
+      db.prepare("DELETE FROM anime WHERE image_url LIKE '%placehold.co%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%'").run();
+      const f1014 = db.prepare('SELECT id FROM anime WHERE id = 1014').get();
+      const f7412 = db.prepare('SELECT id FROM anime WHERE id = 7412').get();
+      if (f1014 && f7412) {
+        db.prepare('UPDATE OR IGNORE ratings SET anime_id = 1014 WHERE anime_id = 7412').run();
+        db.prepare('DELETE FROM ratings WHERE anime_id = 7412').run();
+        db.prepare('DELETE FROM anime WHERE id = 7412').run();
+      }
+    } catch (e) {}
+
     await seedInitialData();
 
     app.listen(PORT, '0.0.0.0', () => {

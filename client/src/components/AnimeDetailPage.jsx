@@ -645,7 +645,7 @@ export default function AnimeDetailPage({
                       )}
                     </div>
 
-                    <h4 className="text-xs font-bold text-neutral-900 dark:text-white truncate mt-1">
+                    <h4 className="text-xs font-bold text-neutral-900 dark:text-white line-clamp-2 mt-1 min-h-[2rem] leading-tight" title={item.title}>
                       {item.title}
                     </h4>
 

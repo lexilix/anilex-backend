@@ -4,6 +4,7 @@ services:
     runtime: node
     plan: free
     region: frankfurt
+    autoDeploy: true
     buildCommand: npm install
     startCommand: node --experimental-sqlite server/index.js
     envVars:

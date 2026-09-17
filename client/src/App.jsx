@@ -353,8 +353,12 @@ export default function App() {
         if (targetPage === 1 && !isSearching) {
           cached = getCachedCatalog(catalogKey);
           if (cached && Array.isArray(cached.items) && cached.items.length > 0) {
-            setAnimeList(cached.items);
-            setTotalCount(cached.total || 0);
+            let items = cached.items;
+            if (activeSort === 'unrated') {
+              items = items.filter((it) => it.myScore === null || it.myScore === undefined);
+            }
+            setAnimeList(items);
+            setTotalCount(activeSort === 'unrated' ? items.length : (cached.total || 0));
             setTotalPages(cached.totalPages || 1);
             setRecommendationCount(cached.recommendationGenresCount || 0);
             setPage(cached.page || 1);
@@ -662,19 +666,26 @@ export default function App() {
 
       // Update in local state
       const targetAnime = animeList.find((it) => it.id === animeId || (it.aliasIds && it.aliasIds.includes(animeId)));
-      setAnimeList((prev) =>
-        prev.map((item) =>
-          (item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId)))
-            ? {
-                ...item,
-                myScore: data.myScore,
-                averageScore: data.averageScore,
-                ratingCount: data.ratingCount,
-                friendsRatings: data.friendsRatings
-              }
-            : item
-        )
-      );
+      if (activeSort === 'unrated' && data.myScore !== null && data.myScore !== undefined) {
+        setAnimeList((prev) =>
+          prev.filter((item) => item.id !== animeId && !(item.aliasIds && item.aliasIds.includes(animeId)))
+        );
+        setTotalCount((prev) => Math.max(0, prev - 1));
+      } else {
+        setAnimeList((prev) =>
+          prev.map((item) =>
+            (item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId)))
+              ? {
+                  ...item,
+                  myScore: data.myScore,
+                  averageScore: data.averageScore,
+                  ratingCount: data.ratingCount,
+                  friendsRatings: data.friendsRatings
+                }
+              : item
+          )
+        );
+      }
 
       // Update in cached catalog and user ratings cache
       updateCachedAnimeItem(animeId, {
