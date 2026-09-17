@@ -1477,7 +1477,7 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
 });
 
 // Single Anime
-app.get('/api/anime/:id', optionalAuthMiddleware, (req, res) => {
+app.get('/api/anime/:id', optionalAuthMiddleware, async (req, res) => {
   try {
     const currentUserId = req.user ? req.user.id : null;
     const animeId = parseInt(req.params.id, 10);
@@ -1485,6 +1485,50 @@ app.get('/api/anime/:id', optionalAuthMiddleware, (req, res) => {
     const anime = db.prepare('SELECT * FROM anime WHERE id = ?').get(animeId);
     if (!anime) {
       return res.status(404).json({ error: 'Аниме не найдено' });
+    }
+
+    let parsedGenres = [];
+    try { parsedGenres = JSON.parse(anime.genres || '[]'); } catch (e) {}
+
+    // On-the-fly auto-enrichment for anime missing genres or description
+    if (parsedGenres.length === 0 || !anime.description || anime.description === 'Описание отсутствует.' || anime.description.length < 20) {
+      try {
+        let fetchedDetails = null;
+        if (anime.slug && anime.slug.startsWith('shiki-')) {
+          const sRes = await fetch(`https://shikimori.one/api/animes/${anime.slug.replace('shiki-', '')}`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+          });
+          if (sRes.ok) fetchedDetails = await sRes.json();
+        }
+        if (!fetchedDetails) {
+          const sRes = await fetch(`https://shikimori.one/api/animes?search=${encodeURIComponent(anime.title)}&limit=3`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+          });
+          if (sRes.ok) {
+            const list = await sRes.json();
+            if (Array.isArray(list) && list[0]) {
+              const dRes = await fetch(`https://shikimori.one/api/animes/${list[0].id}`, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+              });
+              if (dRes.ok) fetchedDetails = await dRes.json();
+            }
+          }
+        }
+
+        if (fetchedDetails) {
+          if (parsedGenres.length === 0 && Array.isArray(fetchedDetails.genres) && fetchedDetails.genres.length > 0) {
+            parsedGenres = fetchedDetails.genres.map(g => g.russian || g.name).filter(Boolean);
+            anime.genres = JSON.stringify(parsedGenres);
+          }
+          if ((!anime.description || anime.description.length < 20 || anime.description === 'Описание отсутствует.') && fetchedDetails.description) {
+            anime.description = fetchedDetails.description.replace(/\[[^\]]+\]/g, '').trim();
+          }
+          db.prepare('UPDATE anime SET genres = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+            .run(anime.genres, anime.description, anime.id);
+        }
+      } catch (e) {
+        // Silently continue if external API is unreachable
+      }
     }
 
     const stats = db.prepare(`
@@ -1529,7 +1573,7 @@ app.get('/api/anime/:id', optionalAuthMiddleware, (req, res) => {
       imageUrl: anime.image_url,
       type: anime.type,
       year: anime.year,
-      genres: JSON.parse(anime.genres || '[]'),
+      genres: parsedGenres,
       description: anime.description,
       myScore,
       isFavorite,

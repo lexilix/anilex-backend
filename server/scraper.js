@@ -68,6 +68,15 @@ function isSameAnime(existing, item) {
     return true;
   }
 
+  // 5. Number-word normalized wordset match (e.g. "999 уровня" vs "девятьсот девяносто девятого уровня")
+  if (typeof db.getWordKey === 'function') {
+    const wKeyItem = db.getWordKey(normTitle);
+    const wKeyEx = db.getWordKey(exTitle);
+    if (wKeyItem && wKeyItem.length >= 8 && wKeyItem === wKeyEx) {
+      return true;
+    }
+  }
+
   return false;
 }
 

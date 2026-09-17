@@ -399,9 +399,66 @@ function saveAccountsBackup() {
 
 db.saveAccountsBackup = saveAccountsBackup;
 
+// Helper for Russian number words normalization
+function normalizeNumberWords(text) {
+  if (!text) return '';
+  return text.toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/девятьсот\s+девяносто\s+девят(?:ого|ый|ое|ом|ая|ь)/g, '999')
+    .replace(/девять\s+тысяч\s+девятьсот\s+девяносто\s+девят(?:ого|ый|ое|ом|ая|ь)/g, '9999')
+    .replace(/девять\s+тысяч\s+четв[её]рт(?:ого|ый|ое|ом|ая)/g, '9004')
+    .replace(/триста/g, '300')
+    .replace(/двести/g, '200')
+    .replace(/сто/g, '100')
+    .replace(/девяносто\s+девят(?:ого|ый|ое|ом|ая|ь)/g, '99')
+    .replace(/перв(?:ый|ого|ое|ая|ом|ую)|1-?й/g, '1')
+    .replace(/втор(?:ой|ого|ое|ая|ом|ую)|2-?й/g, '2')
+    .replace(/трет(?:ий|ьего|ье|ья|ьем|ью)|3-?й/g, '3')
+    .replace(/четв[её]рт(?:ый|ого|ое|ая|ом|ую)|4-?й/g, '4')
+    .replace(/пят(?:ый|ого|ое|ая|ом|ую)|5-?й/g, '5')
+    .replace(/шест(?:ой|ого|ое|ая|ом|ую)|6-?й/g, '6')
+    .replace(/седьм(?:ой|ого|ое|ая|ом|ую)|7-?й/g, '7')
+    .replace(/восьм(?:ой|ого|ое|ая|ом|ую)|8-?й/g, '8')
+    .replace(/девят(?:ый|ого|ое|ая|ом|ую)|9-?й/g, '9')
+    .replace(/десят(?:ый|ого|ое|ая|ом|ую)|10-?й/g, '10');
+}
+
+function getWordKey(title) {
+  const norm = normalizeNumberWords(title)
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const stop = new Set(['к', 'в', 'на', 'с', 'по', 'о', 'от', 'до', 'и', 'из', 'за', 'для', 'у', 'а', 'но', 'то']);
+  const words = norm.split(' ').filter(w => w.length > 0 && !stop.has(w));
+  words.sort();
+  return words.join(' ');
+}
+
+function getOriginalTitles(orig) {
+  if (!orig || orig === 'null') return [];
+  return orig.split('/').map(p => {
+    return p.toLowerCase().trim()
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }).filter(p => p.length >= 4);
+}
+
+function extractSeasonNumber(title) {
+  if (!title) return 1;
+  const t = title.toLowerCase();
+  const m = t.match(/(?:сезон|season|\bчасть|\bpart)\s*([0-9]+)/i);
+  if (m) return parseInt(m[1], 10);
+  const mEnd = t.match(/\s+([2-9]|10)\b(?!\s*уровн|\s*лет|\s*тысяч|\s*секунд)/);
+  if (mEnd) return parseInt(mEnd[1], 10);
+  return 1;
+}
+
 // Auto-deduplicate anime records on startup
 function deduplicateAnimeDatabase() {
   try {
+    // 1. Exact title_lower and year duplicates
     const duplicates = db.prepare(`
       SELECT title_lower as norm_title, year, COUNT(*) as count, GROUP_CONCAT(id) as ids
       FROM anime
@@ -409,9 +466,6 @@ function deduplicateAnimeDatabase() {
       GROUP BY title_lower, year
       HAVING count > 1
     `).all();
-
-    if (duplicates.length === 0) return;
-    console.log(`[Database] Found ${duplicates.length} duplicate anime groups. Merging...`);
 
     for (const group of duplicates) {
       const idList = group.ids.split(',').map(Number);
@@ -477,11 +531,131 @@ function deduplicateAnimeDatabase() {
         WHERE id = ?
       `).run(JSON.stringify(keeperGenres), keeperOrig, normalizeSearchText(keeperOrig), keeperDesc, keeper.id);
     }
+
+    // 2. Number-word and canonical original_title duplicates (Photo 2)
+    const all = db.prepare('SELECT id, slug, title, original_title, year, type, image_url, genres, description FROM anime').all();
+    const checkedPairs = new Set();
+
+    for (let i = 0; i < all.length; i++) {
+      const a = all[i];
+      const aWordKey = getWordKey(a.title);
+      const aOrigs = getOriginalTitles(a.original_title);
+      const aSeason = extractSeasonNumber(a.title);
+      const aIsOva = /ova|спешл|спецвыпуск/i.test(a.title) || a.type === 'OVA' || a.type === 'Спешл';
+
+      for (let j = i + 1; j < all.length; j++) {
+        const b = all[j];
+        const pairKey = [a.id, b.id].sort().join('-');
+        if (checkedPairs.has(pairKey)) continue;
+
+        const yearMatch = !a.year || !b.year || a.year === b.year;
+        if (!yearMatch) continue;
+
+        const bIsOva = /ova|спешл|спецвыпуск/i.test(b.title) || b.type === 'OVA' || b.type === 'Спешл';
+        if (aIsOva !== bIsOva) continue;
+
+        const bSeason = extractSeasonNumber(b.title);
+        if (aSeason !== bSeason) continue;
+
+        let isDup = false;
+        if (aWordKey && aWordKey.length >= 8 && aWordKey === getWordKey(b.title)) {
+          isDup = true;
+        }
+        if (!isDup && aOrigs.length > 0) {
+          const bOrigs = getOriginalTitles(b.original_title);
+          for (const ao of aOrigs) {
+            if (ao.length >= 8 && bOrigs.includes(ao)) {
+              isDup = true;
+              break;
+            }
+          }
+        }
+
+        if (isDup) {
+          checkedPairs.add(pairKey);
+
+          const rA = db.prepare('SELECT count(*) as c FROM ratings WHERE anime_id = ?').get(a.id).c;
+          const rB = db.prepare('SELECT count(*) as c FROM ratings WHERE anime_id = ?').get(b.id).c;
+
+          let keeper = a;
+          let dup = b;
+          if (rB > rA) {
+            keeper = b;
+            dup = a;
+          } else if (rA === rB) {
+            const aIsAnimeGo = !a.slug.startsWith('shiki-');
+            const bIsAnimeGo = !b.slug.startsWith('shiki-');
+            if (!aIsAnimeGo && bIsAnimeGo) {
+              keeper = b;
+              dup = a;
+            }
+          }
+
+          // Merge dup into keeper
+          let bestTitle = keeper.title;
+          if (/[0-9]/.test(dup.title) && !/[0-9]/.test(keeper.title)) {
+            bestTitle = dup.title;
+          }
+
+          let keeperGenres = [];
+          try { keeperGenres = JSON.parse(keeper.genres || '[]'); } catch (e) {}
+          let dupGenres = [];
+          try { dupGenres = JSON.parse(dup.genres || '[]'); } catch (e) {}
+          for (const g of dupGenres) {
+            if (!keeperGenres.includes(g)) keeperGenres.push(g);
+          }
+
+          let origTitle = keeper.original_title || '';
+          if (dup.original_title) {
+            const parts = dup.original_title.split('/').map(p => p.trim()).filter(Boolean);
+            for (const p of parts) {
+              if (!origTitle.toLowerCase().includes(p.toLowerCase())) {
+                origTitle = origTitle ? `${origTitle} / ${p}` : p;
+              }
+            }
+          }
+
+          const keeperDesc = keeper.description || '';
+          const dupDesc = dup.description || '';
+          const bestDesc = (dupDesc.length > keeperDesc.length && dupDesc.length > 30) ? dupDesc : (keeperDesc || dupDesc);
+          const bestYear = keeper.year || dup.year || '';
+          const bestType = keeper.type || dup.type || 'Сериал';
+          const bestImage = (!keeper.image_url || keeper.image_url.includes('placeholder')) ? dup.image_url : keeper.image_url;
+
+          db.prepare(`UPDATE OR IGNORE ratings SET anime_id = ? WHERE anime_id = ?`).run(keeper.id, dup.id);
+          db.prepare(`DELETE FROM ratings WHERE anime_id = ?`).run(dup.id);
+          db.prepare(`UPDATE OR IGNORE favorites SET anime_id = ? WHERE anime_id = ?`).run(keeper.id, dup.id);
+          db.prepare(`DELETE FROM favorites WHERE anime_id = ?`).run(dup.id);
+          db.prepare(`UPDATE OR IGNORE user_hidden_anime SET anime_id = ? WHERE anime_id = ?`).run(keeper.id, dup.id);
+          db.prepare(`DELETE FROM user_hidden_anime WHERE anime_id = ?`).run(dup.id);
+          db.prepare(`UPDATE comments SET anime_id = ? WHERE anime_id = ?`).run(keeper.id, dup.id);
+          db.prepare(`DELETE FROM anime WHERE id = ?`).run(dup.id);
+
+          db.prepare(`
+            UPDATE anime SET
+              title = ?,
+              title_lower = ?,
+              original_title = ?,
+              original_title_lower = ?,
+              image_url = ?,
+              type = ?,
+              year = ?,
+              genres = ?,
+              description = ?,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `).run(bestTitle, normalizeSearchText(bestTitle), origTitle, normalizeSearchText(origTitle), bestImage, bestType, bestYear, JSON.stringify(keeperGenres), bestDesc, keeper.id);
+        }
+      }
+    }
     console.log('[Database] Deduplication completed successfully.');
   } catch (err) {
     console.error('[Database] Deduplication error:', err.message);
   }
 }
+
+db.normalizeNumberWords = normalizeNumberWords;
+db.getWordKey = getWordKey;
 
 deduplicateAnimeDatabase();
 
