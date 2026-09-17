@@ -461,8 +461,8 @@ export default function App() {
         if (filterStatus !== 'all') params.append('filterStatus', filterStatus);
         if (activeGenres.length > 0) params.append('genres', activeGenres.join(','));
         params.append('page', targetPage);
-        // Request 25 so that cover filtering guarantees at least 15 valid items
-        params.append('limit', 25);
+        // Load 15 anime per page progressively
+        params.append('limit', 15);
 
         const headers = {};
         if (token) {

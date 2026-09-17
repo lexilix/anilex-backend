@@ -31,7 +31,9 @@ const {
   fetchNextAnimeGoPage,
   fetchOngoingAnime,
   searchAnimeGo,
-  searchShikimori
+  searchShikimori,
+  scrapeAnimeGoPage,
+  insertOrUpdateAnime
 } = require('./scraper');
 const {
   scrapeAnimeGoUserList,
@@ -1251,7 +1253,7 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       filterStatus,
       sort = 'newest',
       page = 1,
-      limit = 20
+      limit = 15
     } = req.query;
 
     const pageNum = Math.max(1, parseInt(page, 10));
@@ -1275,33 +1277,6 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         meaningfulWords = allWords.filter(w => w.length > 1);
         if (meaningfulWords.length === 0) {
           meaningfulWords = allWords;
-        }
-      }
-
-      // Check if we have matches in local DB using indexed Unicode lower columns
-      let andConditions = [];
-      let andParams = [];
-      for (const w of meaningfulWords) {
-        andConditions.push('(title_lower LIKE ? OR original_title_lower LIKE ?)');
-        andParams.push(`%${w}%`, `%${w}%`);
-      }
-
-      const countCheckSql = `SELECT COUNT(id) as cnt FROM anime WHERE ${andConditions.join(' AND ')}`;
-      const countCheck = db.prepare(countCheckSql).get(...andParams);
-
-      // Check if exact title exists locally
-      const hasExactMatch = db.prepare('SELECT id FROM anime WHERE title_lower = ? OR original_title_lower = ?').get(normSearch, normSearch);
-
-      // If no local results, few results, or missing the exact base title, search online!
-      if (!countCheck || countCheck.cnt < 6 || !hasExactMatch) {
-        console.log(`[Search Live Sync] Searching online sources for "${cleanSearch}" (local cnt: ${countCheck ? countCheck.cnt : 0}, exactMatch: ${!!hasExactMatch})...`);
-        try {
-          await Promise.allSettled([
-            searchAnimeGo(cleanSearch),
-            searchShikimori(cleanSearch)
-          ]);
-        } catch (e) {
-          console.error('[Search Live Sync] Error fetching online anime sources:', e);
         }
       }
 
@@ -1375,22 +1350,6 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-
-    // Check if we need to auto-scrape next page from AnimeGO on the fly!
-    // When requesting near the end of catalog and not doing a narrow text search:
-    if ((!filterStatus || filterStatus === 'all') && !search && (!genres || genres.trim().length === 0) && (!type || type === 'all')) {
-      const currentTotalRow = db.prepare(`SELECT COUNT(DISTINCT a.id) as total FROM anime a ${whereSql}`).get(...params);
-      const currentTotal = currentTotalRow ? currentTotalRow.total : 0;
-
-      if (offset + limitNum >= currentTotal) {
-        console.log(`[AnimeGO Live Sync] Approaching end of catalog (${offset + limitNum} >= ${currentTotal}). Auto-scraping next page...`);
-        try {
-          await fetchNextAnimeGoPage();
-        } catch (e) {
-          console.error('[AnimeGO Live Sync] Error scraping next page:', e);
-        }
-      }
-    }
 
     // Recommendations logic
     let recommendedGenres = [];
@@ -3848,6 +3807,182 @@ if (require.main === module) {
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`[Server] Anime Rating server running at http://0.0.0.0:${PORT}`);
     });
+
+    // ----------------------------------------------------
+    // 5-HOUR BACKGROUND CATALOG UPDATER
+    // Sourced from AnimeGO (primary: https://animego.me)
+    // Fallback / Reserve: Shikimori (https://shikimori.one) & AnimeLib (https://animelib.org)
+    // Rule: Update once every 5 hours. Only update if new release or cover changed.
+    // If not changed, DO NOT TOUCH.
+    // ----------------------------------------------------
+    let isCatalogUpdating = false;
+
+    async function runPeriodicCatalogUpdate() {
+      if (isCatalogUpdating) return;
+      isCatalogUpdating = true;
+
+      console.log('[Catalog Scheduler] Starting scheduled 5-hour catalog update...');
+      let newTitlesAdded = 0;
+      let coversUpdated = 0;
+
+      const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+
+      function processScrapedItem(item) {
+        if (!item || !item.title) return;
+        const cleanTitle = item.title.trim();
+        const cleanOriginal = (item.originalTitle || '').trim();
+        const normTitle = normalize(cleanTitle);
+        const normOriginal = normalize(cleanOriginal);
+
+        let existing = null;
+        if (item.slug) {
+          existing = db.prepare('SELECT id, slug, title, original_title, image_url FROM anime WHERE slug = ?').get(item.slug);
+        }
+        if (!existing) {
+          existing = db.prepare('SELECT id, slug, title, original_title, image_url FROM anime WHERE title_lower = ? OR (original_title_lower IS NOT NULL AND original_title_lower = ?)').get(normTitle, normOriginal);
+        }
+
+        if (existing) {
+          // Existing anime: check if cover changed to a valid non-placeholder image
+          const curImg = existing.image_url || '';
+          const newImg = item.image || '';
+          const isNewValid = newImg && !newImg.includes('missing') && !newImg.includes('404') && !newImg.includes('placehold');
+
+          // Update ONLY if current image was missing/404/broken OR if a genuinely new cover is available
+          const needsCoverUpdate = isNewValid && (curImg !== newImg) && (
+            !curImg ||
+            curImg.includes('missing') ||
+            curImg.includes('404') ||
+            curImg.includes('placehold')
+          );
+
+          if (needsCoverUpdate) {
+            db.prepare(`
+              UPDATE anime
+              SET image_url = ?, updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `).run(newImg, existing.id);
+            coversUpdated++;
+            console.log(`[Catalog Scheduler] Updated cover for "${existing.title}" (ID: ${existing.id})`);
+          }
+          // "если не изменили или не добавили то не трогай" - if no change, do nothing!
+        } else {
+          // Brand new title! Insert it into database
+          insertOrUpdateAnime(item);
+          newTitlesAdded++;
+          console.log(`[Catalog Scheduler] Added new title: "${item.title}"`);
+        }
+      }
+
+      // 1. PRIMARY SOURCE: AnimeGO (https://animego.me)
+      let animeGoSuccess = false;
+      try {
+        console.log('[Catalog Scheduler] Primary source: Checking https://animego.me...');
+        const p1 = await scrapeAnimeGoPage(1);
+        const p2 = await scrapeAnimeGoPage(2);
+        const animeGoItems = [...(p1 || []), ...(p2 || [])];
+
+        if (animeGoItems.length > 0) {
+          animeGoSuccess = true;
+          for (const it of animeGoItems) {
+            processScrapedItem(it);
+          }
+          console.log(`[Catalog Scheduler] AnimeGO: checked ${animeGoItems.length} titles.`);
+        }
+      } catch (err) {
+        console.warn('[Catalog Scheduler] Primary source AnimeGO unavailable:', err.message);
+      }
+
+      // 2. FALLBACK / RESERVE SOURCES: Shikimori (https://shikimori.one) & AnimeLib
+      // If AnimeGO failed or returned 0 items, fetch from reserve sources!
+      if (!animeGoSuccess) {
+        console.log('[Catalog Scheduler] Activating reserve sources (Shikimori & AnimeLib)...');
+
+        // Reserve 1: Shikimori (https://shikimori.one / shikimori.io)
+        try {
+          const shikiRes = await fetch('https://shikimori.one/api/animes?order=popularity&status=ongoing&limit=25', {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+            }
+          });
+          if (shikiRes.ok) {
+            const shikiList = await shikiRes.json();
+            if (Array.isArray(shikiList)) {
+              for (const d of shikiList) {
+                const title = d.russian || d.name;
+                const originalTitle = d.name || '';
+                const slug = `shiki-${d.id}`;
+                const image = d.image?.original ? (d.image.original.startsWith('http') ? d.image.original : `https://shikimori.one${d.image.original}`) : '';
+                if (title && image) {
+                  processScrapedItem({
+                    slug,
+                    title,
+                    originalTitle,
+                    image,
+                    type: 'Сериал',
+                    year: d.aired_on ? d.aired_on.slice(0, 4) : '',
+                    genres: [],
+                    description: ''
+                  });
+                }
+              }
+              console.log(`[Catalog Scheduler] Shikimori reserve processed ${shikiList.length} items.`);
+            }
+          }
+        } catch (sErr) {
+          console.warn('[Catalog Scheduler] Shikimori reserve error:', sErr.message);
+        }
+
+        // Reserve 2: AnimeLib (https://animelib.org / api.lib.social)
+        try {
+          const libRes = await fetch('https://api.lib.social/api/anime?page=1&site_id=5', {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              'Accept': 'application/json'
+            }
+          });
+          if (libRes.ok) {
+            const libData = await libRes.json();
+            const libItems = libData?.data || [];
+            if (Array.isArray(libItems)) {
+              for (const item of libItems) {
+                const title = item.rus_name || item.name;
+                const originalTitle = item.eng_name || item.name || '';
+                const slug = `lib-${item.slug || item.id}`;
+                const image = item.cover?.default || item.cover?.thumbnail || '';
+                if (title && image) {
+                  processScrapedItem({
+                    slug,
+                    title,
+                    originalTitle,
+                    image,
+                    type: 'Сериал',
+                    year: item.releaseDate ? String(item.releaseDate).slice(0, 4) : '',
+                    genres: [],
+                    description: ''
+                  });
+                }
+              }
+              console.log(`[Catalog Scheduler] AnimeLib reserve processed ${libItems.length} items.`);
+            }
+          }
+        } catch (lErr) {
+          console.warn('[Catalog Scheduler] AnimeLib reserve error:', lErr.message);
+        }
+      }
+
+      if (newTitlesAdded > 0 && typeof db.saveAccountsBackup === 'function') {
+        db.saveAccountsBackup();
+      }
+
+      console.log(`[Catalog Scheduler] Update complete. Added: ${newTitlesAdded} new, Updated: ${coversUpdated} covers.`);
+      isCatalogUpdating = false;
+    }
+
+    // Schedule: Once every 5 hours (5 * 60 * 60 * 1000 = 18,000,000 ms)
+    setInterval(runPeriodicCatalogUpdate, 5 * 60 * 60 * 1000);
+    // Background initial run after 30s so server starts up instantly
+    setTimeout(runPeriodicCatalogUpdate, 30 * 1000);
   }
 
   startServer().catch(console.error);
