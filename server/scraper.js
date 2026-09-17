@@ -181,11 +181,11 @@ function insertOrUpdateAnime(item) {
       title_lower = excluded.title_lower,
       original_title = excluded.original_title,
       original_title_lower = excluded.original_title_lower,
-      image_url = excluded.image_url,
+      image_url = (CASE WHEN excluded.image_url NOT LIKE '%missing%' AND excluded.image_url NOT LIKE '%placehold%' THEN excluded.image_url ELSE anime.image_url END),
       type = excluded.type,
-      year = excluded.year,
-      genres = excluded.genres,
-      description = excluded.description,
+      year = (CASE WHEN excluded.year IS NOT NULL AND excluded.year != '' THEN excluded.year ELSE anime.year END),
+      genres = (CASE WHEN excluded.genres IS NOT NULL AND excluded.genres != '[]' AND excluded.genres != '' THEN excluded.genres ELSE anime.genres END),
+      description = (CASE WHEN excluded.description IS NOT NULL AND LENGTH(excluded.description) > 20 THEN excluded.description ELSE anime.description END),
       updated_at = CURRENT_TIMESTAMP
   `);
 

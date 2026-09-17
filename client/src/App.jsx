@@ -406,6 +406,11 @@ export default function App() {
             if (!isSearching && (Boolean(item.isHidden) || hiddenIds.has(item.id))) {
               return false;
             }
+            // When sorting by 'unrated', exclude titles rated by current user (myScore !== null),
+            // while allowing titles rated by other users (averageScore exists)
+            if (activeSort === 'unrated' && item.myScore !== null && item.myScore !== undefined) {
+              return false;
+            }
             const key = `${(item.title || '').trim().toLowerCase()}_${item.year || ''}`;
             if (seen.has(key)) return false;
             seen.add(key);

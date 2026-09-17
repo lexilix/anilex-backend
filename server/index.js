@@ -57,7 +57,7 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.get('/api/version', (req, res) => {
   res.json({
     status: 'ok',
-    version: '1.0.7',
+    version: '1.0.8',
     nodeVersion: process.version,
     hasLowerUtf8: Boolean(db.hasLowerUtf8)
   });
@@ -891,18 +891,39 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
         friendshipStatus,
         requestId
       },
-      ratings: ratings.map(r => ({
-        id: r.id,
-        slug: r.slug,
-        title: r.title,
-        imageUrl: r.image_url,
-        type: r.type,
-        year: r.year,
-        genres: JSON.parse(r.genres || '[]'),
-        score: r.score,
-        isSecretTop: r.title === 'Лимонные девочки',
-        updatedAt: r.updated_at
-      })),
+      ratings: (() => {
+        const formatted = ratings.map(r => ({
+          id: r.id,
+          slug: r.slug,
+          title: r.title,
+          imageUrl: r.image_url,
+          type: r.type,
+          year: r.year,
+          genres: JSON.parse(r.genres || '[]'),
+          score: r.score,
+          isSecretTop: r.title === 'Лимонные девочки',
+          updatedAt: r.updated_at
+        }));
+
+        if ((targetUserId === 20 || user.nickname === 'MrTech') && !formatted.some(r => r.title === 'Лимонные девочки')) {
+          const lemonAnime = db.prepare("SELECT id, slug, title, image_url, type, year, genres FROM anime WHERE title = 'Лимонные девочки'").get();
+          if (lemonAnime) {
+            formatted.unshift({
+              id: lemonAnime.id,
+              slug: lemonAnime.slug,
+              title: lemonAnime.title,
+              imageUrl: lemonAnime.image_url,
+              type: lemonAnime.type,
+              year: lemonAnime.year,
+              genres: JSON.parse(lemonAnime.genres || '[]'),
+              score: 10,
+              isSecretTop: true,
+              updatedAt: new Date().toISOString()
+            });
+          }
+        }
+        return formatted;
+      })(),
       isRestricted: !isFriend,
       message: !isFriend ? 'Оценки пользователя доступны только взаимным друзьям' : null
     });
@@ -2749,9 +2770,23 @@ if (require.main === module) {
   async function startServer() {
     console.log('[Server] Initializing database & catalog...');
     try {
-      db.prepare("DELETE FROM ratings WHERE anime_id IN (SELECT id FROM anime WHERE image_url LIKE '%placehold.co%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%')").run();
-      db.prepare("DELETE FROM favorites WHERE anime_id IN (SELECT id FROM anime WHERE image_url LIKE '%placehold.co%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%')").run();
-      db.prepare("DELETE FROM anime WHERE image_url LIKE '%placehold.co%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%'").run();
+      // Purge blue placeholder junk, restored-anime dummies, and commercial snickers promos
+      db.prepare(`
+        DELETE FROM ratings WHERE anime_id IN (
+          SELECT id FROM anime WHERE image_url LIKE '%placehold.co%' OR image_url LIKE '%placeholder%' OR slug LIKE 'restored-anime-%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%'
+        )
+      `).run();
+      db.prepare(`
+        DELETE FROM favorites WHERE anime_id IN (
+          SELECT id FROM anime WHERE image_url LIKE '%placehold.co%' OR image_url LIKE '%placeholder%' OR slug LIKE 'restored-anime-%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%'
+        )
+      `).run();
+      db.prepare(`
+        DELETE FROM anime WHERE image_url LIKE '%placehold.co%' OR image_url LIKE '%placeholder%' OR slug LIKE 'restored-anime-%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%'
+      `).run();
+      db.prepare('DELETE FROM ratings WHERE anime_id NOT IN (SELECT id FROM anime)').run();
+
+      // Merge fate movie duplicate 7412 -> 1014
       const f1014 = db.prepare('SELECT id FROM anime WHERE id = 1014').get();
       const f7412 = db.prepare('SELECT id FROM anime WHERE id = 7412').get();
       if (f1014 && f7412) {
@@ -2759,7 +2794,21 @@ if (require.main === module) {
         db.prepare('DELETE FROM ratings WHERE anime_id = 7412').run();
         db.prepare('DELETE FROM anime WHERE id = 7412').run();
       }
-    } catch (e) {}
+
+      // Guarantee MrTech 10/10 rating for Lemon Girls
+      const mrTechUser = db.prepare("SELECT id FROM users WHERE nickname = 'MrTech'").get();
+      const lemonAnime = db.prepare("SELECT id FROM anime WHERE title = 'Лимонные девочки'").get();
+      if (mrTechUser && lemonAnime) {
+        const hasRate = db.prepare('SELECT id FROM ratings WHERE user_id = ? AND anime_id = ?').get(mrTechUser.id, lemonAnime.id);
+        if (!hasRate) {
+          db.prepare('INSERT INTO ratings (user_id, anime_id, score, created_at, updated_at) VALUES (?, ?, 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)').run(mrTechUser.id, lemonAnime.id);
+        } else {
+          db.prepare('UPDATE ratings SET score = 10 WHERE id = ?').run(hasRate.id);
+        }
+      }
+    } catch (e) {
+      console.warn('[Server] Startup cleanup warning:', e.message);
+    }
 
     await seedInitialData();
 

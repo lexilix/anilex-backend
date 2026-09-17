@@ -314,21 +314,9 @@ function restoreAccountsFromBackup() {
       for (const r of data.ratings) {
         try {
           const animeExists = db.prepare('SELECT id FROM anime WHERE id = ?').get(r.anime_id);
-          if (!animeExists) {
-            db.prepare(`
-              INSERT OR IGNORE INTO anime (id, slug, title, title_lower, image_url, type, description, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            `).run(
-              r.anime_id,
-              `restored-anime-${r.anime_id}`,
-              `Аниме #${r.anime_id}`,
-              `аниме #${r.anime_id}`,
-              'https://placehold.co/300x450/1e293b/ffffff?text=Anime',
-              'Сериал',
-              'Восстановленное аниме'
-            );
+          if (animeExists) {
+            insertRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
           }
-          insertRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
         } catch (e) {}
       }
     }
