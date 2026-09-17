@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Star, MessageSquare, Send, Trash2, Calendar, Film, User, Bookmark, EyeOff, ThumbsUp, ThumbsDown, CornerDownRight, Lock } from 'lucide-react';
 import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
+import SimilarAnimeFeed from './SimilarAnimeFeed';
 
 export default function AnimeDetailPage({
   animeId,
@@ -669,6 +670,14 @@ export default function AnimeDetailPage({
           </div>
         </div>
       )}
+
+      {/* Similar Anime Feed (Photo 1) */}
+      <SimilarAnimeFeed
+        animeId={animeId}
+        currentAnime={anime}
+        user={user}
+        onSelectAnime={onSelectAnime}
+      />
 
       {/* Comments Section */}
       <div id="comments-section" className="rounded-3xl bg-white dark:bg-[#151518] p-6 sm:p-8 shadow-sm space-y-6">

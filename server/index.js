@@ -1672,6 +1672,178 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
   }
 });
 
+// Similar anime feed by genres and description (Photo 1)
+app.get('/api/anime/:id/similar', optionalAuthMiddleware, async (req, res) => {
+  try {
+    const currentUserId = req.user ? req.user.id : null;
+    const animeId = parseInt(req.params.id, 10);
+    if (isNaN(animeId)) {
+      return res.status(400).json({ error: 'Неверный ID аниме' });
+    }
+
+    const target = db.prepare('SELECT id, slug, title, original_title, year, type, image_url, genres, description FROM anime WHERE id = ?').get(animeId);
+    if (!target) {
+      return res.status(404).json({ error: 'Аниме не найдено' });
+    }
+
+    let targetGenres = [];
+    try {
+      targetGenres = JSON.parse(target.genres || '[]');
+    } catch (e) {
+      targetGenres = [];
+    }
+    const targetGenreSet = new Set(targetGenres.map(g => (g || '').toLowerCase().trim()));
+
+    // Significant keywords from title and description
+    const stopWords = new Set([
+      'аниме', 'сезон', 'серия', 'серии', 'фильм', 'история', 'жизнь', 'мир', 'время',
+      'человек', 'однажды', 'теперь', 'когда', 'только', 'после', 'перед', 'через',
+      'между', 'чтобы', 'будет', 'были', 'было', 'была', 'быть', 'всего', 'также',
+      'очень', 'самый', 'своей', 'своего', 'своих', 'своем', 'может', 'могут',
+      'этого', 'этом', 'этой', 'этих', 'который', 'которая', 'которое', 'которые',
+      'anime', 'season', 'series', 'movie', 'story', 'world', 'with', 'from',
+      'about', 'after', 'before', 'their', 'there', 'where', 'which', 'would', 'could'
+    ]);
+
+    const cleanKeywordsText = `${target.title} ${target.original_title || ''} ${target.description || ''}`
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ');
+
+    const targetKeywords = Array.from(new Set(
+      cleanKeywordsText
+        .split(/\s+/)
+        .filter(w => w.length >= 4 && !stopWords.has(w))
+    )).slice(0, 30);
+
+    // Exclude same franchise continuations (which appear in "Связанное и продолжения")
+    const franchiseBase = extractFranchiseBase(target.title);
+    const normBase = franchiseBase && franchiseBase.length >= 4 ? db.normalizeSearchText(franchiseBase) : null;
+
+    // Load candidates with rating statistics
+    const candidates = db.prepare(`
+      SELECT
+        a.id,
+        a.slug,
+        a.title,
+        a.original_title,
+        a.year,
+        a.type,
+        a.image_url,
+        a.genres,
+        a.description,
+        ROUND(AVG(r.score), 1) as avg_score,
+        COUNT(r.id) as rating_count,
+        (SELECT score FROM ratings WHERE anime_id = a.id AND user_id = ?) as my_score
+      FROM anime a
+      LEFT JOIN ratings r ON a.id = r.anime_id
+      WHERE a.id != ?
+      GROUP BY a.id
+    `).all(currentUserId || -1, animeId);
+
+    const scored = [];
+    const fallbackList = [];
+
+    for (const c of candidates) {
+      // Exclude same franchise titles
+      if (normBase && db.normalizeSearchText(c.title).startsWith(normBase)) {
+        continue;
+      }
+
+      let cGenres = [];
+      try {
+        cGenres = JSON.parse(c.genres || '[]');
+      } catch (e) {
+        cGenres = [];
+      }
+
+      const matchingGenres = cGenres.filter(g => targetGenreSet.has((g || '').toLowerCase().trim()));
+
+      const cText = `${c.title} ${c.original_title || ''} ${c.description || ''}`.toLowerCase();
+      let matchingKeywordsCount = 0;
+      for (const kw of targetKeywords) {
+        if (cText.includes(kw)) {
+          matchingKeywordsCount++;
+        }
+      }
+
+      const avgScore = c.rating_count > 0 && c.avg_score !== null ? Number(c.avg_score) : null;
+      const ratingCount = Number(c.rating_count || 0);
+
+      const itemData = {
+        id: c.id,
+        slug: c.slug,
+        title: c.title,
+        originalTitle: c.original_title,
+        year: c.year,
+        type: c.type,
+        imageUrl: c.image_url,
+        genres: cGenres,
+        matchingGenres,
+        averageScore: avgScore,
+        ratingCount,
+        myScore: c.my_score !== null && c.my_score !== undefined ? c.my_score : null
+      };
+
+      fallbackList.push({
+        ...itemData,
+        score: (avgScore || 5.0) * 10 + Math.min(ratingCount, 20)
+      });
+
+      // Calculate similarity score
+      let simScore = 0;
+      if (matchingGenres.length > 0) {
+        simScore += matchingGenres.length * 25;
+        if (targetGenreSet.size > 0 && matchingGenres.length === targetGenreSet.size) {
+          simScore += 30; // Full genre match bonus
+        }
+      }
+      if (matchingKeywordsCount > 0) {
+        simScore += matchingKeywordsCount * 6;
+      }
+      if (c.type && target.type && c.type === target.type) {
+        simScore += 3;
+      }
+      if (avgScore) {
+        simScore += avgScore * 1.5;
+      }
+      if (ratingCount > 0) {
+        simScore += Math.min(ratingCount, 15);
+      }
+
+      if (matchingGenres.length > 0 || matchingKeywordsCount > 0) {
+        scored.push({
+          ...itemData,
+          similarityScore: Math.round(simScore)
+        });
+      }
+    }
+
+    scored.sort((a, b) => b.similarityScore - a.similarityScore);
+
+    // Ensure we have at least 35 candidates so the carousel can rotate 5 items continuously
+    if (scored.length < 35) {
+      fallbackList.sort((a, b) => b.score - a.score);
+      const existingIds = new Set(scored.map(x => x.id));
+      for (const fb of fallbackList) {
+        if (!existingIds.has(fb.id)) {
+          existingIds.add(fb.id);
+          scored.push({
+            ...fb,
+            similarityScore: Math.round(fb.score)
+          });
+          if (scored.length >= 35) break;
+        }
+      }
+    }
+
+    return res.json({ items: scored.slice(0, 40) });
+  } catch (err) {
+    console.error('Error fetching similar anime:', err);
+    return res.status(500).json({ error: 'Ошибка загрузки похожих тайтлов' });
+  }
+});
+
+
 // Toggle Favorite for an anime
 app.post('/api/anime/:id/favorite', authMiddleware, (req, res) => {
   try {
