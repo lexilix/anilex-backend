@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "savedAt": "2026-09-17T18:46:58.090Z",
+  "savedAt": "2026-09-17T19:39:32.565Z",
   "users": [
     {
       "id": 5,
@@ -166,14 +166,6 @@
       "anime_id": 5297,
       "score": 7,
       "created_at": "2026-09-15 23:39:43",
-      "updated_at": "2026-09-16 23:43:13"
-    },
-    {
-      "id": 37,
-      "user_id": 5,
-      "anime_id": 5271,
-      "score": 0,
-      "created_at": "2026-09-15 23:41:42",
       "updated_at": "2026-09-16 23:43:13"
     },
     {
@@ -516,14 +508,6 @@
       "id": 85,
       "user_id": 5,
       "anime_id": 2771,
-      "score": 6,
-      "created_at": "2026-09-16 11:32:17",
-      "updated_at": "2026-09-16 23:43:13"
-    },
-    {
-      "id": 86,
-      "user_id": 5,
-      "anime_id": 2772,
       "score": 6,
       "created_at": "2026-09-16 11:32:17",
       "updated_at": "2026-09-16 23:43:13"
@@ -1473,14 +1457,6 @@
       "updated_at": "2026-09-16 23:43:13"
     },
     {
-      "id": 216,
-      "user_id": 5,
-      "anime_id": 5915,
-      "score": 10,
-      "created_at": "2026-09-16 11:42:39",
-      "updated_at": "2026-09-16 11:42:39"
-    },
-    {
       "id": 354,
       "user_id": 5,
       "anime_id": 1577,
@@ -1868,14 +1844,6 @@
       "id": 777,
       "user_id": 21,
       "anime_id": 7142,
-      "score": 9,
-      "created_at": "2026-09-16 23:36:41",
-      "updated_at": "2026-09-16 23:43:13"
-    },
-    {
-      "id": 778,
-      "user_id": 21,
-      "anime_id": 7143,
       "score": 9,
       "created_at": "2026-09-16 23:36:41",
       "updated_at": "2026-09-16 23:43:13"
@@ -2689,16 +2657,18 @@
       "id": 7051,
       "slug": "shiki-59062",
       "title": "Гачиакута",
-      "original_title": "",
+      "original_title": null,
       "image_url": "https://shikimori.one/system/animes/original/59062.jpg?1718250377",
       "type": "Сериал",
-      "year": "",
+      "year": null,
       "genres": "[\"Экшен\",\"Сёнен\",\"Фэнтези\"]",
       "description": "«Если в любимые вещи мы вкладываем частичку своей души, то что происходит с ненужными вещами, которые отправляются на помойку?»\n\nТам, где живёт Рудо, мусор скидывают в бездну, которая начинается сразу за пределами города. Туда же сбрасывают и преступников, а тех, кто был с ними связан, отселяют в трущобы. Именно там обитал Рудо, заклеймённый как сын убийцы, пока его самого не обвинили в том, что он убил своего приёмного отца Регто. Рудо не успел и слова вставить в свою защиту, как его уже вышвырнули в мусорную бездну. \nОчутившись внизу, Рудо обнаружил, что находится на огромной свалке, которая тянется так далеко, насколько хватает взгляда. Так Рудо выяснил, что всё это время жил на острове, находящемся в небе, а бездна и есть настоящая поверхность. Наверняка он вскоре погиб бы от ядовитых испарений, но тут его атаковала ожившая мусорная куча.\nВсё идёт к тому, что Рудо предстоит узнать правду о самом себе и окружающем мире. Если он выживет, конечно. А уж если всё-таки выживет, то постараться выполнить последнюю волю умирающего Регто, который завещал ему изменить этот прогнивший мир.",
       "created_at": "2026-09-16 23:36:41",
       "updated_at": "2026-09-17 00:29:56",
       "title_lower": "гачиакута",
-      "original_title_lower": ""
+      "original_title_lower": null,
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7116,
@@ -2713,7 +2683,9 @@
       "created_at": "2026-09-17 00:24:42",
       "updated_at": "2026-09-17 00:24:42",
       "title_lower": "гуррен-лаганн: клип",
-      "original_title_lower": "tengen toppa gurren lagann: kirameki★yoko box - pieces of sweet stars"
+      "original_title_lower": "tengen toppa gurren lagann: kirameki★yoko box - pieces of sweet stars",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7117,
@@ -2728,7 +2700,9 @@
       "created_at": "2026-09-17 00:24:42",
       "updated_at": "2026-09-17 00:24:42",
       "title_lower": "гуррен-лаганн: сладкий сон вирала",
-      "original_title_lower": "tengen toppa gurren lagann movie zenyasai: viral no amai yume / gurren lagann: virals sweet dream / tengen toppa gurren lagann gekijouban zenyasai special: virals sweet dream"
+      "original_title_lower": "tengen toppa gurren lagann movie zenyasai: viral no amai yume / gurren lagann: virals sweet dream / tengen toppa gurren lagann gekijouban zenyasai special: virals sweet dream",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7120,
@@ -2743,7 +2717,9 @@
       "created_at": "2026-09-17 00:24:43",
       "updated_at": "2026-09-17 00:24:43",
       "title_lower": "гуррен-лаганн: параллельные миры 2",
-      "original_title_lower": "tengen toppa gurren lagann: parallel works 2 / tengen toppa gurren-lagann music clip project"
+      "original_title_lower": "tengen toppa gurren lagann: parallel works 2 / tengen toppa gurren-lagann music clip project",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7121,
@@ -2758,7 +2734,9 @@
       "created_at": "2026-09-17 00:24:42",
       "updated_at": "2026-09-17 00:28:33",
       "title_lower": "гуррен-лаганн: параллельные миры",
-      "original_title_lower": "tengen toppa gurren lagann: parallel works"
+      "original_title_lower": "tengen toppa gurren lagann: parallel works",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7140,
@@ -2772,8 +2750,10 @@
       "description": "Десятилетняя Тихиро Огино вместе с родителями садится в машину, чтобы добраться до нового дома, расположенного где-то в глубинке Японии. Решив срезать путь, они попадают в необычный лес, выбравшись из которого, оказываются на прогалине, откуда можно выйти лишь сквозь мощёный тоннель. Пройдя по нему, они оказываются в пустующем заброшенном городке, в котором нет ни души, зато прилавки ломятся от деликатесов. Родители Тихиро решают перекусить, а расплатиться, когда появятся хозяева. Любопытная, как все дети, Тихиро отправляется побродить и вскоре натыкается на мальчика Хаку, потребовавшего, чтобы она немедленно ушла. Уже смеркается, и город наводняют странные звуки и тени. Вернувшись к родителям, Тихиро в ужасе видит, как те полнеют на глазах и в итоге превращаются в свиней.\nЧерез некоторое время Хаку находит Тихиро и объясняет ей суть происходящего: они в волшебном мире, где людям не место, а правит здесь колдунья Юбаба, превращающая людей в животных. Исключения делаются лишь для гостей и работников. И если Тихиро хочет вернуть родителей, ей нужно прийти к колдунье и попросить дать ей работу — в этом та не имеет права отказать.",
       "created_at": "2026-09-16 23:36:41",
       "updated_at": "2026-09-17 00:28:34",
-      "title_lower": "унесённые призраками",
-      "original_title_lower": null
+      "title_lower": "унесенные призраками",
+      "original_title_lower": null,
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7141,
@@ -2788,7 +2768,9 @@
       "created_at": "2026-09-16 23:36:41",
       "updated_at": "2026-09-17 00:28:35",
       "title_lower": "ведьмина служба доставки",
-      "original_title_lower": null
+      "original_title_lower": null,
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7142,
@@ -2803,7 +2785,9 @@
       "created_at": "2026-09-16 23:36:41",
       "updated_at": "2026-09-17 00:28:35",
       "title_lower": "мой сосед тоторо",
-      "original_title_lower": null
+      "original_title_lower": null,
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7143,
@@ -2818,7 +2802,9 @@
       "created_at": "2026-09-16 23:36:41",
       "updated_at": "2026-09-17 00:28:36",
       "title_lower": "клинок, рассекающий демонов: бесконечный поезд. фильм",
-      "original_title_lower": null
+      "original_title_lower": null,
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7152,
@@ -2833,7 +2819,9 @@
       "created_at": "2026-09-16 23:43:13",
       "updated_at": "2026-09-17 00:28:37",
       "title_lower": "ходячий замок",
-      "original_title_lower": null
+      "original_title_lower": null,
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7153,
@@ -2848,7 +2836,9 @@
       "created_at": "2026-09-16 23:43:13",
       "updated_at": "2026-09-17 18:46:23",
       "title_lower": "дьявол может плакать (2025)",
-      "original_title_lower": null
+      "original_title_lower": "devil may cry (2025) / dmc",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7159,
@@ -2863,7 +2853,9 @@
       "created_at": "2026-09-16 23:43:13",
       "updated_at": "2026-09-17 00:29:56",
       "title_lower": "атака титанов 3",
-      "original_title_lower": "shingeki no kyojin season 3"
+      "original_title_lower": "shingeki no kyojin season 3",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7160,
@@ -2878,7 +2870,9 @@
       "created_at": "2026-09-17 00:24:43",
       "updated_at": "2026-09-17 00:24:43",
       "title_lower": "атака титанов 3: спецвыпуски",
-      "original_title_lower": "shingeki no kyojin season 3 specials / attack on titan: chibi theater - survey corps, levi squad! / вторжение гигантов 3: спецвыпуски / shingeki no kyojin: chimi chara gekijou tondeke! shinsei levi han"
+      "original_title_lower": "shingeki no kyojin season 3 specials / attack on titan: chibi theater - survey corps, levi squad! / вторжение гигантов 3: спецвыпуски / shingeki no kyojin: chimi chara gekijou tondeke! shinsei levi han",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7161,
@@ -2893,7 +2887,9 @@
       "created_at": "2026-09-17 00:24:43",
       "updated_at": "2026-09-17 00:24:43",
       "title_lower": "атака титанов: финал — заключительная глава",
-      "original_title_lower": "shingeki no kyojin: the final season - kanketsu-hen / attack on titan: final season - the final chapters / вторжение гигантов: финал — заключительная глава / атакующий титан: финал — заключительная глава / shingeki no kyojin: the final season part 3 / shingeki no kyojin season 4 / attack on titan season 4"
+      "original_title_lower": "shingeki no kyojin: the final season - kanketsu-hen / attack on titan: final season - the final chapters / вторжение гигантов: финал — заключительная глава / атакующий титан: финал — заключительная глава / shingeki no kyojin: the final season part 3 / shingeki no kyojin season 4 / attack on titan season 4",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7168,
@@ -2908,7 +2904,9 @@
       "created_at": "2026-09-16 23:43:13",
       "updated_at": "2026-09-17 00:29:56",
       "title_lower": "рыба",
-      "original_title_lower": "gyo: tokyo fish attack"
+      "original_title_lower": "gyo: tokyo fish attack",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7170,
@@ -2923,7 +2921,9 @@
       "created_at": "2026-09-17 09:54:05",
       "updated_at": "2026-09-17 10:52:01",
       "title_lower": "лимонные девочки",
-      "original_title_lower": "shoujo ramune / девичий лимонад / лимонадные девочки"
+      "original_title_lower": "shoujo ramune / девичий лимонад / лимонадные девочки",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7171,
@@ -2938,7 +2938,9 @@
       "created_at": "2026-09-17 09:54:05",
       "updated_at": "2026-09-17 09:54:05",
       "title_lower": "небесные девочки",
-      "original_title_lower": "sky girls / sky girls tv / sky girls (2007)"
+      "original_title_lower": "sky girls / sky girls tv / sky girls (2007)",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7172,
@@ -2953,7 +2955,9 @@
       "created_at": "2026-09-17 09:54:05",
       "updated_at": "2026-09-17 09:54:05",
       "title_lower": "чудесные девчушки",
-      "original_title_lower": "miracle☆girls / чудо девочки"
+      "original_title_lower": "miracle☆girls / чудо девочки",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7173,
@@ -2968,7 +2972,9 @@
       "created_at": "2026-09-17 09:54:05",
       "updated_at": "2026-09-17 09:54:05",
       "title_lower": "ракетные девочки",
-      "original_title_lower": "rocket girls"
+      "original_title_lower": "rocket girls",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7174,
@@ -2983,7 +2989,9 @@
       "created_at": "2026-09-17 09:54:05",
       "updated_at": "2026-09-17 10:55:20",
       "title_lower": "девочки-роботы",
-      "original_title_lower": "toei robot girls"
+      "original_title_lower": "toei robot girls",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7175,
@@ -2998,7 +3006,9 @@
       "created_at": "2026-09-17 09:54:05",
       "updated_at": "2026-09-17 10:55:21",
       "title_lower": "война девочки",
-      "original_title_lower": "ecchan no sensou"
+      "original_title_lower": "ecchan no sensou",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7176,
@@ -3013,7 +3023,9 @@
       "created_at": "2026-09-17 09:54:05",
       "updated_at": "2026-09-17 10:55:22",
       "title_lower": "девочки-трансформеры",
-      "original_title_lower": "henkei shoujo"
+      "original_title_lower": "henkei shoujo",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7177,
@@ -3028,7 +3040,9 @@
       "created_at": "2026-09-17 09:54:06",
       "updated_at": "2026-09-17 10:55:22",
       "title_lower": "девушки-кайдзю",
-      "original_title_lower": "kaijuu girls: ultra kaijuu gijinka keikaku"
+      "original_title_lower": "kaijuu girls: ultra kaijuu gijinka keikaku",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7178,
@@ -3043,7 +3057,9 @@
       "created_at": "2026-09-17 10:52:01",
       "updated_at": "2026-09-17 10:52:01",
       "title_lower": "наруто",
-      "original_title_lower": "naruto"
+      "original_title_lower": "naruto",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7179,
@@ -3058,7 +3074,9 @@
       "created_at": "2026-09-17 10:52:01",
       "updated_at": "2026-09-17 10:52:01",
       "title_lower": "повелитель 2",
-      "original_title_lower": "overlord ii / overlord 2"
+      "original_title_lower": "overlord ii / overlord 2",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7180,
@@ -3073,7 +3091,9 @@
       "created_at": "2026-09-17 10:52:01",
       "updated_at": "2026-09-17 10:52:01",
       "title_lower": "атака титанов 3. часть 2",
-      "original_title_lower": "shingeki no kyojin season 3 part 2 / attack on titan season 3 part 2"
+      "original_title_lower": "shingeki no kyojin season 3 part 2 / attack on titan season 3 part 2",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7181,
@@ -3088,7 +3108,9 @@
       "created_at": "2026-09-17 10:52:01",
       "updated_at": "2026-09-17 10:52:01",
       "title_lower": "атака титанов: финал",
-      "original_title_lower": "shingeki no kyojin: the final season / attack on titan: final season"
+      "original_title_lower": "shingeki no kyojin: the final season / attack on titan: final season",
+      "season": "",
+      "related_json": "[]"
     },
     {
       "id": 7182,
@@ -3103,7 +3125,9 @@
       "created_at": "2026-09-17 10:52:01",
       "updated_at": "2026-09-17 10:52:01",
       "title_lower": "атака титанов: финал. часть 2",
-      "original_title_lower": "shingeki no kyojin: the final season part 2 / attack on titan: final season part 2"
+      "original_title_lower": "shingeki no kyojin: the final season part 2 / attack on titan: final season part 2",
+      "season": "",
+      "related_json": "[]"
     }
   ]
 }

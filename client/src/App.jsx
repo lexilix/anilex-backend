@@ -10,13 +10,14 @@ import ProfileEditPage from './components/ProfileEditPage';
 import FeaturedCarousel from './components/FeaturedCarousel';
 import NotificationToast from './components/NotificationToast';
 import DevConsolePage from './components/DevConsolePage';
-import { Sparkles, Film, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Sparkles, Film, Loader2, ChevronLeft, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react';
 import { apiUrl } from './api';
 import {
   getCachedCatalog,
   setCachedCatalog,
   getCachedPage,
   setCachedPage,
+  getAnyCachedCatalog,
   searchCachedAnime,
   getAllCachedAnime,
   hasCatalogChanged,
@@ -85,6 +86,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState(null);
 
   // Infinite scroll trigger ref
   const observerTarget = useRef(null);
@@ -400,13 +402,27 @@ export default function App() {
         if (activeSort === 'unrated') {
           items = items.filter((it) => it.myScore === null || it.myScore === undefined);
         }
-        setAnimeList(items);
-        setTotalCount(activeSort === 'unrated' ? items.length : (cached.total || 0));
-        setTotalPages(cached.totalPages || 1);
+        const page15 = items.slice(0, 15);
+        setAnimeList(page15);
+        setTotalCount(activeSort === 'unrated' ? page15.length : (cached.total || page15.length));
+        setTotalPages(cached.totalPages || Math.max(1, Math.ceil((cached.total || page15.length) / 15)));
         setRecommendationCount(cached.recommendationGenresCount || 0);
         setPage(targetPage);
         setLoading(false);
+        setCatalogError(null);
+        // Page was loaded instantly from cache!
         return;
+      } else if (targetPage === 1 && !isSearching && animeList.length === 0) {
+        // Instant fallback to any cached catalog items so the screen is NEVER blank
+        const anyCached = getAnyCachedCatalog();
+        if (anyCached && Array.isArray(anyCached.items) && anyCached.items.length > 0) {
+          const page15 = anyCached.items.slice(0, 15).map(applyCustomAnimeEdits);
+          setAnimeList(page15);
+          setTotalCount(anyCached.total || page15.length);
+          setTotalPages(anyCached.totalPages || Math.max(1, Math.ceil((anyCached.total || page15.length) / 15)));
+          setLoading(false);
+          setCatalogError(null);
+        }
       }
 
       // If searching, check for immediate instant matches from cached titles and custom edits
@@ -428,10 +444,11 @@ export default function App() {
           setTotalCount(quickResults.length);
           setTotalPages(1);
           setLoading(false);
+          setCatalogError(null);
         } else {
           setLoading(true);
         }
-      } else {
+      } else if (animeList.length === 0) {
         setLoading(true);
       }
 
@@ -444,7 +461,8 @@ export default function App() {
         if (filterStatus !== 'all') params.append('filterStatus', filterStatus);
         if (activeGenres.length > 0) params.append('genres', activeGenres.join(','));
         params.append('page', targetPage);
-        params.append('limit', 15);
+        // Request 25 so that cover filtering guarantees at least 15 valid items
+        params.append('limit', 25);
 
         const headers = {};
         if (token) {
@@ -452,7 +470,7 @@ export default function App() {
         }
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        const timeoutId = setTimeout(() => controller.abort(), 40000); // 40s timeout for Render cold start
 
         const res = await fetch(apiUrl(`/api/anime?${params.toString()}`), {
           headers,
@@ -617,30 +635,39 @@ export default function App() {
           sanitized = deduplicateAnimeList(sanitized);
         }
 
+        // Strictly take 15 items per page for catalog navigation
+        const displayPageItems = isSearching ? sanitized : sanitized.slice(0, 15);
+        const resolvedTotal = Math.max(displayPageItems.length, data.total || 0);
+        const resolvedPages = data.totalPages || Math.max(1, Math.ceil(resolvedTotal / 15));
+
         // Save page to cache
         setCachedPage(filterKey, targetPage, {
-          items: sanitized,
+          items: displayPageItems,
           page: targetPage,
-          total: data.total,
-          totalPages: data.totalPages,
+          total: resolvedTotal,
+          totalPages: resolvedPages,
           recommendationGenresCount: data.recommendationGenresCount
         });
 
-        setAnimeList(sanitized);
-        const countReduction = newItems.length - sanitized.length;
-        const adjustedTotal = Math.max(sanitized.length, (data.total || 0) - Math.max(0, countReduction));
-        setTotalCount(adjustedTotal);
-        setTotalPages(data.totalPages || 1);
+        setAnimeList(displayPageItems);
+        setTotalCount(resolvedTotal);
+        setTotalPages(resolvedPages);
         setPage(targetPage);
         setRecommendationCount(data.recommendationGenresCount || 0);
+        setCatalogError(null);
       } catch (err) {
         console.error('Error loading anime catalog:', err);
-        if (targetPage === 1 && animeList.length === 0) {
-          const fallback = getCachedCatalog(filterKey) || getCachedCatalog('snewest_tall_yall_stall_g_q_uanon');
-          if (fallback && Array.isArray(fallback.items) && fallback.items.length > 0) {
-            setAnimeList(fallback.items.slice(0, 15).map(applyCustomAnimeEdits));
-            setTotalCount(fallback.total || fallback.items.length);
-            setTotalPages(Math.ceil((fallback.total || fallback.items.length) / 15));
+        // Fallback to cache if catalog is empty
+        if (animeList.length === 0) {
+          const anyFallback = getAnyCachedCatalog();
+          if (anyFallback && Array.isArray(anyFallback.items) && anyFallback.items.length > 0) {
+            const page15 = anyFallback.items.slice(0, 15).map(applyCustomAnimeEdits);
+            setAnimeList(page15);
+            setTotalCount(anyFallback.total || page15.length);
+            setTotalPages(anyFallback.totalPages || Math.max(1, Math.ceil((anyFallback.total || page15.length) / 15)));
+            setCatalogError(null);
+          } else {
+            setCatalogError('failed');
           }
         }
       } finally {
@@ -947,6 +974,9 @@ export default function App() {
     setActiveSort('newest');
     setSearchQuery('');
     setDebouncedSearch('');
+    setCatalogError(null);
+    setPage(1);
+    fetchAnime(1, false);
   };
 
   // Open friends tab in profile
@@ -1173,13 +1203,42 @@ export default function App() {
                 {/* Initial Loading Indicator */}
                 {loading && animeList.length === 0 && (
                   <div className="py-20 flex flex-col items-center justify-center text-neutral-400 gap-3">
-                    <Loader2 className="w-8 h-8 animate-spin" />
-                    <span className="text-xs font-medium">Загрузка каталога аниме...</span>
+                    <Loader2 className="w-8 h-8 animate-spin text-neutral-600 dark:text-neutral-300" />
+                    <span className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">Загрузка каталога аниме...</span>
+                    <span className="text-xs text-neutral-400 opacity-80">Подключаемся к базе тайтлов...</span>
+                  </div>
+                )}
+
+                {/* Connection Error State with active retry */}
+                {!loading && catalogError === 'failed' && animeList.length === 0 && (
+                  <div className="py-16 text-center rounded-3xl bg-white dark:bg-[#151518] p-8 shadow-sm border border-amber-500/20">
+                    <AlertCircle className="w-12 h-12 mx-auto text-amber-500 mb-3" />
+                    <h3 className="text-base font-bold text-neutral-900 dark:text-white">
+                      Не удалось подключиться к серверу каталога
+                    </h3>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1.5 max-w-sm mx-auto">
+                      Сервер может просыпаться после сна или возникла задержка сети. Нажмите кнопку для повторной загрузки.
+                    </p>
+                    <div className="mt-5 flex items-center justify-center gap-3">
+                      <button
+                        onClick={() => fetchAnime(page || 1, false)}
+                        className="px-5 py-2.5 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-bold flex items-center gap-2 hover:opacity-90 transition-opacity"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Повторить загрузку
+                      </button>
+                      <button
+                        onClick={handleResetFilters}
+                        className="px-4 py-2.5 rounded-2xl bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-xs font-semibold hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+                      >
+                        Сбросить фильтры
+                      </button>
+                    </div>
                   </div>
                 )}
 
                 {/* Empty State */}
-                {!loading && animeList.length === 0 && (
+                {!loading && !catalogError && animeList.length === 0 && (
                   <div className="py-16 text-center rounded-3xl bg-white dark:bg-[#151518] p-8 shadow-sm">
                     <Film className="w-12 h-12 mx-auto text-neutral-300 dark:text-neutral-700 mb-3" />
                     <h3 className="text-base font-bold text-neutral-900 dark:text-white">

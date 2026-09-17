@@ -151,6 +151,21 @@ export function getAllCachedAnime() {
 }
 
 /**
+ * Fallback to provide immediate items from any cached page if target page is not yet cached.
+ */
+export function getAnyCachedCatalog() {
+  const all = getAllCachedAnime();
+  if (all.length > 0) {
+    return {
+      items: all.slice(0, 15),
+      total: all.length,
+      totalPages: Math.max(1, Math.ceil(all.length / 15))
+    };
+  }
+  return null;
+}
+
+/**
  * Searches across all cached items for matches on title, original title, or description.
  */
 export function searchCachedAnime(query) {

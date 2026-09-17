@@ -1365,7 +1365,7 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
     }
 
     // Exclude missing / 404 / placehold.co covers and promo commercial junk (Photo 3 & Photo 4)
-    whereClauses.push("a.image_url NOT LIKE '%missing_original%' AND a.image_url NOT LIKE '%404%' AND a.image_url NOT LIKE '%placeholder%' AND a.image_url NOT LIKE '%placehold.co%' AND a.title NOT LIKE '%сникерс%' AND a.original_title NOT LIKE '%snickers%'");
+    whereClauses.push("a.image_url IS NOT NULL AND a.image_url != '' AND a.image_url NOT LIKE '%missing_original%' AND a.image_url NOT LIKE '%404%' AND a.image_url NOT LIKE '%placeholder%' AND a.image_url NOT LIKE '%placehold.co%' AND a.title NOT LIKE '%сникерс%' AND a.original_title NOT LIKE '%snickers%'");
 
     // Exclude anime marked as 'not interested' (hidden) by current user on main catalog (Photo 1 & Photo 4)
     // When searching, keep them in results so they can be shown dimmed / marked as not interested
@@ -3771,19 +3771,19 @@ if (require.main === module) {
   async function startServer() {
     console.log('[Server] Initializing database & catalog...');
     try {
-      // Purge blue placeholder junk, restored-anime dummies, and commercial snickers promos
+      // Purge blue placeholder junk, missing_original covers, 404s, and commercial snickers promos
       db.prepare(`
         DELETE FROM ratings WHERE anime_id IN (
-          SELECT id FROM anime WHERE image_url LIKE '%placehold.co%' OR image_url LIKE '%placeholder%' OR slug LIKE 'restored-anime-%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%'
+          SELECT id FROM anime WHERE image_url LIKE '%placehold.co%' OR image_url LIKE '%placeholder%' OR image_url LIKE '%missing_original%' OR image_url LIKE '%404%' OR image_url IS NULL OR image_url = '' OR slug LIKE 'restored-anime-%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%'
         )
       `).run();
       db.prepare(`
         DELETE FROM favorites WHERE anime_id IN (
-          SELECT id FROM anime WHERE image_url LIKE '%placehold.co%' OR image_url LIKE '%placeholder%' OR slug LIKE 'restored-anime-%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%'
+          SELECT id FROM anime WHERE image_url LIKE '%placehold.co%' OR image_url LIKE '%placeholder%' OR image_url LIKE '%missing_original%' OR image_url LIKE '%404%' OR image_url IS NULL OR image_url = '' OR slug LIKE 'restored-anime-%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%'
         )
       `).run();
       db.prepare(`
-        DELETE FROM anime WHERE image_url LIKE '%placehold.co%' OR image_url LIKE '%placeholder%' OR slug LIKE 'restored-anime-%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%'
+        DELETE FROM anime WHERE image_url LIKE '%placehold.co%' OR image_url LIKE '%placeholder%' OR image_url LIKE '%missing_original%' OR image_url LIKE '%404%' OR image_url IS NULL OR image_url = '' OR slug LIKE 'restored-anime-%' OR title LIKE '%сникерс%' OR original_title LIKE '%snickers%'
       `).run();
       db.prepare('DELETE FROM ratings WHERE anime_id NOT IN (SELECT id FROM anime)').run();
 
