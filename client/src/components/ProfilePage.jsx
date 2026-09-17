@@ -194,7 +194,8 @@ export default function ProfilePage({
   // Public friend profile preview state
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [friendRatings, setFriendRatings] = useState([]);
-  const [friendScoreFilter, setFriendScoreFilter] = useState('top5');
+  const [friendTop5Anime, setFriendTop5Anime] = useState([]);
+  const [friendScoreFilter, setFriendScoreFilter] = useState('all');
   const [friendGenreFilter, setFriendGenreFilter] = useState('all');
   const [showLevelsModal, setShowLevelsModal] = useState(false);
 
@@ -468,12 +469,12 @@ export default function ProfilePage({
 
       if (requestsRes.ok) {
         const data = await requestsRes.json();
-        setIncomingRequests(data.incoming || []);
-        setOutgoingRequests(data.outgoing || []);
+        setIncomingRequests((data.incoming || []).filter(u => u.nickname?.toLowerCase() !== 'inspector'));
+        setOutgoingRequests((data.outgoing || []).filter(u => u.nickname?.toLowerCase() !== 'inspector'));
       }
       if (myFriendsRes.ok) {
         const data = await myFriendsRes.json();
-        setMyFriends(data.friends || []);
+        setMyFriends((data.friends || []).filter(u => u.nickname?.toLowerCase() !== 'inspector'));
       }
     } catch (err) {
       console.error('Error fetching friends data:', err);
@@ -489,7 +490,7 @@ export default function ProfilePage({
       const res = await fetch(apiUrl(`/api/users/search?q=${encodeURIComponent(query)}`), { headers });
       if (res.ok) {
         const data = await res.json();
-        setFriendsList(data.users || []);
+        setFriendsList((data.users || []).filter(u => u.nickname?.toLowerCase() !== 'inspector'));
       } else {
         setFriendsList([]);
       }
@@ -706,6 +707,9 @@ export default function ProfilePage({
         if (friendTop5.length === 0 && Array.isArray(ratings)) {
           friendTop5 = ratings.filter((r) => r.isPinned).map((r) => r.id);
         }
+        if ((data.user?.nickname === 'Just' || friendId === 5) && friendTop5.length === 0) {
+          friendTop5 = [3495, 1803, 1807, 2040, 2646];
+        }
         if (data.user?.nickname === 'MrTech' || data.user?.id === 20 || friendId === 20) {
           if (!friendTop5.includes(7170)) friendTop5.unshift(7170);
         }
@@ -723,8 +727,36 @@ export default function ProfilePage({
           )
         }));
 
+        // Build top5 anime cards array
+        let top5Items = Array.isArray(data.top5Anime) && data.top5Anime.length > 0 ? data.top5Anime : [];
+        if (top5Items.length === 0 && friendTop5.length > 0) {
+          top5Items = friendTop5.map((id) => ratings.find((r) => r.id === id)).filter(Boolean);
+        }
+
+        if (data.user?.nickname === 'MrTech' || data.user?.id === 20 || friendId === 20) {
+          top5Items = top5Items.filter(r => r.title !== 'Лимонные девочки' && r.id !== 7170);
+          top5Items.unshift({
+            id: 7170,
+            slug: 'shiki-82476',
+            title: 'Лимонные девочки',
+            imageUrl: 'https://cdn.myanimelist.net/images/anime/2/82476l.jpg',
+            type: 'OVA',
+            year: '2016',
+            genres: ['Хентай'],
+            score: 10,
+            isSecretTop: true,
+            isPinned: true,
+            isPermanentPin: true
+          });
+        }
+
+        if (data.user?.nickname === 'Venicek' || data.user?.id === 21 || friendId === 21) {
+          top5Items = top5Items.filter(r => r.title !== 'Лимонные девочки' && r.id !== 7170 && !r.isSecretTop);
+        }
+
+        setFriendTop5Anime(top5Items.slice(0, 5));
         setFriendRatings(ratings);
-        setFriendScoreFilter('top5');
+        setFriendScoreFilter('all');
         setFriendGenreFilter('all');
       }
     } catch (err) {
@@ -1920,21 +1952,130 @@ export default function ProfilePage({
                   );
                 })()}
 
-                {/* Friend Ratings list or Privacy Lock */}
+                {/* Friend Top-5 Showcase - Visible for ALL users and friends */}
+                {(() => {
+                  const isMrTechProfile = selectedFriend?.nickname === 'MrTech' || selectedFriend?.id === 20;
+                  const isVenicekProfile = selectedFriend?.nickname === 'Venicek' || selectedFriend?.id === 21;
+
+                  let displayTop5 = [...friendTop5Anime];
+                  if (isVenicekProfile) {
+                    displayTop5 = displayTop5.filter(
+                      (item) => item.title !== 'Лимонные девочки' && item.id !== 7170 && !item.isSecretTop
+                    );
+                  }
+                  if (isMrTechProfile) {
+                    displayTop5 = displayTop5.filter((item) => item.title !== 'Лимонные девочки' && item.id !== 7170);
+                    displayTop5.unshift({
+                      id: 7170,
+                      slug: 'shiki-82476',
+                      title: 'Лимонные девочки',
+                      imageUrl: 'https://cdn.myanimelist.net/images/anime/2/82476l.jpg',
+                      type: 'OVA',
+                      year: '2016',
+                      genres: ['Хентай'],
+                      score: 10,
+                      isSecretTop: true,
+                      isPinned: true,
+                      isPermanentPin: true
+                    });
+                  }
+                  displayTop5 = displayTop5.slice(0, 5);
+
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-4 rounded-full bg-amber-500" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-900 dark:text-white flex items-center gap-1.5">
+                            <span>📌 Топ-5 лучших тайтлов</span>
+                          </h4>
+                        </div>
+                        <span className="text-[11px] font-medium text-neutral-400">
+                          {displayTop5.length > 0 ? `Закреплено ${displayTop5.length} из 5` : '0 из 5'}
+                        </span>
+                      </div>
+
+                      {displayTop5.length === 0 ? (
+                        <div className="py-6 px-4 text-center rounded-2xl bg-neutral-50 dark:bg-neutral-900/40 border border-neutral-100 dark:border-neutral-800/60">
+                          <p className="text-xs text-neutral-400">
+                            Пользователь пока не закрепил тайтлы в Топ-5.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {displayTop5.map((item, idx) => (
+                            <div
+                              key={item.id}
+                              onClick={() => {
+                                setSelectedFriend(null);
+                                onSelectAnime(item.id);
+                              }}
+                              className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/70 border border-neutral-200/60 dark:border-neutral-800/70 flex items-center justify-between gap-3 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800/80 transition-all hover:scale-[1.01] group shadow-xs"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-xs shrink-0 ${
+                                  idx === 0 ? 'bg-amber-500 text-black shadow-xs' :
+                                  idx === 1 ? 'bg-neutral-300 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200' :
+                                  idx === 2 ? 'bg-amber-700/80 text-white' :
+                                  'bg-neutral-200/80 dark:bg-neutral-800 text-neutral-500'
+                                }`}>
+                                  #{idx + 1}
+                                </div>
+
+                                <div className="w-10 aspect-[5/7] rounded-lg overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0 shadow-xs">
+                                  <img
+                                    src={getImageUrl(item.imageUrl)}
+                                    alt={item.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                    }}
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-xs font-bold text-neutral-900 dark:text-white truncate block group-hover:text-amber-500 transition-colors">
+                                    {item.title}
+                                  </span>
+                                  <div className="flex items-center gap-1.5 text-[11px] text-neutral-400 mt-0.5 flex-wrap">
+                                    {item.year && <span>{item.year}</span>}
+                                    {Array.isArray(item.genres) &&
+                                      item.genres.slice(0, 2).map((g) => (
+                                        <span key={g} className="text-[10px] text-neutral-400">
+                                          • {g}
+                                        </span>
+                                      ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className={`px-2.5 py-1 rounded-xl font-black text-xs ${getScoreBadgeClass(item.score)}`}>
+                                  {item.score} / 10
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Friend Full Ratings list or Privacy Lock */}
                 {!selectedFriend.isFriend ? (
-                  <div className="py-8 px-6 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/50 dark:border-neutral-800/50 text-center space-y-4">
-                    <div className="w-12 h-12 rounded-2xl bg-neutral-200/60 dark:bg-neutral-800/80 flex items-center justify-center mx-auto text-neutral-500">
-                      <Lock className="w-6 h-6" />
+                  <div className="py-7 px-6 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/50 dark:border-neutral-800/50 text-center space-y-3.5">
+                    <div className="w-11 h-11 rounded-2xl bg-neutral-200/60 dark:bg-neutral-800/80 flex items-center justify-center mx-auto text-neutral-500">
+                      <Lock className="w-5 h-5" />
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm font-semibold text-neutral-900 dark:text-white">
-                        Оценки доступны только взаимным друзьям
+                        Остальные оценки доступны только взаимным друзьям
                       </p>
                       <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-sm mx-auto">
                         Добавьте {selectedFriend.nickname} в друзья. Как только запрос будет подтверждён, откроются все оценки и статистика.
                       </p>
                     </div>
-                    <div className="pt-2 flex justify-center">
+                    <div className="pt-1 flex justify-center">
                       {selectedFriend.friendshipStatus === 'accepted' ? (
                         <span className="px-4 py-2 rounded-2xl bg-emerald-500/10 text-emerald-500 text-xs font-semibold flex items-center gap-1.5">
                           <UserCheck className="w-4 h-4" />
@@ -1983,12 +2124,12 @@ export default function ProfilePage({
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-3 pt-2">
                     {(() => {
                       const isMrTechProfile = selectedFriend?.nickname === 'MrTech' || selectedFriend?.id === 20;
                       const isVenicekProfile = selectedFriend?.nickname === 'Venicek' || selectedFriend?.id === 21;
 
-                      // Strict cleanse for Venicek (Photo 1)
+                      // Strict cleanse for Venicek
                       let cleanFriendRatings = friendRatings;
                       if (isVenicekProfile) {
                         cleanFriendRatings = cleanFriendRatings.filter(
@@ -1996,7 +2137,7 @@ export default function ProfilePage({
                         );
                       }
 
-                      // Sort with pinned items always at the very top (Photo 1 & 2)
+                      // Sort ratings
                       const sortedFriendRatings = [...cleanFriendRatings].sort((a, b) => {
                         const aPinned = (a.isPinned || (isMrTechProfile && (a.isSecretTop || a.title === 'Лимонные девочки'))) ? 1 : 0;
                         const bPinned = (b.isPinned || (isMrTechProfile && (b.isSecretTop || b.title === 'Лимонные девочки'))) ? 1 : 0;
@@ -2020,12 +2161,7 @@ export default function ProfilePage({
                       }
 
                       let displayedRatings = [];
-                      if (friendScoreFilter === 'top5') {
-                        // STRICTLY ONLY pinned items in Top-5! Do not fill with random 10s!
-                        displayedRatings = filteredByGenre.filter((item) =>
-                          Boolean(item.isPinned || (isMrTechProfile && (item.isSecretTop || item.title === 'Лимонные девочки')))
-                        ).slice(0, 5);
-                      } else if (friendScoreFilter === 'all') {
+                      if (friendScoreFilter === 'all') {
                         displayedRatings = filteredByGenre;
                       } else {
                         const targetScore = parseInt(friendScoreFilter, 10);
@@ -2039,9 +2175,7 @@ export default function ProfilePage({
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                                {friendScoreFilter === 'top5'
-                                  ? 'Топ-5 лучших тайтлов'
-                                  : friendScoreFilter === 'all'
+                                {friendScoreFilter === 'all'
                                   ? `Все оценки (${filteredByGenre.length})`
                                   : `Оценка ${friendScoreFilter} / 10 (${displayedRatings.length})`}
                               </h4>
@@ -2052,29 +2186,13 @@ export default function ProfilePage({
                               )}
                             </div>
                             <span className="text-[11px] text-neutral-400">
-                              {friendScoreFilter === 'top5'
-                                ? `Закреплено ${displayedRatings.length} из 5`
-                                : `Показано ${displayedRatings.length} из ${filteredByGenre.length}`}
+                              Показано {displayedRatings.length} из {filteredByGenre.length}
                             </span>
                           </div>
 
                           {/* Filter Chips by Score */}
                           {friendRatings.length > 0 && (
                             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                              <button
-                                type="button"
-                                onClick={() => setFriendScoreFilter('top5')}
-                                className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1 ${
-                                  friendScoreFilter === 'top5'
-                                    ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 shadow-sm'
-                                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
-                                }`}
-                              >
-                                <span>📌 Топ-5</span>
-                                <span className="text-[10px] opacity-75">
-                                  ({cleanFriendRatings.filter(it => it.isPinned || (isMrTechProfile && (it.isSecretTop || it.title === 'Лимонные девочки'))).length}/5)
-                                </span>
-                              </button>
                               <button
                                 type="button"
                                 onClick={() => setFriendScoreFilter('all')}
@@ -2154,9 +2272,7 @@ export default function ProfilePage({
                           ) : displayedRatings.length === 0 ? (
                             <div className="py-10 text-center rounded-2xl bg-neutral-50 dark:bg-neutral-900/40 p-6 border border-neutral-100 dark:border-neutral-800/60">
                               <p className="text-xs text-neutral-400">
-                                {friendScoreFilter === 'top5'
-                                  ? 'Пользователь пока не закрепил тайтлы в Топ-5.'
-                                  : 'Тайтлы с выбранными фильтрами не найдены.'}
+                                Тайтлы с выбранными фильтрами не найдены.
                               </p>
                             </div>
                           ) : (

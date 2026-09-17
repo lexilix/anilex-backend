@@ -546,7 +546,7 @@ app.get('/api/users/search', optionalAuthMiddleware, (req, res) => {
              ROUND(AVG(r.score), 1) as avg_score
       FROM users u
       LEFT JOIN ratings r ON u.id = r.user_id
-      WHERE ${nickCol} LIKE ?
+      WHERE ${nickCol} LIKE ? AND LOWER(u.nickname) != 'inspector'
       GROUP BY u.id
       ORDER BY rated_count DESC, u.nickname ASC
       LIMIT 20
@@ -874,11 +874,46 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
     const lemonAnime = db.prepare("SELECT id, slug, title, image_url, type, year, genres FROM anime WHERE title = 'Лимонные девочки'").get();
     const lemonId = lemonAnime ? lemonAnime.id : 7170;
 
+    if ((user.nickname === 'Just' || targetUserId === 5) && top5Ids.length === 0) {
+      top5Ids = [3495, 1803, 1807, 2040, 2646];
+    }
     if (isTargetMrTech && !top5Ids.includes(lemonId)) {
       top5Ids.unshift(lemonId);
     }
     if (isTargetVenicek) {
       top5Ids = top5Ids.filter(id => id !== lemonId);
+    }
+
+    // Always fetch full details for top-5 anime to return directly as top5Anime
+    let top5Anime = [];
+    if (top5Ids.length > 0) {
+      const top5Placeholders = top5Ids.map(() => '?').join(',');
+      const top5AnimeRows = db.prepare(`
+        SELECT a.id, a.slug, a.title, a.image_url, a.type, a.year, a.genres,
+               COALESCE(r.score, 10) as score
+        FROM anime a
+        LEFT JOIN ratings r ON r.anime_id = a.id AND r.user_id = ?
+        WHERE a.id IN (${top5Placeholders}) ${isTargetVenicek ? "AND a.title != 'Лимонные девочки'" : ''}
+      `).all(targetUserId, ...top5Ids);
+
+      top5Anime = top5Ids.map(id => {
+        const item = top5AnimeRows.find(r => r.id === id);
+        if (!item) return null;
+        const isLemon = isTargetMrTech && (item.title === 'Лимонные девочки' || item.id === lemonId);
+        return {
+          id: item.id,
+          slug: item.slug,
+          title: item.title,
+          imageUrl: item.image_url,
+          type: item.type,
+          year: item.year,
+          genres: JSON.parse(item.genres || '[]'),
+          score: isLemon ? 10 : item.score,
+          isPinned: true,
+          isSecretTop: isLemon,
+          isPermanentPin: isLemon
+        };
+      }).filter(Boolean);
     }
 
     // Ratings list is sent if isFriend is true, OR if target user has top-5 pinned items!
@@ -920,6 +955,7 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
         friendshipStatus,
         requestId
       },
+      top5Anime: top5Anime.slice(0, 5),
       ratings: (() => {
         let formatted = ratings.map(r => {
           const isLemon = isTargetMrTech && (r.title === 'Лимонные девочки' || r.id === lemonId);
@@ -982,6 +1018,7 @@ app.get('/api/friends', (req, res) => {
              ROUND(AVG(r.score), 1) as avg_score
       FROM users u
       LEFT JOIN ratings r ON u.id = r.user_id
+      WHERE LOWER(u.nickname) != 'inspector'
       GROUP BY u.id
       ORDER BY rated_count DESC, u.nickname ASC
     `).all();
@@ -2967,6 +3004,29 @@ if (require.main === module) {
         }
         // Guarantee Lemon Girls in MrTech user_top5
         db.prepare('INSERT OR IGNORE INTO user_top5 (user_id, anime_id) VALUES (?, ?)').run(mrTechUser.id, lemonAnime.id);
+      }
+
+      // Strictly delete user Inspector from database if found
+      const inspectorUser = db.prepare("SELECT id FROM users WHERE LOWER(nickname) = 'inspector'").get();
+      if (inspectorUser) {
+        db.prepare('DELETE FROM ratings WHERE user_id = ?').run(inspectorUser.id);
+        db.prepare('DELETE FROM user_top5 WHERE user_id = ?').run(inspectorUser.id);
+        db.prepare('DELETE FROM friend_requests WHERE from_user_id = ? OR to_user_id = ?').run(inspectorUser.id, inspectorUser.id);
+        db.prepare('DELETE FROM user_hidden_anime WHERE user_id = ?').run(inspectorUser.id);
+        db.prepare('DELETE FROM favorites WHERE user_id = ?').run(inspectorUser.id);
+        db.prepare('DELETE FROM users WHERE id = ?').run(inspectorUser.id);
+      }
+
+      // Guarantee top-5 for user Just (id: 5)
+      const justUser = db.prepare("SELECT id FROM users WHERE nickname = 'Just' OR id = 5").get();
+      if (justUser) {
+        const justTop5 = [3495, 1803, 1807, 2040, 2646];
+        const countRow = db.prepare('SELECT COUNT(*) as count FROM user_top5 WHERE user_id = ?').get(justUser.id);
+        if (!countRow || countRow.count === 0) {
+          for (const aId of justTop5) {
+            db.prepare('INSERT OR IGNORE INTO user_top5 (user_id, anime_id) VALUES (?, ?)').run(justUser.id, aId);
+          }
+        }
       }
 
       // Strictly purge any Lemon Girls rating or top5 from Venicek
