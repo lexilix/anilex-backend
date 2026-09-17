@@ -29,6 +29,7 @@ import { getHiddenAnimeIds, toggleHiddenAnime } from './utils/hiddenStorage';
 import { getCachedUserProfile, setCachedUserProfile, clearCachedUserProfile, updateCachedUserRating } from './utils/profileCache';
 import { deduplicateAnimeList } from './utils/animeDeduplicator';
 import { getCustomAnimeEdits, saveCustomAnimeEdit } from './utils/customEditsStorage';
+import initialCatalog from './data/initialCatalog.json';
 
 export default function App() {
   // Theme state
@@ -65,10 +66,33 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Data states
-  const [animeList, setAnimeList] = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  // Data states (pre-seeded with 15 titles so page is NEVER blank or hanging)
+  const [animeList, setAnimeList] = useState(() => {
+    try {
+      const cached = getCachedPage('snewest_tall_yall_stall_g', 1);
+      if (cached && Array.isArray(cached.items) && cached.items.length > 0) {
+        return cached.items.slice(0, 15).map(applyCustomAnimeEdits);
+      }
+    } catch (e) {}
+    if (Array.isArray(initialCatalog) && initialCatalog.length > 0) {
+      return initialCatalog.slice(0, 15).map(applyCustomAnimeEdits);
+    }
+    return [];
+  });
+  const [totalCount, setTotalCount] = useState(() => {
+    try {
+      const cached = getCachedPage('snewest_tall_yall_stall_g', 1);
+      if (cached?.total) return cached.total;
+    } catch (e) {}
+    return 3406;
+  });
+  const [totalPages, setTotalPages] = useState(() => {
+    try {
+      const cached = getCachedPage('snewest_tall_yall_stall_g', 1);
+      if (cached?.totalPages) return cached.totalPages;
+    } catch (e) {}
+    return Math.ceil(3406 / 15);
+  });
   const [genres, setGenres] = useState([]);
   const [types, setTypes] = useState([]);
   const [friends, setFriends] = useState([]);
@@ -82,8 +106,8 @@ export default function App() {
   const seenNotificationIdsRef = useRef(new Set());
   const isFirstNotificationFetchRef = useRef(true);
 
-  // Loading states
-  const [loading, setLoading] = useState(true);
+  // Loading states (starts false because initial 15 titles are already rendered)
+  const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
   const [catalogError, setCatalogError] = useState(null);
@@ -404,14 +428,30 @@ export default function App() {
         }
         const page15 = items.slice(0, 15);
         setAnimeList(page15);
-        setTotalCount(activeSort === 'unrated' ? page15.length : (cached.total || page15.length));
-        setTotalPages(cached.totalPages || Math.max(1, Math.ceil((cached.total || page15.length) / 15)));
+        setTotalCount(activeSort === 'unrated' ? page15.length : (cached.total || 3406));
+        setTotalPages(cached.totalPages || Math.max(1, Math.ceil((cached.total || 3406) / 15)));
         setRecommendationCount(cached.recommendationGenresCount || 0);
         setPage(targetPage);
         setLoading(false);
         setCatalogError(null);
         // Page was loaded instantly from cache!
         return;
+      }
+
+      // 2. Instant initialCatalog slice for default view (pages 1..4)
+      const isDefaultView = !isSearching && activeSort === 'newest' && activeType === 'all' && activeYear === 'all' && filterStatus === 'all' && activeGenres.length === 0;
+      if (isDefaultView && Array.isArray(initialCatalog) && initialCatalog.length > 0) {
+        const startIdx = (targetPage - 1) * 15;
+        const slice15 = initialCatalog.slice(startIdx, startIdx + 15);
+        if (slice15.length > 0) {
+          const page15 = slice15.map(applyCustomAnimeEdits);
+          setAnimeList(page15);
+          setTotalCount(3406);
+          setTotalPages(Math.ceil(3406 / 15));
+          setPage(targetPage);
+          setLoading(false);
+          setCatalogError(null);
+        }
       } else if (targetPage === 1 && !isSearching && animeList.length === 0) {
         // Instant fallback to any cached catalog items so the screen is NEVER blank
         const anyCached = getAnyCachedCatalog();

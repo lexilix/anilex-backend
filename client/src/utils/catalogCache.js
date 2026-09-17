@@ -1,4 +1,5 @@
 import { deduplicateAnimeList } from './animeDeduplicator';
+import initialCatalog from '../data/initialCatalog.json';
 
 /**
  * Client-side cache for anime catalog pages.
@@ -128,6 +129,16 @@ export function setCachedPage(filterKey, page, payload) {
  */
 export function getAllCachedAnime() {
   const map = new Map();
+  // 1. Pre-seed with bundled initial catalog
+  if (Array.isArray(initialCatalog)) {
+    for (const item of initialCatalog) {
+      if (item && item.id && !map.has(Number(item.id))) {
+        map.set(Number(item.id), item);
+      }
+    }
+  }
+
+  // 2. Overlay with items from localStorage cache
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const storageKey = localStorage.key(i);
@@ -138,7 +149,7 @@ export function getAllCachedAnime() {
           const data = JSON.parse(raw);
           if (data && Array.isArray(data.items)) {
             for (const item of data.items) {
-              if (item && item.id && !map.has(Number(item.id))) {
+              if (item && item.id) {
                 map.set(Number(item.id), item);
               }
             }
@@ -158,8 +169,8 @@ export function getAnyCachedCatalog() {
   if (all.length > 0) {
     return {
       items: all.slice(0, 15),
-      total: all.length,
-      totalPages: Math.max(1, Math.ceil(all.length / 15))
+      total: Math.max(all.length, 3406),
+      totalPages: Math.ceil(Math.max(all.length, 3406) / 15)
     };
   }
   return null;
