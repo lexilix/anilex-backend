@@ -569,6 +569,7 @@ async function searchShikimori(query) {
               if (relRes.ok) {
                 const relData = await relRes.json();
                 if (Array.isArray(relData)) {
+                  for (const r of relData) {
                     if (r.anime && r.anime.kind !== 'cm' && (r.relation_russian === 'Предыстория' || r.relation === 'prequel' || r.relation_russian === 'Основная история' || r.relation_russian === 'Продолжение' || r.relation === 'sequel')) {
                       const relA = r.anime;
                       const relSlug = `shiki-${relA.id}`;

@@ -563,12 +563,30 @@ export default function ProfilePage({
       try {
         const token = localStorage.getItem('anime_auth_token');
         if (!token) return;
+
+        let localSaved = [];
+        try {
+          const raw = localStorage.getItem('anilex_top5_' + user.id);
+          if (raw) localSaved = JSON.parse(raw);
+        } catch (e) {}
+
         const res = await fetch(apiUrl('/api/user/top5'), {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
           const data = await res.json();
           let ids = Array.isArray(data.top5Ids) ? data.top5Ids : [];
+
+          // If server top5 is empty but client has saved top5, sync client to server
+          if (ids.length === 0 && localSaved.length > 0) {
+            await fetch(apiUrl('/api/user/top5/set'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ animeIds: localSaved.slice(0, 5) })
+            }).catch(() => {});
+            ids = localSaved;
+          }
+
           if (user?.nickname === 'MrTech' || user?.id === 20) {
             if (!ids.includes(7170)) ids.unshift(7170);
           }
@@ -685,6 +703,9 @@ export default function ProfilePage({
             if (saved) friendTop5 = JSON.parse(saved);
           } catch (e) {}
         }
+        if (friendTop5.length === 0 && Array.isArray(ratings)) {
+          friendTop5 = ratings.filter((r) => r.isPinned).map((r) => r.id);
+        }
         if (data.user?.nickname === 'MrTech' || data.user?.id === 20 || friendId === 20) {
           if (!friendTop5.includes(7170)) friendTop5.unshift(7170);
         }
@@ -695,6 +716,7 @@ export default function ProfilePage({
         ratings = ratings.map((r) => ({
           ...r,
           isPinned: Boolean(
+            r.isPinned ||
             r.isPermanentPin ||
             (r.isSecretTop && (data.user?.nickname === 'MrTech' || friendId === 20)) ||
             friendTop5.includes(r.id)

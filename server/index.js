@@ -881,7 +881,7 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
       top5Ids = top5Ids.filter(id => id !== lemonId);
     }
 
-    // Ratings list is sent ONLY if isFriend is true!
+    // Ratings list is sent if isFriend is true, OR if target user has top-5 pinned items!
     let ratings = [];
     if (isFriend) {
       let orderClause = 'r.score DESC, r.updated_at DESC';
@@ -896,6 +896,15 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
         WHERE r.user_id = ? ${isTargetVenicek ? "AND a.title != 'Лимонные девочки'" : ''}
         ORDER BY ${orderClause}
       `).all(targetUserId);
+    } else if (top5Ids.length > 0) {
+      // Even if not friends yet, show Top-5 pinned items on public profile!
+      const placeholders = top5Ids.map(() => '?').join(',');
+      ratings = db.prepare(`
+        SELECT a.id, a.slug, a.title, a.image_url, a.type, a.year, a.genres, r.score, r.updated_at
+        FROM ratings r
+        JOIN anime a ON r.anime_id = a.id
+        WHERE r.user_id = ? AND a.id IN (${placeholders}) ${isTargetVenicek ? "AND a.title != 'Лимонные девочки'" : ''}
+      `).all(targetUserId, ...top5Ids);
     }
 
     return res.json({
@@ -2364,6 +2373,47 @@ app.post('/api/user/top5/toggle', authMiddleware, (req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ error: 'Ошибка обновления Топ-5' });
+  }
+});
+
+// Bulk set Top-5 anime for current user
+app.post('/api/user/top5/set', authMiddleware, (req, res) => {
+  try {
+    const userId = req.user.id;
+    let { animeIds } = req.body;
+    if (!Array.isArray(animeIds)) {
+      return res.status(400).json({ error: 'animeIds must be an array' });
+    }
+
+    const isMrTech = userId === 20 || req.user.nickname === 'MrTech';
+    const isVenicek = userId === 21 || req.user.nickname === 'Venicek';
+
+    const lemonAnime = db.prepare("SELECT id FROM anime WHERE title = 'Лимонные девочки'").get();
+    const lemonId = lemonAnime ? lemonAnime.id : 7170;
+
+    if (isVenicek) {
+      animeIds = animeIds.filter(id => Number(id) !== lemonId);
+    }
+    if (isMrTech && !animeIds.includes(lemonId)) {
+      animeIds.unshift(lemonId);
+    }
+
+    const finalIds = animeIds.slice(0, 5);
+
+    db.prepare('DELETE FROM user_top5 WHERE user_id = ?').run(userId);
+    const insertStmt = db.prepare('INSERT OR IGNORE INTO user_top5 (user_id, anime_id) VALUES (?, ?)');
+    for (const aId of finalIds) {
+      insertStmt.run(userId, Number(aId));
+    }
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({ success: true, top5Ids: finalIds });
+  } catch (err) {
+    console.error('Set top5 error:', err);
+    return res.status(500).json({ error: 'Ошибка сохранения Топ-5' });
   }
 });
 
