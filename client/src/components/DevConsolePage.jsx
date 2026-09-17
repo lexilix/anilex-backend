@@ -819,6 +819,54 @@ export default function DevConsolePage({
     setLinkSearchQuery('');
     setLinkSearchResults([]);
     setSelectedLinkRelation('2-й сезон');
+
+    // Asynchronously fetch relations to discover links registered from other anime
+    fetch(apiUrl(`/api/anime/${anime.id}/related`))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.items)) {
+          const relatedItems = data.items.filter((it) => Number(it.id) !== Number(anime.id));
+          if (relatedItems.length > 0) {
+            setEditLinkedAnime((prev) => {
+              const existingIds = new Set(prev.map((x) => Number(x.id)));
+              const toAdd = relatedItems
+                .filter((x) => !existingIds.has(Number(x.id)))
+                .map((x) => ({
+                  id: Number(x.id),
+                  title: x.title,
+                  originalTitle: x.originalTitle || x.original_title || '',
+                  year: x.year || '',
+                  type: x.type || 'Сериал',
+                  imageUrl: x.imageUrl || x.image_url || '',
+                  relation: x.relation || 'Связанная часть'
+                }));
+              return [...prev, ...toAdd];
+            });
+          }
+        }
+      })
+      .catch(() => {});
+  };
+
+  const handleUpdateLinkedAnimeRelation = (linkedId, newRelation) => {
+    setEditLinkedAnime((prev) =>
+      prev.map((it) => (Number(it.id) === Number(linkedId) ? { ...it, relation: newRelation } : it))
+    );
+  };
+
+  const handleSwitchEditAnime = async (targetId) => {
+    try {
+      const existing = animeList.find((a) => Number(a.id) === Number(targetId));
+      if (existing) {
+        handleOpenEditAnime(existing);
+        return;
+      }
+      const res = await fetch(apiUrl(`/api/anime/${targetId}`));
+      if (res.ok) {
+        const full = await res.json();
+        handleOpenEditAnime(applyCustomAnimeEdits(full));
+      }
+    } catch (e) {}
   };
 
   const handleSearchLinkCandidate = async (query) => {
@@ -872,7 +920,7 @@ export default function DevConsolePage({
       year: candidate.year || '',
       type: candidate.type || 'Сериал',
       imageUrl: candidate.imageUrl || candidate.image_url || '',
-      relation: selectedLinkRelation.trim() || 'Связанная часть'
+      relation: selectedLinkRelation.trim() || candidate.season || 'Связанная часть'
     };
     setEditLinkedAnime((prev) => [...prev, newEntry]);
     setLinkSearchQuery('');
@@ -1802,67 +1850,138 @@ export default function DevConsolePage({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {animeList.map((anime) => (
-                <div
-                  key={anime.id}
-                  className="p-3.5 rounded-3xl bg-white dark:bg-[#151518] border border-neutral-200/70 dark:border-neutral-800 shadow-xs flex gap-3.5 justify-between"
-                >
-                  <div className="w-16 aspect-[5/7] rounded-xl overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0 shadow-xs">
-                    <img
-                      src={anime.imageUrl || anime.image_url}
-                      alt={anime.title}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
-                    />
-                  </div>
+              {animeList.map((anime) => {
+                const customEdits = getCustomAnimeEdits();
+                const custom = customEdits[Number(anime.id)] || {};
+                const currentSeason = custom.season !== undefined ? custom.season : (anime.season || '');
+                let currentLinked = [];
+                if (Array.isArray(custom.linkedAnime)) {
+                  currentLinked = custom.linkedAnime;
+                } else if (Array.isArray(anime.linkedAnime)) {
+                  currentLinked = anime.linkedAnime;
+                } else if (anime.related_json) {
+                  try {
+                    currentLinked = JSON.parse(anime.related_json);
+                  } catch (e) {
+                    currentLinked = [];
+                  }
+                }
 
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-[10px] font-bold text-neutral-400">
-                          ID: {anime.id}
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 font-medium">
-                          {anime.type || 'Сериал'}
-                        </span>
-                      </div>
-                      <h3 className="text-xs font-bold text-neutral-900 dark:text-white truncate mt-0.5" title={anime.title}>
-                        {anime.title}
-                      </h3>
-                      {anime.originalTitle && (
-                        <p className="text-[10px] text-neutral-400 truncate">
-                          {anime.originalTitle}
+                return (
+                  <div
+                    key={anime.id}
+                    className="p-3.5 rounded-3xl bg-white dark:bg-[#151518] border border-neutral-200/70 dark:border-neutral-800 shadow-xs flex gap-3.5 justify-between"
+                  >
+                    <div className="w-16 aspect-[5/7] rounded-xl overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0 shadow-xs">
+                      <img
+                        src={anime.imageUrl || anime.image_url}
+                        alt={anime.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between gap-1 flex-wrap">
+                          <span className="text-[10px] font-bold text-neutral-400">
+                            ID: {anime.id}
+                          </span>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 font-medium">
+                              {anime.type || 'Сериал'}
+                            </span>
+                            {currentSeason ? (
+                              <span
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30 flex items-center gap-0.5"
+                                title="Статус сезона или фильма"
+                              >
+                                <Film className="w-2.5 h-2.5" />
+                                {currentSeason}
+                              </span>
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-400">
+                                Без сезона
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <h3 className="text-xs font-bold text-neutral-900 dark:text-white truncate mt-1" title={anime.title}>
+                          {anime.title}
+                        </h3>
+                        {anime.originalTitle && (
+                          <p className="text-[10px] text-neutral-400 truncate">
+                            {anime.originalTitle}
+                          </p>
+                        )}
+                        <p className="text-[11px] text-neutral-500 dark:text-neutral-400 line-clamp-2 mt-1 leading-snug">
+                          {anime.description || 'Нет описания'}
                         </p>
-                      )}
-                      <p className="text-[11px] text-neutral-500 dark:text-neutral-400 line-clamp-2 mt-1 leading-snug">
-                        {anime.description || 'Нет описания'}
-                      </p>
-                    </div>
 
-                    <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-neutral-100 dark:border-neutral-800/60 mt-2">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEditAnime(anime)}
-                        className="px-2.5 py-1 rounded-xl bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 text-[11px] font-semibold flex items-center gap-1 transition-colors"
-                      >
-                        <Edit className="w-3 h-3" />
-                        <span>Изменить</span>
-                      </button>
+                        {/* Linked anime status preview */}
+                        <div className="mt-2 pt-1.5 border-t border-neutral-100 dark:border-neutral-800/50">
+                          <div className="flex items-center justify-between text-[10px] text-neutral-500 dark:text-neutral-400 mb-1">
+                            <span className="font-semibold flex items-center gap-1">
+                              <Link className="w-2.5 h-2.5 text-blue-500" />
+                              <span>Связан с: {currentLinked.length > 0 ? `${currentLinked.length} тайтл.` : 'нет'}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditAnime(anime)}
+                              className="text-[10px] text-blue-500 hover:underline font-semibold"
+                            >
+                              {currentLinked.length > 0 ? 'Настроить' : '+ Связать'}
+                            </button>
+                          </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setDeletingAnime(anime)}
-                        className="px-2.5 py-1 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 text-[11px] font-semibold flex items-center gap-1 transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        <span>Удалить</span>
-                      </button>
+                          {currentLinked.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {currentLinked.slice(0, 2).map((item) => (
+                                <span
+                                  key={item.id}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-800/50 text-[9px] font-medium max-w-[170px] truncate"
+                                  title={`${item.relation || 'Связанная часть'}: ${item.title}`}
+                                >
+                                  <span className="font-bold shrink-0">{item.relation || 'Связь'}:</span>
+                                  <span className="truncate">{item.title}</span>
+                                </span>
+                              ))}
+                              {currentLinked.length > 2 && (
+                                <span className="text-[9px] text-neutral-400 self-center">
+                                  +{currentLinked.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-neutral-100 dark:border-neutral-800/60 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditAnime(anime)}
+                          className="px-2.5 py-1 rounded-xl bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                        >
+                          <Edit className="w-3 h-3" />
+                          <span>Изменить</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDeletingAnime(anime)}
+                          className="px-2.5 py-1 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Удалить</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -2708,14 +2827,14 @@ export default function DevConsolePage({
 
                 {/* List of currently linked anime */}
                 {editLinkedAnime.length > 0 && (
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                     {editLinkedAnime.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-700 gap-2.5 shadow-xs"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200/70 dark:border-neutral-700 gap-2.5 shadow-xs"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-11 rounded-lg bg-neutral-200 dark:bg-neutral-800 overflow-hidden shrink-0">
+                          <div className="w-9 h-12 rounded-lg bg-neutral-200 dark:bg-neutral-800 overflow-hidden shrink-0 shadow-xs">
                             {item.imageUrl ? (
                               <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
                             ) : (
@@ -2723,25 +2842,71 @@ export default function DevConsolePage({
                             )}
                           </div>
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-neutral-900 dark:text-white truncate">
+                            <div className="text-xs font-bold text-neutral-900 dark:text-white truncate" title={item.title}>
                               {item.title}
                             </div>
                             <div className="flex items-center gap-1.5 text-[10px] text-neutral-400">
                               <span>ID: {item.id}</span>
                               {item.year && <span>• {item.year}</span>}
+                              {item.type && <span>• {item.type}</span>}
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="px-2 py-0.5 rounded-lg bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[10px] font-bold border border-blue-200/50 dark:border-blue-800/50">
-                            {item.relation || 'Связанная часть'}
-                          </span>
+                        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                          {/* Change Season / Movie status */}
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-400">Статус:</span>
+                            <select
+                              value={item.relation || 'Связанная часть'}
+                              onChange={(e) => handleUpdateLinkedAnimeRelation(item.id, e.target.value)}
+                              className="px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 text-[11px] font-bold border border-blue-200 dark:border-blue-800 cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            >
+                              <option value="1-й сезон">1-й сезон</option>
+                              <option value="2-й сезон">2-й сезон</option>
+                              <option value="3-й сезон">3-й сезон</option>
+                              <option value="4-й сезон">4-й сезон</option>
+                              <option value="5-й сезон">5-й сезон</option>
+                              <option value="Фильм">Фильм</option>
+                              <option value="Фильм 2">Фильм 2</option>
+                              <option value="Фильм 3">Фильм 3</option>
+                              <option value="OVA">OVA</option>
+                              <option value="ONA">ONA</option>
+                              <option value="Спешл">Спешл</option>
+                              <option value="Приквел">Приквел</option>
+                              <option value="Сиквел">Сиквел</option>
+                              <option value="Спин-офф">Спин-офф</option>
+                              <option value="Рекап">Рекап</option>
+                              <option value="Связанная часть">Связанная часть</option>
+                              {!['1-й сезон', '2-й сезон', '3-й сезон', '4-й сезон', '5-й сезон', 'Фильм', 'Фильм 2', 'Фильм 3', 'OVA', 'ONA', 'Спешл', 'Приквел', 'Сиквел', 'Спин-офф', 'Рекап', 'Связанная часть'].includes(item.relation) && item.relation && (
+                                <option value={item.relation}>{item.relation}</option>
+                              )}
+                            </select>
+
+                            <input
+                              type="text"
+                              value={item.relation || ''}
+                              onChange={(e) => handleUpdateLinkedAnimeRelation(item.id, e.target.value)}
+                              placeholder="Или свой статус..."
+                              className="w-24 px-2 py-0.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-[10px] text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 font-medium"
+                              title="Можно ввести любое произвольное обозначение статуса или сезона"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSwitchEditAnime(item.id)}
+                            className="p-1.5 rounded-lg text-neutral-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+                            title="Открыть редактирование этого связанного тайтла"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => handleRemoveLinkedAnime(item.id)}
-                            className="p-1 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                            title="Удалить связь"
+                            className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                            title="Удалить связь с этим тайтлом"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

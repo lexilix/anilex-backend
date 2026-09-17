@@ -1444,6 +1444,8 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         a.genres,
         a.description,
         a.created_at,
+        a.season,
+        a.related_json,
         ROUND(AVG(r.score), 1) as avg_score,
         COUNT(r.id) as rating_count,
         (
@@ -1527,6 +1529,15 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         year: item.year,
         genres: JSON.parse(item.genres || '[]'),
         description: item.description,
+        season: item.season || '',
+        linkedAnime: (() => {
+          try {
+            return JSON.parse(item.related_json || '[]');
+          } catch (e) {
+            return [];
+          }
+        })(),
+        related_json: item.related_json || '[]',
         myScore: item.my_score !== null && item.my_score !== undefined ? item.my_score : null,
         isFavorite: Boolean(item.is_favorite),
         isHidden: Boolean(item.is_hidden),
@@ -1750,6 +1761,15 @@ app.get('/api/anime/:id', optionalAuthMiddleware, async (req, res) => {
       year: anime.year,
       genres: parsedGenres,
       description: anime.description,
+      season: anime.season || '',
+      linkedAnime: (() => {
+        try {
+          return JSON.parse(anime.related_json || '[]');
+        } catch (e) {
+          return [];
+        }
+      })(),
+      related_json: anime.related_json || '[]',
       myScore,
       isFavorite,
       isHidden,
@@ -3580,6 +3600,43 @@ app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
       SET title = ?, title_lower = ?, original_title = ?, original_title_lower = ?, description = ?, image_url = ?, type = ?, year = ?, genres = ?, season = ?, related_json = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(newTitle, newTitleLower, newOriginalTitle, newOriginalTitleLower, newDesc, newImage, newType, newYear, finalGenresJson, newSeason, finalRelatedJson, animeId);
+
+    // Sync reciprocal links: ensure each linked anime also references this anime
+    if (Array.isArray(returnLinked)) {
+      for (const target of returnLinked) {
+        if (!target || !target.id || Number(target.id) === animeId) continue;
+        try {
+          const targetRow = db.prepare('SELECT id, related_json, season FROM anime WHERE id = ?').get(Number(target.id));
+          if (targetRow) {
+            let targetList = [];
+            try {
+              targetList = JSON.parse(targetRow.related_json || '[]');
+            } catch (e) {
+              targetList = [];
+            }
+            const existingIdx = targetList.findIndex((x) => Number(x.id) === animeId);
+            const myRelation = newSeason || 'Связанная часть';
+            if (existingIdx !== -1) {
+              if (!targetList[existingIdx].relation || targetList[existingIdx].relation === 'Связанная часть') {
+                targetList[existingIdx].relation = myRelation;
+              }
+            } else {
+              targetList.push({
+                id: animeId,
+                title: newTitle,
+                originalTitle: newOriginalTitle,
+                year: newYear,
+                type: newType,
+                imageUrl: newImage,
+                relation: myRelation
+              });
+            }
+            db.prepare('UPDATE anime SET related_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+              .run(JSON.stringify(targetList), Number(target.id));
+          }
+        } catch (e) {}
+      }
+    }
 
     if (typeof db.saveAccountsBackup === 'function') {
       db.saveAccountsBackup();
