@@ -58,7 +58,7 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.get('/api/version', (req, res) => {
   res.json({
     status: 'ok',
-    version: '1.0.8',
+    version: '1.0.9',
     nodeVersion: process.version,
     hasLowerUtf8: Boolean(db.hasLowerUtf8)
   });
@@ -3406,10 +3406,19 @@ app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
 app.delete('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
   try {
     const animeId = parseInt(req.params.id, 10);
-    const anime = db.prepare('SELECT id, title FROM anime WHERE id = ?').get(animeId);
-    if (!anime) {
-      return res.status(404).json({ error: 'Тайтл не найден' });
+    if (!animeId) {
+      return res.status(400).json({ error: 'Неверный ID тайтла' });
     }
+
+    const anime = db.prepare('SELECT id, title FROM anime WHERE id = ?').get(animeId);
+
+    // Clean up reactions on comments for this anime
+    try {
+      db.prepare(`
+        DELETE FROM comment_reactions 
+        WHERE comment_id IN (SELECT id FROM comments WHERE anime_id = ?)
+      `).run(animeId);
+    } catch (e) {}
 
     db.prepare('DELETE FROM ratings WHERE anime_id = ?').run(animeId);
     db.prepare('DELETE FROM favorites WHERE anime_id = ?').run(animeId);
@@ -3422,9 +3431,77 @@ app.delete('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
       db.saveAccountsBackup();
     }
 
-    return res.json({ success: true, message: `Тайтл «${anime.title}» успешно удален` });
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).json({
+      success: true,
+      id: animeId,
+      message: anime ? `Тайтл «${anime.title}» успешно удален из базы данных` : 'Тайтл удален'
+    });
   } catch (err) {
+    res.setHeader('Content-Type', 'application/json');
     return res.status(500).json({ error: 'Ошибка удаления тайтла: ' + err.message });
+  }
+});
+
+// Dev: Delete User Account
+app.delete('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (!userId) {
+      return res.status(400).json({ error: 'Неверный ID пользователя' });
+    }
+
+    const targetUser = db.prepare('SELECT id, nickname, email FROM users WHERE id = ?').get(userId);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    // Strictly disallow deleting Just (id: 5 or nickname Just)
+    if (targetUser.id === 5 || targetUser.nickname === 'Just' || targetUser.email === 'just9jeeet@gmail.com') {
+      return res.status(403).json({ error: 'Нельзя удалить аккаунт главного разработчика Just' });
+    }
+
+    // 1. Delete user comment reactions
+    try {
+      db.prepare('DELETE FROM comment_reactions WHERE user_id = ?').run(userId);
+    } catch (e) {}
+
+    // 2. Delete reactions on comments made by this user
+    try {
+      db.prepare(`
+        DELETE FROM comment_reactions 
+        WHERE comment_id IN (SELECT id FROM comments WHERE user_id = ?)
+      `).run(userId);
+    } catch (e) {}
+
+    // 3. Delete user data across all tables
+    db.prepare('DELETE FROM ratings WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM favorites WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM user_top5 WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM user_hidden_anime WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM comments WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM friend_requests WHERE from_user_id = ? OR to_user_id = ?').run(userId, userId);
+    try {
+      db.prepare('DELETE FROM notifications WHERE user_id = ? OR from_user_id = ?').run(userId, userId);
+    } catch (e) {}
+
+    // 4. Delete user account
+    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+
+    // 5. Update backup
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).json({
+      success: true,
+      id: userId,
+      message: `Аккаунт пользователя «${targetUser.nickname}» (ID: ${targetUser.id}) успешно удален со всеми данными.`
+    });
+  } catch (err) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(500).json({ error: 'Ошибка удаления пользователя: ' + err.message });
   }
 });
 

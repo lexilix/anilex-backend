@@ -137,8 +137,20 @@ const NUMBER_WORDS_MAP = {
     return false;
   }
 
+  function getDeletedAnimeIds() {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return new Set(JSON.parse(localStorage.getItem('anilex_deleted_anime_ids') || '[]').map(Number));
+      }
+    } catch (e) {}
+    return new Set();
+  }
+
   function deduplicateAnimeList(items) {
-    if (!Array.isArray(items) || items.length <= 1) return items || [];
+    if (!Array.isArray(items)) return [];
+    const deletedIds = getDeletedAnimeIds();
+    const cleanItems = items.filter((it) => it && !deletedIds.has(Number(it.id)));
+    if (cleanItems.length <= 1) return cleanItems;
 
     const result = [];
     const mergedIds = new Set();

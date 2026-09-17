@@ -400,10 +400,18 @@ export default function App() {
         const newItems = data.items || [];
 
         const hiddenIds = getHiddenAnimeIds(user?.id);
+        let deletedAnimeIds = new Set();
+        try {
+          deletedAnimeIds = new Set(JSON.parse(localStorage.getItem('anilex_deleted_anime_ids') || '[]').map(Number));
+        } catch (e) {}
 
         const sanitizeList = (list) => {
           const seen = new Set();
           return list.filter((item) => {
+            const numId = Number(item.id);
+            if (deletedAnimeIds.has(numId)) {
+              return false;
+            }
             const img = (item.imageUrl || '').toLowerCase();
             const t = (item.title || '').toLowerCase();
             const orig = (item.originalTitle || '').toLowerCase();
@@ -922,9 +930,37 @@ export default function App() {
             }}
             onAnimeDeleted={(deletedId) => {
               if (deletedId) {
-                removeCachedAnimeItem(deletedId);
-                setAnimeList((prev) => prev.filter((item) => Number(item.id) !== Number(deletedId)));
+                const numId = Number(deletedId);
+                try {
+                  const deletedList = JSON.parse(localStorage.getItem('anilex_deleted_anime_ids') || '[]');
+                  if (!deletedList.includes(numId)) {
+                    deletedList.push(numId);
+                    localStorage.setItem('anilex_deleted_anime_ids', JSON.stringify(deletedList));
+                  }
+                } catch (e) {}
+                removeCachedAnimeItem(numId);
+                setAnimeList((prev) => prev.filter((item) => Number(item.id) !== numId));
                 setTotalCount((prev) => Math.max(0, prev - 1));
+              }
+            }}
+            onCatalogUpdated={(change) => {
+              if (change?.isDeleted && change?.id) {
+                const numId = Number(change.id);
+                try {
+                  const deletedList = JSON.parse(localStorage.getItem('anilex_deleted_anime_ids') || '[]');
+                  if (!deletedList.includes(numId)) {
+                    deletedList.push(numId);
+                    localStorage.setItem('anilex_deleted_anime_ids', JSON.stringify(deletedList));
+                  }
+                } catch (e) {}
+                removeCachedAnimeItem(numId);
+                setAnimeList((prev) => prev.filter((item) => Number(item.id) !== numId));
+                setTotalCount((prev) => Math.max(0, prev - 1));
+              } else if (change && change.id) {
+                updateCachedAnimeItem(change.id, change);
+                setAnimeList((prev) =>
+                  prev.map((item) => (Number(item.id) === Number(change.id) ? { ...item, ...change } : item))
+                );
               }
             }}
             onUserUpdated={(updatedUser) => {

@@ -138,7 +138,9 @@ export default function DevConsolePage({
   user,
   onNavigate,
   onUserUpdated,
-  onCatalogUpdated
+  onCatalogUpdated,
+  onAnimeUpdated,
+  onAnimeDeleted
 }) {
   // Check if current logged-in user is Just
   const isJustAccount = Boolean(
@@ -211,6 +213,10 @@ export default function DevConsolePage({
   const [saveUserLoading, setSaveUserLoading] = useState(false);
   const userAvatarFileRef = useRef(null);
   const userBannerFileRef = useRef(null);
+
+  // Delete User Modal
+  const [deletingUser, setDeletingUser] = useState(null);
+  const [deleteUserLoading, setDeleteUserLoading] = useState(false);
 
   // ----------------------------------------------------
   // RATINGS TAB STATE
@@ -329,8 +335,14 @@ export default function DevConsolePage({
 
       if (res.ok) {
         const data = await res.json();
-        setAnimeList(data.items || []);
-        setAnimeTotal(data.total || (data.items || []).length);
+        let deletedAnimeIds = new Set();
+        try {
+          deletedAnimeIds = new Set(JSON.parse(localStorage.getItem('anilex_deleted_anime_ids') || '[]').map(Number));
+        } catch (e) {}
+        const rawItems = data.items || [];
+        const filtered = rawItems.filter((it) => !deletedAnimeIds.has(Number(it.id)));
+        setAnimeList(filtered);
+        setAnimeTotal(Math.max(0, (data.total || filtered.length) - (rawItems.length - filtered.length)));
       }
     } catch (err) {
       console.error('Error fetching anime for dev:', err);
@@ -381,8 +393,12 @@ export default function DevConsolePage({
         }
       }
 
-      // Filter out 'inspector'
-      users = users.filter((u) => u.nickname?.toLowerCase() !== 'inspector');
+      // Filter out 'inspector' and permanently deleted users
+      let deletedUserIds = new Set();
+      try {
+        deletedUserIds = new Set(JSON.parse(localStorage.getItem('anilex_deleted_user_ids') || '[]').map(Number));
+      } catch (e) {}
+      users = users.filter((u) => u.nickname?.toLowerCase() !== 'inspector' && !deletedUserIds.has(Number(u.id)));
       setUsersList(users);
 
       if (!selectedUserId && users.length > 0) {
@@ -662,37 +678,110 @@ export default function DevConsolePage({
     }
   };
 
-  const handleDeleteAnime = async () => {
+  const handleDeleteAnime = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (!deletingAnime) return;
     setDeleteLoading(true);
 
     try {
       const token = localStorage.getItem('anime_auth_token');
-      const animeId = deletingAnime.id;
+      const animeId = Number(deletingAnime.id);
+      const animeTitle = deletingAnime.title;
 
-      // 1. Call DELETE /api/dev/anime/:id
+      // 1. Immediately record in persistent blacklist so it's gone everywhere on the site
+      try {
+        const deletedList = JSON.parse(localStorage.getItem('anilex_deleted_anime_ids') || '[]');
+        if (!deletedList.includes(animeId)) {
+          deletedList.push(animeId);
+          localStorage.setItem('anilex_deleted_anime_ids', JSON.stringify(deletedList));
+        }
+      } catch (e) {}
+
+      // 2. Call DELETE /api/dev/anime/:id
       await fetch(apiUrl(`/api/dev/anime/${animeId}`), {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      }).catch(() => {});
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      }).catch((err) => {
+        console.warn('Backend delete anime error:', err);
+      });
 
-      // 2. Purge from local caches and client catalog
+      // 3. Purge from local caches and client catalog
       removeCachedAnimeItem(animeId);
-      await toggleHiddenAnime(deletingAnime, token, user?.id);
 
-      setAnimeList((prev) => prev.filter((a) => a.id !== animeId));
+      setAnimeList((prev) => prev.filter((a) => Number(a.id) !== animeId));
       setAnimeTotal((prev) => Math.max(0, prev - 1));
 
+      if (onAnimeDeleted) {
+        onAnimeDeleted(animeId);
+      }
       if (onCatalogUpdated) {
         onCatalogUpdated({ id: animeId, isDeleted: true });
       }
 
-      showToast(`Тайтл «${deletingAnime.title}» успешно удален из базы!`);
+      showToast(`Тайтл «${animeTitle}» успешно удален со всего сайта!`);
       setDeletingAnime(null);
     } catch (err) {
       showToast('Ошибка удаления тайтла: ' + err.message, 'error');
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!deletingUser) return;
+    setDeleteUserLoading(true);
+
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      const targetId = Number(deletingUser.id);
+      const targetNick = deletingUser.nickname;
+
+      // 1. Immediately record in persistent blacklist
+      try {
+        const deletedUsers = JSON.parse(localStorage.getItem('anilex_deleted_user_ids') || '[]');
+        if (!deletedUsers.includes(targetId)) {
+          deletedUsers.push(targetId);
+          localStorage.setItem('anilex_deleted_user_ids', JSON.stringify(deletedUsers));
+        }
+      } catch (e) {}
+
+      // 2. Call DELETE /api/dev/users/:id
+      await fetch(apiUrl(`/api/dev/users/${targetId}`), {
+        method: 'DELETE',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      }).catch((err) => {
+        console.warn('Backend delete user error:', err);
+      });
+
+      // 3. Remove locally from state
+      setUsersList((prev) => prev.filter((u) => Number(u.id) !== targetId));
+
+      // 4. If this user was selected in ratings tab, reset
+      if (selectedUserId === targetId) {
+        setSelectedUserId(user?.id || 5);
+      }
+
+      showToast(`Аккаунт пользователя «${targetNick}» успешно удален!`);
+      setDeletingUser(null);
+    } catch (err) {
+      showToast('Ошибка удаления пользователя: ' + err.message, 'error');
+    } finally {
+      setDeleteUserLoading(false);
     }
   };
 
@@ -1456,7 +1545,7 @@ export default function DevConsolePage({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2 border-t border-neutral-100 dark:border-neutral-800/60">
+                  <div className="flex items-center gap-1.5 pt-2 border-t border-neutral-100 dark:border-neutral-800/60">
                     <button
                       type="button"
                       onClick={() => handleOpenEditUser(u)}
@@ -1472,11 +1561,28 @@ export default function DevConsolePage({
                         setSelectedUserId(u.id);
                         setActiveTab('ratings');
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+                      className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+                      title="Оценки пользователя"
                     >
                       <Star className="w-3 h-3" />
                       <span>Оценки</span>
                     </button>
+
+                    {u.nickname !== 'Just' && u.id !== 5 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDeletingUser(u);
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+                        title="Удалить аккаунт пользователя"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Удалить</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -2210,17 +2316,63 @@ export default function DevConsolePage({
               <button
                 type="button"
                 onClick={() => setDeletingAnime(null)}
-                className="flex-1 py-2.5 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-xs font-semibold text-neutral-700 dark:text-neutral-300"
+                className="flex-1 py-2.5 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
               >
                 Отмена
               </button>
               <button
                 type="button"
                 disabled={deleteLoading}
-                onClick={handleDeleteAnime}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors disabled:opacity-50"
+                onClick={(e) => handleDeleteAnime(e)}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm"
               >
-                {deleteLoading ? 'Удаление...' : 'Да, удалить тайтл'}
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{deleteLoading ? 'Удаление...' : 'Да, удалить тайтл'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* MODAL: DELETE USER CONFIRM */}
+      {/* ---------------------------------------------------- */}
+      {deletingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-[#151518] p-6 shadow-2xl border border-neutral-200 dark:border-neutral-800 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-neutral-900 dark:text-white">
+                Удалить пользователя?
+              </h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                Вы действительно хотите навсегда удалить аккаунт «<span className="font-bold text-neutral-900 dark:text-white">{deletingUser.nickname}</span>» (ID: {deletingUser.id})?
+                Все его оценки, комментарии и данные профиля будут полностью удалены с сайта.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeletingUser(null)}
+                className="flex-1 py-2.5 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                disabled={deleteUserLoading}
+                onClick={(e) => handleDeleteUser(e)}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{deleteUserLoading ? 'Удаление...' : 'Да, удалить пользователя'}</span>
               </button>
             </div>
           </div>
