@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Moon, Sun, User, LogOut, Settings, Bookmark, Bell, Loader2 } from 'lucide-react';
+import { Search, Moon, Sun, User, LogOut, Settings, Bookmark, Bell, Loader2, ShieldAlert } from 'lucide-react';
 import NotificationDropdown from './NotificationDropdown';
 
 export default function Header({
@@ -142,6 +142,18 @@ export default function Header({
             </div>
           )}
 
+          {/* Dev Console button for Just */}
+          {user && (user.nickname === 'Just' || user.email === 'just9jeeet@gmail.com' || user.id === 5) && (
+            <button
+              onClick={() => onNavigate('dev-console')}
+              className="p-2 rounded-xl text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors flex items-center gap-1.5 text-xs font-bold"
+              title="Консоль разработчика Just"
+            >
+              <ShieldAlert className="w-4 h-4 text-amber-500" />
+              <span className="hidden md:inline">Dev Console</span>
+            </button>
+          )}
+
           {/* User auth or profile */}
           {user ? (
             <div className="relative">
@@ -179,6 +191,20 @@ export default function Header({
                     </div>
 
                     <div className="py-1">
+                      {/* Just Dev Console Link */}
+                      {(user.nickname === 'Just' || user.email === 'just9jeeet@gmail.com' || user.id === 5) && (
+                        <button
+                          onClick={() => {
+                            setShowMenu(false);
+                            onNavigate('dev-console');
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 flex items-center gap-2.5 transition-colors mb-1"
+                        >
+                          <ShieldAlert className="w-4 h-4 text-amber-500" />
+                          <span>Консоль разработчика</span>
+                        </button>
+                      )}
+
                       <button
                         onClick={() => {
                           setShowMenu(false);

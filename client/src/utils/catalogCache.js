@@ -154,3 +154,29 @@ export function appendCachedAnimeItem(item) {
   } catch (e) {}
 }
 
+export function removeCachedAnimeItem(animeId) {
+  if (!animeId) return;
+  try {
+    const numId = Number(animeId);
+    for (let i = 0; i < localStorage.length; i++) {
+      const storageKey = localStorage.key(i);
+      if (storageKey && storageKey.startsWith(CACHE_KEY_PREFIX)) {
+        try {
+          const raw = localStorage.getItem(storageKey);
+          if (!raw) continue;
+          const data = JSON.parse(raw);
+          if (data && Array.isArray(data.items)) {
+            const initialLen = data.items.length;
+            data.items = data.items.filter((item) => Number(item.id) !== numId);
+            if (data.items.length !== initialLen) {
+              if (data.total && data.total > 0) {
+                data.total = Math.max(0, data.total - 1);
+              }
+              localStorage.setItem(storageKey, JSON.stringify(data));
+            }
+          }
+        } catch (err) {}
+      }
+    }
+  } catch (e) {}
+}

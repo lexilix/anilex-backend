@@ -9,9 +9,10 @@ import ProfilePage from './components/ProfilePage';
 import ProfileEditPage from './components/ProfileEditPage';
 import FeaturedCarousel from './components/FeaturedCarousel';
 import NotificationToast from './components/NotificationToast';
+import DevConsolePage from './components/DevConsolePage';
 import { Sparkles, Film, Loader2 } from 'lucide-react';
 import { apiUrl } from './api';
-import { getCachedCatalog, setCachedCatalog, hasCatalogChanged, updateCachedAnimeItem } from './utils/catalogCache';
+import { getCachedCatalog, setCachedCatalog, hasCatalogChanged, updateCachedAnimeItem, removeCachedAnimeItem } from './utils/catalogCache';
 import { getHiddenAnimeIds, toggleHiddenAnime } from './utils/hiddenStorage';
 import { getCachedUserProfile, setCachedUserProfile, clearCachedUserProfile, updateCachedUserRating } from './utils/profileCache';
 import { deduplicateAnimeList } from './utils/animeDeduplicator';
@@ -93,6 +94,9 @@ export default function App() {
       } else if (hash === '#/profile/edit') {
         setView('profile-edit');
         return;
+      } else if (hash === '#/dev' || hash === '#/admin' || hash === '#/dev-console') {
+        setView('dev-console');
+        return;
       }
       setView('catalog');
       setSelectedAnimeId(null);
@@ -110,6 +114,8 @@ export default function App() {
       window.location.hash = '#/profile';
     } else if (newView === 'profile-edit') {
       window.location.hash = '#/profile/edit';
+    } else if (newView === 'dev-console') {
+      window.location.hash = '#/dev';
     } else {
       window.location.hash = '#/';
     }
@@ -897,6 +903,35 @@ export default function App() {
             user={user}
             onNavigate={navigateTo}
             onUserUpdated={handleLoginSuccess}
+          />
+        )}
+
+        {/* VIEW: DEVELOPER CONSOLE (JUST ONLY) */}
+        {view === 'dev-console' && (
+          <DevConsolePage
+            user={user}
+            token={token}
+            onNavigate={navigateTo}
+            onAnimeUpdated={(updatedAnime) => {
+              if (updatedAnime && updatedAnime.id) {
+                updateCachedAnimeItem(updatedAnime.id, updatedAnime);
+                setAnimeList((prev) =>
+                  prev.map((item) => (Number(item.id) === Number(updatedAnime.id) ? { ...item, ...updatedAnime } : item))
+                );
+              }
+            }}
+            onAnimeDeleted={(deletedId) => {
+              if (deletedId) {
+                removeCachedAnimeItem(deletedId);
+                setAnimeList((prev) => prev.filter((item) => Number(item.id) !== Number(deletedId)));
+                setTotalCount((prev) => Math.max(0, prev - 1));
+              }
+            }}
+            onUserUpdated={(updatedUser) => {
+              if (user && updatedUser && Number(user.id) === Number(updatedUser.id)) {
+                handleLoginSuccess({ user: updatedUser, token });
+              }
+            }}
           />
         )}
 

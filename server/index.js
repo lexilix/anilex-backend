@@ -21,6 +21,7 @@ const {
   hashPassword,
   verifyPassword,
   generateToken,
+  verifyToken,
   authMiddleware,
   optionalAuthMiddleware
 } = require('./auth');
@@ -2944,6 +2945,288 @@ app.delete('/api/notifications/:id', authMiddleware, (req, res) => {
     return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ error: 'Ошибка удаления уведомления' });
+  }
+});
+
+// ----------------------------------------------------
+// DEVELOPER CONSOLE ROUTES (JUST ONLY)
+// ----------------------------------------------------
+
+function devAdminMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Требуется авторизация в консоли разработчика' });
+  }
+  const token = authHeader.split(' ')[1];
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    return res.status(401).json({ error: 'Неверный или просроченный токен' });
+  }
+  const isJust = decoded.nickname === 'Just' || decoded.email === 'just9jeeet@gmail.com' || decoded.id === 5;
+  if (!isJust) {
+    return res.status(403).json({ error: 'Доступ разрешен только разработчику Just' });
+  }
+  req.user = decoded;
+  next();
+}
+
+// Dev Auth - verify Just credentials
+app.post('/api/dev/auth', (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Введите логин и пароль' });
+    }
+    const cleanLogin = email.trim().toLowerCase();
+    const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(nickname) = ?').get(cleanLogin, cleanLogin);
+    if (!user) {
+      return res.status(400).json({ error: 'Пользователь не найден' });
+    }
+    const isJust = user.nickname === 'Just' || user.email === 'just9jeeet@gmail.com' || user.id === 5;
+    if (!isJust) {
+      return res.status(403).json({ error: 'Вход в консоль разработчика разрешен только для аккаунта Just' });
+    }
+    const isValid = verifyPassword(password, user.password_hash, user.salt);
+    if (!isValid) {
+      return res.status(400).json({ error: 'Неверный пароль аккаунта Just' });
+    }
+    const safeUser = {
+      id: user.id,
+      email: user.email,
+      nickname: user.nickname,
+      avatarUrl: user.avatar_url || null,
+      bannerUrl: user.banner_url || null
+    };
+    const token = generateToken(safeUser);
+    return res.json({ success: true, token, user: safeUser });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка авторизации разработчика' });
+  }
+});
+
+// Dev: Get all users with stats
+app.get('/api/dev/users', devAdminMiddleware, (req, res) => {
+  try {
+    const users = db.prepare(`
+      SELECT u.id, u.nickname, u.email, u.avatar_url, u.banner_url, u.created_at,
+             COUNT(r.id) as rated_count,
+             ROUND(AVG(r.score), 1) as avg_score
+      FROM users u
+      LEFT JOIN ratings r ON u.id = r.user_id
+      GROUP BY u.id
+      ORDER BY u.id ASC
+    `).all();
+
+    return res.json({
+      users: users.map(u => ({
+        id: u.id,
+        nickname: u.nickname,
+        email: u.email,
+        avatarUrl: u.avatar_url,
+        bannerUrl: u.banner_url,
+        createdAt: u.created_at,
+        ratedCount: u.rated_count || 0,
+        avgScore: u.avg_score !== null ? Number(u.avg_score) : null
+      }))
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка получения пользователей' });
+  }
+});
+
+// Dev: Update user profile
+app.put('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.id, 10);
+    const { nickname, email, avatarUrl, bannerUrl, top5Ids } = req.body;
+
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(targetUserId);
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    let updatedNickname = nickname !== undefined ? nickname.trim() : user.nickname;
+    let updatedEmail = email !== undefined ? email.trim().toLowerCase() : user.email;
+    let updatedAvatar = avatarUrl !== undefined ? avatarUrl : user.avatar_url;
+    let updatedBanner = bannerUrl !== undefined ? bannerUrl : user.banner_url;
+
+    if (Array.isArray(top5Ids)) {
+      const cleanBanner = (updatedBanner || '').split('#top5=')[0];
+      updatedBanner = cleanBanner + (top5Ids.length > 0 ? '#top5=' + top5Ids.join(',') : '');
+      db.prepare('DELETE FROM user_top5 WHERE user_id = ?').run(targetUserId);
+      for (const aId of top5Ids.slice(0, 5)) {
+        db.prepare('INSERT OR IGNORE INTO user_top5 (user_id, anime_id) VALUES (?, ?)').run(targetUserId, aId);
+      }
+    }
+
+    db.prepare(`
+      UPDATE users
+      SET nickname = ?, email = ?, avatar_url = ?, banner_url = ?
+      WHERE id = ?
+    `).run(updatedNickname, updatedEmail, updatedAvatar, updatedBanner, targetUserId);
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({
+      success: true,
+      user: {
+        id: targetUserId,
+        nickname: updatedNickname,
+        email: updatedEmail,
+        avatarUrl: updatedAvatar,
+        bannerUrl: updatedBanner
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка обновления пользователя: ' + err.message });
+  }
+});
+
+// Dev: Get user ratings
+app.get('/api/dev/users/:id/ratings', devAdminMiddleware, (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.id, 10);
+    const rows = db.prepare(`
+      SELECT a.id, a.slug, a.title, a.image_url, a.type, a.year, a.genres, r.score, r.updated_at
+      FROM ratings r
+      JOIN anime a ON r.anime_id = a.id
+      WHERE r.user_id = ?
+      ORDER BY r.score DESC, r.updated_at DESC
+    `).all(targetUserId);
+
+    return res.json({
+      ratings: rows.map(r => ({
+        id: r.id,
+        slug: r.slug,
+        title: r.title,
+        imageUrl: r.image_url,
+        type: r.type,
+        year: r.year,
+        genres: JSON.parse(r.genres || '[]'),
+        score: r.score,
+        updatedAt: r.updated_at
+      }))
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка загрузки оценок пользователя' });
+  }
+});
+
+// Dev: Set user rating
+app.post('/api/dev/users/:userId/ratings', devAdminMiddleware, (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.userId, 10);
+    const { animeId, score } = req.body;
+    const numScore = parseInt(score, 10);
+
+    if (isNaN(numScore) || numScore < 1 || numScore > 10) {
+      return res.status(400).json({ error: 'Оценка должна быть от 1 до 10' });
+    }
+
+    const existing = db.prepare('SELECT id FROM ratings WHERE user_id = ? AND anime_id = ?').get(targetUserId, animeId);
+    if (existing) {
+      db.prepare('UPDATE ratings SET score = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(numScore, existing.id);
+    } else {
+      db.prepare('INSERT INTO ratings (user_id, anime_id, score, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)').run(targetUserId, animeId, numScore);
+    }
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({ success: true, animeId, score: numScore });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка установки оценки' });
+  }
+});
+
+// Dev: Delete user rating
+app.delete('/api/dev/users/:userId/ratings/:animeId', devAdminMiddleware, (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.userId, 10);
+    const animeId = parseInt(req.params.animeId, 10);
+    db.prepare('DELETE FROM ratings WHERE user_id = ? AND anime_id = ?').run(targetUserId, animeId);
+    db.prepare('DELETE FROM user_top5 WHERE user_id = ? AND anime_id = ?').run(targetUserId, animeId);
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка удаления оценки' });
+  }
+});
+
+// Dev: Update Anime (Title, Description, Image, Year, Type, Genres)
+app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
+  try {
+    const animeId = parseInt(req.params.id, 10);
+    const anime = db.prepare('SELECT * FROM anime WHERE id = ?').get(animeId);
+    if (!anime) {
+      return res.status(404).json({ error: 'Тайтл не найден' });
+    }
+
+    const { title, originalTitle, description, imageUrl, type, year, genres } = req.body;
+
+    const newTitle = title !== undefined ? title.trim() : anime.title;
+    const newOriginalTitle = originalTitle !== undefined ? originalTitle.trim() : anime.original_title;
+    const newTitleLower = newTitle.toLowerCase();
+    const newDesc = description !== undefined ? description : anime.description;
+    const newImage = imageUrl !== undefined ? imageUrl : anime.image_url;
+    const newType = type !== undefined ? type : anime.type;
+    const newYear = year !== undefined ? String(year) : anime.year;
+    const newGenres = genres !== undefined ? (typeof genres === 'string' ? genres : JSON.stringify(genres)) : anime.genres;
+
+    db.prepare(`
+      UPDATE anime
+      SET title = ?, title_lower = ?, original_title = ?, description = ?, image_url = ?, type = ?, year = ?, genres = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(newTitle, newTitleLower, newOriginalTitle, newDesc, newImage, newType, newYear, newGenres, animeId);
+
+    return res.json({
+      success: true,
+      anime: {
+        id: animeId,
+        title: newTitle,
+        originalTitle: newOriginalTitle,
+        description: newDesc,
+        imageUrl: newImage,
+        type: newType,
+        year: newYear,
+        genres: JSON.parse(newGenres || '[]')
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка обновления тайтла: ' + err.message });
+  }
+});
+
+// Dev: Delete Anime
+app.delete('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
+  try {
+    const animeId = parseInt(req.params.id, 10);
+    const anime = db.prepare('SELECT id, title FROM anime WHERE id = ?').get(animeId);
+    if (!anime) {
+      return res.status(404).json({ error: 'Тайтл не найден' });
+    }
+
+    db.prepare('DELETE FROM ratings WHERE anime_id = ?').run(animeId);
+    db.prepare('DELETE FROM favorites WHERE anime_id = ?').run(animeId);
+    db.prepare('DELETE FROM user_top5 WHERE anime_id = ?').run(animeId);
+    db.prepare('DELETE FROM user_hidden_anime WHERE anime_id = ?').run(animeId);
+    db.prepare('DELETE FROM comments WHERE anime_id = ?').run(animeId);
+    db.prepare('DELETE FROM anime WHERE id = ?').run(animeId);
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({ success: true, message: `Тайтл «${anime.title}» успешно удален` });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка удаления тайтла: ' + err.message });
   }
 });
 

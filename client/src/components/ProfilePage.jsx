@@ -792,13 +792,25 @@ export default function ProfilePage({
           <span>Назад в каталог</span>
         </button>
 
-        <button
-          onClick={() => onNavigate('profile-edit')}
-          className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm"
-        >
-          <Settings className="w-3.5 h-3.5" />
-          <span>Редактировать профиль</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {user && (user.nickname === 'Just' || user.email === 'just9jeeet@gmail.com' || user.id === 5) && (
+            <button
+              onClick={() => onNavigate('dev-console')}
+              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold transition-colors shadow-sm border border-amber-500/25"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-500" />
+              <span>Консоль разработчика</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => onNavigate('profile-edit')}
+            className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            <span>Редактировать профиль</span>
+          </button>
+        </div>
       </div>
 
       {/* User Header with Custom Banner and Avatar */}
