@@ -857,24 +857,44 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
     }
 
     // Compute stats (for MrTech, exclude secret title from public count so it stays unchanged)
+    const isTargetMrTech = targetUserId === 20 || user.nickname === 'MrTech';
+    const isTargetVenicek = targetUserId === 21 || user.nickname === 'Venicek';
+
     const stats = db.prepare(`
       SELECT COUNT(r.id) as rated_count, ROUND(AVG(r.score), 1) as avg_score
       FROM ratings r
       JOIN anime a ON r.anime_id = a.id
-      WHERE r.user_id = ? AND a.title != 'Лимонные девочки'
+      WHERE r.user_id = ? ${isTargetMrTech ? "AND a.title != 'Лимонные девочки'" : ''}
     `).get(targetUserId);
+
+    // Fetch user top 5 IDs
+    const top5Rows = db.prepare('SELECT anime_id FROM user_top5 WHERE user_id = ? ORDER BY created_at ASC').all(targetUserId);
+    let top5Ids = top5Rows.map(r => r.anime_id);
+
+    const lemonAnime = db.prepare("SELECT id, slug, title, image_url, type, year, genres FROM anime WHERE title = 'Лимонные девочки'").get();
+    const lemonId = lemonAnime ? lemonAnime.id : 7170;
+
+    if (isTargetMrTech && !top5Ids.includes(lemonId)) {
+      top5Ids.unshift(lemonId);
+    }
+    if (isTargetVenicek) {
+      top5Ids = top5Ids.filter(id => id !== lemonId);
+    }
 
     // Ratings list is sent ONLY if isFriend is true!
     let ratings = [];
     if (isFriend) {
+      let orderClause = 'r.score DESC, r.updated_at DESC';
+      if (isTargetMrTech) {
+        orderClause = `(CASE WHEN a.title = 'Лимонные девочки' THEN 999 ELSE r.score END) DESC, r.updated_at DESC`;
+      }
+
       ratings = db.prepare(`
         SELECT a.id, a.slug, a.title, a.image_url, a.type, a.year, a.genres, r.score, r.updated_at
         FROM ratings r
         JOIN anime a ON r.anime_id = a.id
-        WHERE r.user_id = ?
-        ORDER BY
-          (CASE WHEN a.title = 'Лимонные девочки' THEN 999 ELSE r.score END) DESC,
-          r.updated_at DESC
+        WHERE r.user_id = ? ${isTargetVenicek ? "AND a.title != 'Лимонные девочки'" : ''}
+        ORDER BY ${orderClause}
       `).all(targetUserId);
     }
 
@@ -892,21 +912,30 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
         requestId
       },
       ratings: (() => {
-        const formatted = ratings.map(r => ({
-          id: r.id,
-          slug: r.slug,
-          title: r.title,
-          imageUrl: r.image_url,
-          type: r.type,
-          year: r.year,
-          genres: JSON.parse(r.genres || '[]'),
-          score: r.score,
-          isSecretTop: r.title === 'Лимонные девочки',
-          updatedAt: r.updated_at
-        }));
+        let formatted = ratings.map(r => {
+          const isLemon = isTargetMrTech && (r.title === 'Лимонные девочки' || r.id === lemonId);
+          const isPinned = isLemon || top5Ids.includes(r.id);
+          return {
+            id: r.id,
+            slug: r.slug,
+            title: r.title,
+            imageUrl: r.image_url,
+            type: r.type,
+            year: r.year,
+            genres: JSON.parse(r.genres || '[]'),
+            score: r.score,
+            isSecretTop: isLemon,
+            isPinned,
+            isPermanentPin: isLemon,
+            updatedAt: r.updated_at
+          };
+        });
 
-        if ((targetUserId === 20 || user.nickname === 'MrTech') && !formatted.some(r => r.title === 'Лимонные девочки')) {
-          const lemonAnime = db.prepare("SELECT id, slug, title, image_url, type, year, genres FROM anime WHERE title = 'Лимонные девочки'").get();
+        if (isTargetVenicek) {
+          formatted = formatted.filter(r => r.title !== 'Лимонные девочки' && r.id !== lemonId);
+        }
+
+        if (isTargetMrTech && !formatted.some(r => r.title === 'Лимонные девочки' || r.id === lemonId)) {
           if (lemonAnime) {
             formatted.unshift({
               id: lemonAnime.id,
@@ -918,12 +947,15 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
               genres: JSON.parse(lemonAnime.genres || '[]'),
               score: 10,
               isSecretTop: true,
+              isPinned: true,
+              isPermanentPin: true,
               updatedAt: new Date().toISOString()
             });
           }
         }
         return formatted;
       })(),
+      top5Ids: top5Ids.slice(0, 5),
       isRestricted: !isFriend,
       message: !isFriend ? 'Оценки пользователя доступны только взаимным друзьям' : null
     });
@@ -2257,6 +2289,84 @@ app.get('/api/user/hidden', authMiddleware, (req, res) => {
   }
 });
 
+// Get user Top-5 anime IDs
+app.get('/api/user/top5', authMiddleware, (req, res) => {
+  try {
+    const userId = req.user.id;
+    const isMrTech = userId === 20 || req.user.nickname === 'MrTech';
+    const isVenicek = userId === 21 || req.user.nickname === 'Venicek';
+    const rows = db.prepare('SELECT anime_id FROM user_top5 WHERE user_id = ? ORDER BY created_at ASC').all(userId);
+    let ids = rows.map(r => r.anime_id);
+
+    const lemonAnime = db.prepare("SELECT id FROM anime WHERE title = 'Лимонные девочки'").get();
+    const lemonId = lemonAnime ? lemonAnime.id : 7170;
+
+    if (isMrTech && !ids.includes(lemonId)) {
+      ids.unshift(lemonId);
+    }
+    if (isVenicek) {
+      ids = ids.filter(id => id !== lemonId);
+    }
+    return res.json({ top5Ids: ids.slice(0, 5) });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка получения Топ-5' });
+  }
+});
+
+// Toggle anime in Top-5 for current user (max 5 allowed)
+app.post('/api/user/top5/toggle', authMiddleware, (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { animeId } = req.body;
+    if (!animeId) return res.status(400).json({ error: 'Укажите animeId' });
+
+    const isMrTech = userId === 20 || req.user.nickname === 'MrTech';
+    const isVenicek = userId === 21 || req.user.nickname === 'Venicek';
+
+    const lemonAnime = db.prepare("SELECT id FROM anime WHERE title = 'Лимонные девочки'").get();
+    const lemonId = lemonAnime ? lemonAnime.id : 7170;
+
+    if (isMrTech && Number(animeId) === lemonId) {
+      return res.status(400).json({ error: 'Этот тайтл закреплен навсегда и его нельзя снять' });
+    }
+    if (isVenicek && Number(animeId) === lemonId) {
+      return res.status(400).json({ error: 'Недоступно для добавления' });
+    }
+
+    const existing = db.prepare('SELECT 1 FROM user_top5 WHERE user_id = ? AND anime_id = ?').get(userId, animeId);
+    if (existing) {
+      db.prepare('DELETE FROM user_top5 WHERE user_id = ? AND anime_id = ?').run(userId, animeId);
+    } else {
+      const countRow = db.prepare('SELECT COUNT(*) as count FROM user_top5 WHERE user_id = ?').get(userId);
+      let count = countRow ? countRow.count : 0;
+      if (isMrTech) {
+        const hasLemon = db.prepare('SELECT 1 FROM user_top5 WHERE user_id = ? AND anime_id = ?').get(userId, lemonId);
+        if (!hasLemon) count += 1;
+      }
+      if (count >= 5) {
+        return res.status(400).json({ error: 'В Топ-5 можно добавить только 5 аниме, больше нельзя!' });
+      }
+      db.prepare('INSERT OR IGNORE INTO user_top5 (user_id, anime_id) VALUES (?, ?)').run(userId, animeId);
+    }
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    const rows = db.prepare('SELECT anime_id FROM user_top5 WHERE user_id = ? ORDER BY created_at ASC').all(userId);
+    let ids = rows.map(r => r.anime_id);
+    if (isMrTech && !ids.includes(lemonId)) ids.unshift(lemonId);
+    if (isVenicek) ids = ids.filter(id => id !== lemonId);
+
+    return res.json({
+      top5Ids: ids.slice(0, 5),
+      message: existing ? 'Удалено из Топ-5' : 'Добавлено в Топ-5'
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка обновления Топ-5' });
+  }
+});
+
 // Rated Anime list for user profile
 app.get('/api/user/rated-anime', authMiddleware, (req, res) => {
   try {
@@ -2805,6 +2915,15 @@ if (require.main === module) {
         } else {
           db.prepare('UPDATE ratings SET score = 10 WHERE id = ?').run(hasRate.id);
         }
+        // Guarantee Lemon Girls in MrTech user_top5
+        db.prepare('INSERT OR IGNORE INTO user_top5 (user_id, anime_id) VALUES (?, ?)').run(mrTechUser.id, lemonAnime.id);
+      }
+
+      // Strictly purge any Lemon Girls rating or top5 from Venicek
+      const venicekUser = db.prepare("SELECT id FROM users WHERE nickname = 'Venicek'").get();
+      if (venicekUser && lemonAnime) {
+        db.prepare('DELETE FROM ratings WHERE user_id = ? AND anime_id = ?').run(venicekUser.id, lemonAnime.id);
+        db.prepare('DELETE FROM user_top5 WHERE user_id = ? AND anime_id = ?').run(venicekUser.id, lemonAnime.id);
       }
     } catch (e) {
       console.warn('[Server] Startup cleanup warning:', e.message);

@@ -2636,5 +2636,11 @@
       "parent_id": 2,
       "created_at": "2026-09-15 23:24:36"
     }
+  ],
+  "userTop5": [
+    {
+      "user_id": 20,
+      "anime_id": 7170
+    }
   ]
 }

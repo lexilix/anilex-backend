@@ -198,6 +198,24 @@ export default function ProfilePage({
   const [friendGenreFilter, setFriendGenreFilter] = useState('all');
   const [showLevelsModal, setShowLevelsModal] = useState(false);
 
+  // Custom User Top-5 State (max 5 items, Photo 1 & Photo 2)
+  const [myTop5Ids, setMyTop5Ids] = useState(() => {
+    try {
+      const saved = localStorage.getItem('anilex_top5_' + user?.id);
+      let list = saved ? JSON.parse(saved) : [];
+      if (user?.nickname === 'MrTech' || user?.id === 20) {
+        if (!list.includes(7170)) list.unshift(7170);
+      }
+      if (user?.nickname === 'Venicek' || user?.id === 21) {
+        list = list.filter((id) => id !== 7170);
+      }
+      return list.slice(0, 5);
+    } catch (e) {
+      return (user?.nickname === 'MrTech' || user?.id === 20) ? [7170] : [];
+    }
+  });
+  const [top5Toast, setTop5Toast] = useState(null);
+
   // Multi-Platform Import state (Shikimori, AnimeLib, AnimeGO, raw list)
   const [showImportModal, setShowImportModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -284,7 +302,9 @@ export default function ProfilePage({
       if (res.ok) {
         const data = await res.json();
         let items = deduplicateAnimeList(data.items || []);
-        if (selectedScore !== 'all') {
+        if (selectedScore === 'top5') {
+          items = items.filter((it) => myTop5Ids.includes(it.id));
+        } else if (selectedScore !== 'all') {
           items = items.filter((it) => it.myScore === parseInt(selectedScore, 10));
         }
         setRatedAnime(items);
@@ -297,7 +317,7 @@ export default function ProfilePage({
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, sortOption, selectedType, activeRatedGenres, selectedScore]);
+  }, [searchQuery, sortOption, selectedType, activeRatedGenres, selectedScore, myTop5Ids]);
 
   useEffect(() => {
     if (activeTab === 'ratings') {
@@ -536,6 +556,92 @@ export default function ProfilePage({
     }
   };
 
+  // Sync user Top-5 from server
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchTop5 = async () => {
+      try {
+        const token = localStorage.getItem('anime_auth_token');
+        if (!token) return;
+        const res = await fetch(apiUrl('/api/user/top5'), {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          let ids = Array.isArray(data.top5Ids) ? data.top5Ids : [];
+          if (user?.nickname === 'MrTech' || user?.id === 20) {
+            if (!ids.includes(7170)) ids.unshift(7170);
+          }
+          if (user?.nickname === 'Venicek' || user?.id === 21) {
+            ids = ids.filter((id) => id !== 7170);
+          }
+          const finalTop5 = ids.slice(0, 5);
+          setMyTop5Ids(finalTop5);
+          localStorage.setItem('anilex_top5_' + user.id, JSON.stringify(finalTop5));
+        }
+      } catch (err) {
+        console.warn('Error fetching top 5:', err);
+      }
+    };
+    fetchTop5();
+  }, [user?.id, user?.nickname]);
+
+  // Toggle Top-5 for current user (Max 5 allowed - Photo 1 & 2)
+  const handleToggleTop5 = async (e, anime) => {
+    e.stopPropagation();
+    const animeId = anime.id;
+    const isMrTech = user?.nickname === 'MrTech' || user?.id === 20;
+
+    // For MrTech: cannot unpin Lemon Girls (Photo 2 & 3)
+    if (isMrTech && (animeId === 7170 || anime.title === 'Лимонные девочки')) {
+      setTop5Toast('Этот тайтл закреплен навсегда и его нельзя снять');
+      setTimeout(() => setTop5Toast(null), 3000);
+      return;
+    }
+
+    const isAlreadyIn = myTop5Ids.includes(animeId);
+    if (isAlreadyIn) {
+      const updated = myTop5Ids.filter((id) => id !== animeId);
+      setMyTop5Ids(updated);
+      localStorage.setItem('anilex_top5_' + user?.id, JSON.stringify(updated));
+      setTop5Toast(`«${anime.title}» убран из Топ-5`);
+      setTimeout(() => setTop5Toast(null), 2500);
+
+      try {
+        const token = localStorage.getItem('anime_auth_token');
+        if (token) {
+          fetch(apiUrl('/api/user/top5/toggle'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ animeId })
+          }).catch(() => {});
+        }
+      } catch (err) {}
+    } else {
+      if (myTop5Ids.length >= 5) {
+        setTop5Toast('В Топ-5 можно добавить только 5 аниме, больше нельзя!');
+        setTimeout(() => setTop5Toast(null), 3000);
+        return;
+      }
+      const updated = [...myTop5Ids, animeId];
+      setMyTop5Ids(updated);
+      localStorage.setItem('anilex_top5_' + user?.id, JSON.stringify(updated));
+      setTop5Toast(`«${anime.title}» добавлен в Топ-5 (${updated.length}/5)`);
+      setTimeout(() => setTop5Toast(null), 2500);
+
+      try {
+        const token = localStorage.getItem('anime_auth_token');
+        if (token) {
+          fetch(apiUrl('/api/user/top5/toggle'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ animeId })
+          }).catch(() => {});
+        }
+      } catch (err) {}
+    }
+  };
+
   // Load friend public profile
   const handleOpenFriend = async (friendId) => {
     try {
@@ -547,27 +653,53 @@ export default function ProfilePage({
         setSelectedFriend(data.user);
         let ratings = data.ratings || [];
 
-        // For MrTech (id: 20): always guarantee Lemon Girls with 10/10 is pinned at the top for all users
-        if (data.user?.nickname === 'MrTech' || data.user?.id === 20 || friendId === 20) {
-          if (!ratings.some((r) => r.title === 'Лимонные девочки' || r.isSecretTop)) {
-            ratings = [
-              {
-                id: 7170,
-                slug: 'shiki-82476',
-                title: 'Лимонные девочки',
-                imageUrl: 'https://cdn.myanimelist.net/images/anime/2/82476l.jpg',
-                type: 'OVA',
-                year: '2016',
-                genres: ['Хентай'],
-                score: 10,
-                isSecretTop: true,
-                isPinned: true,
-                updatedAt: new Date().toISOString()
-              },
-              ...ratings
-            ];
-          }
+        // Strictly purge Lemon Girls from Venicek (Photo 1)
+        if (data.user?.nickname === 'Venicek' || data.user?.id === 21 || friendId === 21) {
+          ratings = ratings.filter((r) => r.title !== 'Лимонные девочки' && r.id !== 7170 && !r.isSecretTop);
         }
+
+        // For MrTech (id: 20): always guarantee Lemon Girls with 10/10 is pinned at index 0 (Photo 2 & 3)
+        if (data.user?.nickname === 'MrTech' || data.user?.id === 20 || friendId === 20) {
+          ratings = ratings.filter((r) => r.title !== 'Лимонные девочки' && r.id !== 7170);
+          ratings.unshift({
+            id: 7170,
+            slug: 'shiki-82476',
+            title: 'Лимонные девочки',
+            imageUrl: 'https://cdn.myanimelist.net/images/anime/2/82476l.jpg',
+            type: 'OVA',
+            year: '2016',
+            genres: ['Хентай'],
+            score: 10,
+            isSecretTop: true,
+            isPinned: true,
+            isPermanentPin: true,
+            updatedAt: new Date().toISOString()
+          });
+        }
+
+        // Retrieve top5Ids for friend from data or localStorage
+        let friendTop5 = Array.isArray(data.top5Ids) ? data.top5Ids : [];
+        if (friendTop5.length === 0) {
+          try {
+            const saved = localStorage.getItem('anilex_top5_' + (data.user?.id || friendId));
+            if (saved) friendTop5 = JSON.parse(saved);
+          } catch (e) {}
+        }
+        if (data.user?.nickname === 'MrTech' || data.user?.id === 20 || friendId === 20) {
+          if (!friendTop5.includes(7170)) friendTop5.unshift(7170);
+        }
+        if (data.user?.nickname === 'Venicek' || data.user?.id === 21 || friendId === 21) {
+          friendTop5 = friendTop5.filter((id) => id !== 7170);
+        }
+
+        ratings = ratings.map((r) => ({
+          ...r,
+          isPinned: Boolean(
+            r.isPermanentPin ||
+            (r.isSecretTop && (data.user?.nickname === 'MrTech' || friendId === 20)) ||
+            friendTop5.includes(r.id)
+          )
+        }));
 
         setFriendRatings(ratings);
         setFriendScoreFilter('top5');
@@ -854,6 +986,18 @@ export default function ProfilePage({
             {/* Score filter buttons */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
               <span className="text-neutral-400 font-medium mr-1 shrink-0">Балл:</span>
+              <button
+                type="button"
+                onClick={() => setSelectedScore(selectedScore === 'top5' ? 'all' : 'top5')}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-colors shrink-0 flex items-center gap-1 ${
+                  selectedScore === 'top5'
+                    ? 'bg-amber-500 text-white shadow-sm font-bold'
+                    : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20'
+                }`}
+              >
+                <span>📌 Топ-5</span>
+                <span className="text-[10px] opacity-90">({myTop5Ids.length}/5)</span>
+              </button>
               {['all', '10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'].map((sc) => (
                 <button
                   key={sc}
@@ -1003,6 +1147,37 @@ export default function ProfilePage({
                         <span className={`px-2 py-0.5 rounded-lg font-bold text-xs ${getScoreBadgeClass(anime.myScore)}`}>
                           {anime.myScore} / 10
                         </span>
+
+                        {/* Quick Top-5 Pin Button (Photo 1 & 2) */}
+                        {(() => {
+                          const isInTop5 = myTop5Ids.includes(anime.id);
+                          const isMrTechPermanent = (user?.nickname === 'MrTech' || user?.id === 20) && (anime.id === 7170 || anime.title === 'Лимонные девочки');
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => handleToggleTop5(e, anime)}
+                              title={
+                                isMrTechPermanent
+                                  ? 'Закреплено навсегда (нельзя снять)'
+                                  : isInTop5
+                                  ? 'Убрать из Топ-5'
+                                  : 'Закрепить в Топ-5 (макс. 5)'
+                              }
+                              className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-all ml-1 ${
+                                isMrTechPermanent
+                                  ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-not-allowed opacity-90'
+                                  : isInTop5
+                                  ? 'bg-amber-500 text-white shadow-sm hover:bg-amber-600 font-bold'
+                                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                              }`}
+                            >
+                              <span>📌</span>
+                              <span className="text-[10px]">
+                                {isInTop5 ? 'В Топ-5' : '+ Топ-5'}
+                              </span>
+                            </button>
+                          );
+                        })()}
 
                         {/* Quick Delete Rating on Hover (Photo 2) */}
                         <button
@@ -1786,15 +1961,21 @@ export default function ProfilePage({
                 ) : (
                   <div className="space-y-3">
                     {(() => {
-                      // Check for pinned top item (e.g. Lemon Girls for MrTech)
-                      const pinnedItem = friendRatings.find(
-                        (item) => item.isSecretTop || item.title === 'Лимонные девочки'
-                      );
+                      const isMrTechProfile = selectedFriend?.nickname === 'MrTech' || selectedFriend?.id === 20;
+                      const isVenicekProfile = selectedFriend?.nickname === 'Venicek' || selectedFriend?.id === 21;
 
-                      // Sort with pinned item always at the very top (index 0)
-                      const sortedFriendRatings = [...friendRatings].sort((a, b) => {
-                        const aPinned = (a.isSecretTop || a.title === 'Лимонные девочки') ? 1 : 0;
-                        const bPinned = (b.isSecretTop || b.title === 'Лимонные девочки') ? 1 : 0;
+                      // Strict cleanse for Venicek (Photo 1)
+                      let cleanFriendRatings = friendRatings;
+                      if (isVenicekProfile) {
+                        cleanFriendRatings = cleanFriendRatings.filter(
+                          (item) => item.title !== 'Лимонные девочки' && item.id !== 7170 && !item.isSecretTop
+                        );
+                      }
+
+                      // Sort with pinned items always at the very top (Photo 1 & 2)
+                      const sortedFriendRatings = [...cleanFriendRatings].sort((a, b) => {
+                        const aPinned = (a.isPinned || (isMrTechProfile && (a.isSecretTop || a.title === 'Лимонные девочки'))) ? 1 : 0;
+                        const bPinned = (b.isPinned || (isMrTechProfile && (b.isSecretTop || b.title === 'Лимонные девочки'))) ? 1 : 0;
                         if (aPinned !== bPinned) return bPinned - aPinned;
                         return (b.score || 0) - (a.score || 0);
                       });
@@ -1988,7 +2169,7 @@ export default function ProfilePage({
                                   </div>
 
                                   <div className="flex items-center gap-2 shrink-0">
-                                    {(item.isSecretTop || item.title === 'Лимонные девочки') && (
+                                    {(item.isPinned || (isMrTechProfile && (item.isSecretTop || item.title === 'Лимонные девочки'))) && (
                                       <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold text-[10px] flex items-center gap-1 border border-amber-500/30">
                                         📌 Закреплено
                                       </span>
@@ -2550,6 +2731,13 @@ export default function ProfilePage({
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Floating Top-5 Toast Notification (Photo 1 & 2) */}
+      {top5Toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-neutral-900/90 dark:bg-white/90 text-white dark:text-neutral-900 text-xs font-semibold shadow-2xl backdrop-blur-md flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3 duration-200 border border-neutral-700/50 dark:border-neutral-200/50">
+          <span>📌</span>
+          <span>{top5Toast}</span>
         </div>
       )}
     </div>

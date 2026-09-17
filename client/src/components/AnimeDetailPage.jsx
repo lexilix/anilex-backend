@@ -24,6 +24,81 @@ export default function AnimeDetailPage({
   const [imgSrc, setImgSrc] = useState('');
   const [imageFailed, setImageFailed] = useState(false);
 
+  // Top-5 state (max 5 allowed - Photo 1 & 2)
+  const [myTop5Ids, setMyTop5Ids] = useState(() => {
+    try {
+      const saved = localStorage.getItem('anilex_top5_' + user?.id);
+      let list = saved ? JSON.parse(saved) : [];
+      if (user?.nickname === 'MrTech' || user?.id === 20) {
+        if (!list.includes(7170)) list.unshift(7170);
+      }
+      if (user?.nickname === 'Venicek' || user?.id === 21) {
+        list = list.filter((id) => id !== 7170);
+      }
+      return list.slice(0, 5);
+    } catch (e) {
+      return (user?.nickname === 'MrTech' || user?.id === 20) ? [7170] : [];
+    }
+  });
+  const [top5Toast, setTop5Toast] = useState(null);
+
+  const handleToggleTop5 = async () => {
+    if (!user) {
+      onRequireAuth();
+      return;
+    }
+    const aId = anime?.id || animeId;
+    const isMrTech = user?.nickname === 'MrTech' || user?.id === 20;
+
+    if (isMrTech && (aId === 7170 || anime?.title === 'Лимонные девочки')) {
+      setTop5Toast('Этот тайтл закреплен навсегда и его нельзя снять');
+      setTimeout(() => setTop5Toast(null), 3000);
+      return;
+    }
+
+    const isAlreadyIn = myTop5Ids.includes(aId);
+    if (isAlreadyIn) {
+      const updated = myTop5Ids.filter((id) => id !== aId);
+      setMyTop5Ids(updated);
+      localStorage.setItem('anilex_top5_' + user.id, JSON.stringify(updated));
+      setTop5Toast(`«${anime?.title || 'Тайтл'}» убран из Топ-5`);
+      setTimeout(() => setTop5Toast(null), 2500);
+
+      try {
+        const token = localStorage.getItem('anime_auth_token');
+        if (token) {
+          fetch(apiUrl('/api/user/top5/toggle'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ animeId: aId })
+          }).catch(() => {});
+        }
+      } catch (err) {}
+    } else {
+      if (myTop5Ids.length >= 5) {
+        setTop5Toast('В Топ-5 можно добавить только 5 аниме, больше нельзя!');
+        setTimeout(() => setTop5Toast(null), 3000);
+        return;
+      }
+      const updated = [...myTop5Ids, aId];
+      setMyTop5Ids(updated);
+      localStorage.setItem('anilex_top5_' + user.id, JSON.stringify(updated));
+      setTop5Toast(`«${anime?.title || 'Тайтл'}» добавлен в Топ-5 (${updated.length}/5)`);
+      setTimeout(() => setTop5Toast(null), 2500);
+
+      try {
+        const token = localStorage.getItem('anime_auth_token');
+        if (token) {
+          fetch(apiUrl('/api/user/top5/toggle'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ animeId: aId })
+          }).catch(() => {});
+        }
+      } catch (err) {}
+    }
+  };
+
   // Fetch related continuations and franchise titles
   const fetchRelatedAnime = async () => {
     try {
@@ -618,6 +693,36 @@ export default function AnimeDetailPage({
                 ) : (
                   <span className="text-xs text-neutral-400">не оценено</span>
                 )}
+
+                {/* Top-5 Pin Button (Photo 1 & 2) */}
+                {anime.myScore !== null && user && (() => {
+                  const aId = anime.id || animeId;
+                  const isInTop5 = myTop5Ids.includes(aId);
+                  const isMrTechPermanent = (user?.nickname === 'MrTech' || user?.id === 20) && (aId === 7170 || anime.title === 'Лимонные девочки');
+                  return (
+                    <button
+                      type="button"
+                      onClick={handleToggleTop5}
+                      title={
+                        isMrTechPermanent
+                          ? 'Закреплено навсегда (нельзя снять)'
+                          : isInTop5
+                          ? 'Убрать из Топ-5'
+                          : 'Закрепить в Топ-5 (макс. 5)'
+                      }
+                      className={`px-2.5 py-0.5 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all ml-1 ${
+                        isMrTechPermanent
+                          ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-not-allowed opacity-90'
+                          : isInTop5
+                          ? 'bg-amber-500 text-white shadow-sm hover:bg-amber-600 font-bold'
+                          : 'bg-neutral-200/80 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-300 dark:hover:bg-neutral-700'
+                      }`}
+                    >
+                      <span>📌</span>
+                      <span>{isInTop5 ? 'В Топ-5' : '+ В Топ-5'}</span>
+                    </button>
+                  );
+                })()}
               </div>
 
               <div className="text-xs text-neutral-500 dark:text-neutral-400">
@@ -1084,6 +1189,14 @@ export default function AnimeDetailPage({
         </>
         )}
       </div>
+
+      {/* Floating Top-5 Toast Notification (Photo 1 & 2) */}
+      {top5Toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-neutral-900/90 dark:bg-white/90 text-white dark:text-neutral-900 text-xs font-semibold shadow-2xl backdrop-blur-md flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3 duration-200 border border-neutral-700/50 dark:border-neutral-200/50">
+          <span>📌</span>
+          <span>{top5Toast}</span>
+        </div>
+      )}
     </div>
   );
 }

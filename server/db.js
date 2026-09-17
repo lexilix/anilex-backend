@@ -133,6 +133,15 @@ db.exec(`
     UNIQUE(comment_id, user_id)
   );
 
+  CREATE TABLE IF NOT EXISTS user_top5 (
+    user_id INTEGER NOT NULL,
+    anime_id INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(user_id, anime_id),
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(anime_id) REFERENCES anime(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS friend_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     from_user_id INTEGER NOT NULL,
@@ -347,7 +356,20 @@ function restoreAccountsFromBackup() {
       }
     }
 
-    console.log('[Database] Auto-restored accounts, friendships, and ratings from accounts_backup.json.');
+    // Restore user_top5
+    if (Array.isArray(data.userTop5)) {
+      const insertTop5Stmt = db.prepare(`
+        INSERT OR IGNORE INTO user_top5 (user_id, anime_id, created_at)
+        VALUES (?, ?, ?)
+      `);
+      for (const t of data.userTop5) {
+        try {
+          insertTop5Stmt.run(t.user_id, t.anime_id, t.created_at || new Date().toISOString());
+        } catch (e) {}
+      }
+    }
+
+    console.log('[Database] Auto-restored accounts, friendships, ratings, and top5 from accounts_backup.json.');
   } catch (err) {
     console.error('[Database] Failed to restore from accounts_backup.json:', err.message);
   }
@@ -364,6 +386,7 @@ function saveAccountsBackup() {
     const friendRequests = db.prepare('SELECT * FROM friend_requests').all();
     const comments = db.prepare('SELECT * FROM comments').all();
     const hiddenAnime = db.prepare('SELECT * FROM user_hidden_anime').all();
+    const userTop5 = db.prepare('SELECT * FROM user_top5').all();
 
     const snapshot = {
       version: 1,
@@ -372,7 +395,8 @@ function saveAccountsBackup() {
       ratings,
       friendRequests,
       comments,
-      hiddenAnime
+      hiddenAnime,
+      userTop5
     };
 
     fs.writeFileSync(backupFile, JSON.stringify(snapshot, null, 2), 'utf8');
