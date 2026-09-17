@@ -4,7 +4,7 @@ import { apiUrl, getImageUrl } from '../api';
 import { getScoreBadgeClass } from '../utils/scoreColors';
 import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 
-const ROTATION_INTERVAL_SEC = 10; // 10 seconds auto-rotation
+const ROTATION_INTERVAL_SEC = 30; // 30 seconds auto-rotation
 const DISPLAY_COUNT = 10; // Exactly 10 anime in the tape feed
 const ROTATE_BATCH_SIZE = 5; // 5 anime change each cycle
 
@@ -364,6 +364,7 @@ export default function SimilarAnimeFeed({
                     src={getImageUrl(item.imageUrl)}
                     alt={item.title}
                     loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     onError={(e) => {
                       e.target.style.display = 'none';

@@ -198,6 +198,7 @@ export default function FeaturedCarousel({
                     src={getImageUrl(anime.imageUrl)}
                     alt={anime.title}
                     loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       e.target.style.display = 'none';

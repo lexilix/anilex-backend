@@ -57,7 +57,7 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.get('/api/version', (req, res) => {
   res.json({
     status: 'ok',
-    version: '1.0.5',
+    version: '1.0.6',
     nodeVersion: process.version,
     hasLowerUtf8: Boolean(db.hasLowerUtf8)
   });
@@ -1328,6 +1328,16 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
           (CASE WHEN avg_score IS NOT NULL THEN 1 ELSE 0 END) DESC,
           avg_score DESC,
           rating_count DESC,
+          a.id DESC
+      `;
+    } else if (sort === 'unrated') {
+      orderBySql = `
+        ORDER BY
+          (CASE WHEN my_score IS NULL THEN 0 ELSE 1 END) ASC,
+          (CASE WHEN avg_score IS NOT NULL THEN 1 ELSE 0 END) DESC,
+          avg_score DESC,
+          rating_count DESC,
+          (CASE WHEN a.year IS NOT NULL AND a.year != '' THEN a.year ELSE '0000' END) DESC,
           a.id DESC
       `;
     } else if (sort === 'recommendations') {

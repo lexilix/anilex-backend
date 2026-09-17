@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Sparkles, Clock, TrendingUp, ChevronDown, Star } from 'lucide-react';
+import { Sparkles, Clock, TrendingUp, ChevronDown, Star, HelpCircle } from 'lucide-react';
 
 const sortOptions = [
   { id: 'newest', label: 'Самые новые', icon: Clock, desc: 'По новизне и дате добавления' },
   { id: 'rating', label: 'С наилучшим рейтингом', icon: TrendingUp, desc: 'По оценкам пользователей сайта' },
+  { id: 'unrated', label: 'Не оценено', icon: HelpCircle, desc: 'Сначала тайтлы без вашей оценки' },
   { id: 'my_score_desc', label: 'Топ мои оценки', icon: Star, desc: 'Сначала тайтлы с вашей максимальной оценкой' },
   { id: 'recommendations', label: 'Рекомендации', icon: Sparkles, desc: 'На основе ваших любимых жанров (оценка 8+)' }
 ];

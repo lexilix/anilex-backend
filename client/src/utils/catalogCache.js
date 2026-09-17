@@ -49,7 +49,7 @@ export function setCachedCatalog(key, payload) {
     const cacheData = {
       timestamp: Date.now(),
       page: payload.page || 1,
-      items: cleanItems.slice(0, 500),
+      items: cleanItems.slice(0, 60),
       total: payload.total || 0,
       totalPages: payload.totalPages || 1,
       recommendationGenresCount: payload.recommendationGenresCount || 0
@@ -104,6 +104,8 @@ export function hasCatalogChanged(cachedItems, newItems) {
     if (a.title !== b.title) return true;
     if (a.imageUrl !== b.imageUrl) return true;
     if (a.description !== b.description) return true;
+    if ((!a.description || a.description.length < 25) && b.description && b.description.length >= 25) return true;
+    if (JSON.stringify(a.genres || []) !== JSON.stringify(b.genres || [])) return true;
     if (a.myScore !== b.myScore) return true;
     if (a.isFavorite !== b.isFavorite) return true;
     if (a.isHidden !== b.isHidden) return true;

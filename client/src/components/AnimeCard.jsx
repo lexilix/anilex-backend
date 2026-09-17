@@ -124,6 +124,7 @@ export default function AnimeCard({
               src={imgSrc}
               alt={anime.title}
               loading="lazy"
+              decoding="async"
               referrerPolicy="no-referrer"
               onError={handleImageError}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"

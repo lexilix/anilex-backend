@@ -59,6 +59,8 @@ export default function App() {
   const [types, setTypes] = useState([]);
   const [friends, setFriends] = useState([]);
   const [recommendationCount, setRecommendationCount] = useState(0);
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+  const [renderedLimit, setRenderedLimit] = useState(isMobile ? 12 : 20);
 
   // Notifications state
   const [notifications, setNotifications] = useState([]);
@@ -374,7 +376,7 @@ export default function App() {
         if (filterStatus !== 'all') params.append('filterStatus', filterStatus);
         if (activeGenres.length > 0) params.append('genres', activeGenres.join(','));
         params.append('page', targetPage);
-        params.append('limit', 15);
+        params.append('limit', isMobile ? 12 : 15);
 
         const headers = {};
         if (token) {
@@ -525,6 +527,25 @@ export default function App() {
       window.removeEventListener('scroll', handleScroll);
     };
   }, [view, debouncedSearch, activeGenres, activeType, activeYear, filterStatus, fetchAnime]);
+
+  // Progressive rendering: mount cards smoothly in small batches for phones
+  useEffect(() => {
+    setRenderedLimit(isMobile ? 12 : 20);
+  }, [debouncedSearch, activeSort, activeType, activeYear, filterStatus, activeGenres, isMobile]);
+
+  useEffect(() => {
+    if (view !== 'catalog') return;
+    const handleProgressiveScroll = () => {
+      const scrollHeight = document.documentElement.scrollHeight;
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const clientHeight = window.innerHeight;
+      if (scrollTop + clientHeight >= scrollHeight - 500) {
+        setRenderedLimit((prev) => Math.min(animeList.length, prev + (isMobile ? 8 : 15)));
+      }
+    };
+    window.addEventListener('scroll', handleProgressiveScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleProgressiveScroll);
+  }, [view, animeList.length, isMobile]);
 
   // 2. Search Mode: Untouched IntersectionObserver for search results
   useEffect(() => {
@@ -931,7 +952,7 @@ export default function App() {
                 {/* List of Anime Cards */}
                 {animeList.length > 0 && (
                   <div className="space-y-4 sm:space-y-5">
-                    {animeList.map((anime) => (
+                    {animeList.slice(0, renderedLimit).map((anime) => (
                       <AnimeCard
                         key={anime.id}
                         anime={anime}
