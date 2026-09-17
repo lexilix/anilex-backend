@@ -835,9 +835,10 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
     let friendshipStatus = 'none';
     let requestId = null;
 
-    if (targetUserId === currentUserId) {
+    const isDevAdmin = currentUserId === 5 || (req.user && (req.user.nickname === 'Just' || req.user.email === 'just9jeeet@gmail.com'));
+    if (targetUserId === currentUserId || isDevAdmin) {
       isFriend = true;
-      friendshipStatus = 'self';
+      friendshipStatus = targetUserId === currentUserId ? 'self' : 'accepted';
     } else {
       const relation = db.prepare(`
         SELECT id, from_user_id, to_user_id, status
@@ -3084,33 +3085,230 @@ app.put('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
   }
 });
 
-// Dev: Get user ratings
+// Dev: Get user ratings with search, score, genre, type, and sort filters
 app.get('/api/dev/users/:id/ratings', devAdminMiddleware, (req, res) => {
   try {
     const targetUserId = parseInt(req.params.id, 10);
+    const { search, genres, type, score, sort = 'my_score_desc' } = req.query;
+
+    let whereClauses = ['r.user_id = ?', "a.title != 'Лимонные девочки'"];
+    let params = [targetUserId];
+
+    if (search && search.trim()) {
+      whereClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ?)');
+      const term = `%${search.trim().toLowerCase()}%`;
+      params.push(term, term);
+    }
+
+    if (score && score !== 'all') {
+      const numScore = parseInt(score, 10);
+      if (!isNaN(numScore)) {
+        whereClauses.push('r.score = ?');
+        params.push(numScore);
+      }
+    }
+
+    if (type && type.trim() && type !== 'all') {
+      whereClauses.push('a.type = ?');
+      params.push(type.trim());
+    }
+
+    if (genres && genres.trim()) {
+      const gList = genres.split(',').map(g => g.trim()).filter(Boolean);
+      for (const g of gList) {
+        whereClauses.push('a.genres LIKE ?');
+        params.push(`%"${g}"%`);
+      }
+    }
+
+    let orderBy = 'ORDER BY r.score DESC, r.updated_at DESC';
+    if (sort === 'my_score_asc') orderBy = 'ORDER BY r.score ASC, r.updated_at DESC';
+    else if (sort === 'title_asc') orderBy = 'ORDER BY a.title ASC';
+    else if (sort === 'recent_rated') orderBy = 'ORDER BY r.updated_at DESC';
+
     const rows = db.prepare(`
-      SELECT a.id, a.slug, a.title, a.image_url, a.type, a.year, a.genres, r.score, r.updated_at
+      SELECT a.id, a.slug, a.title, a.original_title, a.image_url, a.type, a.year, a.genres, a.description,
+             r.score, r.updated_at,
+             (SELECT COUNT(*) FROM user_top5 WHERE user_id = r.user_id AND anime_id = a.id) as is_top5
       FROM ratings r
       JOIN anime a ON r.anime_id = a.id
-      WHERE r.user_id = ?
-      ORDER BY r.score DESC, r.updated_at DESC
-    `).all(targetUserId);
+      WHERE ${whereClauses.join(' AND ')}
+      ${orderBy}
+    `).all(...params);
 
     return res.json({
       ratings: rows.map(r => ({
         id: r.id,
         slug: r.slug,
         title: r.title,
+        originalTitle: r.original_title,
         imageUrl: r.image_url,
         type: r.type,
         year: r.year,
         genres: JSON.parse(r.genres || '[]'),
+        description: r.description,
         score: r.score,
+        isTop5: Boolean(r.is_top5),
         updatedAt: r.updated_at
       }))
     });
   } catch (err) {
     return res.status(500).json({ error: 'Ошибка загрузки оценок пользователя' });
+  }
+});
+
+// Dev: Get unrated anime for a specific user
+app.get('/api/dev/users/:id/unrated', devAdminMiddleware, (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.id, 10);
+    const { search, genres, type, limit = 60, page = 1 } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(10, parseInt(limit, 10) || 60));
+    const offset = (pageNum - 1) * limitNum;
+
+    let whereClauses = ['a.id NOT IN (SELECT anime_id FROM ratings WHERE user_id = ?)', "a.title != 'Лимонные девочки'"];
+    let params = [targetUserId];
+
+    if (search && search.trim()) {
+      whereClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ?)');
+      const term = `%${search.trim().toLowerCase()}%`;
+      params.push(term, term);
+    }
+
+    if (type && type.trim() && type !== 'all') {
+      whereClauses.push('a.type = ?');
+      params.push(type.trim());
+    }
+
+    if (genres && genres.trim()) {
+      const gList = genres.split(',').map(g => g.trim()).filter(Boolean);
+      for (const g of gList) {
+        whereClauses.push('a.genres LIKE ?');
+        params.push(`%"${g}"%`);
+      }
+    }
+
+    const whereSql = whereClauses.join(' AND ');
+    const countRow = db.prepare(`SELECT COUNT(id) as total FROM anime a WHERE ${whereSql}`).get(...params);
+    const total = countRow ? countRow.total : 0;
+
+    const rows = db.prepare(`
+      SELECT a.id, a.slug, a.title, a.original_title, a.image_url, a.type, a.year, a.genres, a.description,
+             ROUND((SELECT AVG(score) FROM ratings WHERE anime_id = a.id), 1) as avg_score,
+             (SELECT COUNT(id) FROM ratings WHERE anime_id = a.id) as rating_count
+      FROM anime a
+      WHERE ${whereSql}
+      ORDER BY a.id DESC
+      LIMIT ? OFFSET ?
+    `).all(...params, limitNum, offset);
+
+    return res.json({
+      items: rows.map(r => ({
+        id: r.id,
+        slug: r.slug,
+        title: r.title,
+        originalTitle: r.original_title,
+        imageUrl: r.image_url,
+        type: r.type,
+        year: r.year,
+        genres: JSON.parse(r.genres || '[]'),
+        description: r.description,
+        averageScore: r.rating_count > 0 && r.avg_score !== null ? Number(r.avg_score) : null,
+        ratingCount: Number(r.rating_count)
+      })),
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum) || 1
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка загрузки неоцененных тайтлов' });
+  }
+});
+
+// Dev: Batch import ratings for user
+app.post('/api/dev/users/:userId/import', devAdminMiddleware, async (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.userId, 10);
+    const { items, overwrite = false } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Список тайтлов для импорта пуст' });
+    }
+
+    let newlyRatedCount = 0;
+    let updatedRatedCount = 0;
+    let skippedCount = 0;
+
+    const findAnimeStmt = db.prepare('SELECT id, title FROM anime WHERE title_lower = ? OR original_title_lower = ? LIMIT 1');
+    const findFuzzyStmt = db.prepare('SELECT id, title FROM anime WHERE title_lower LIKE ? LIMIT 1');
+    const existingRatingStmt = db.prepare('SELECT id, score FROM ratings WHERE user_id = ? AND anime_id = ?');
+    const insertRatingStmt = db.prepare('INSERT INTO ratings (user_id, anime_id, score, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)');
+    const updateRatingStmt = db.prepare('UPDATE ratings SET score = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    const createAnimeStmt = db.prepare(`
+      INSERT INTO anime (title, title_lower, original_title, original_title_lower, description, image_url, type, year, genres, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `);
+
+    for (const it of items) {
+      const title = (it.title || '').trim();
+      if (!title) continue;
+      const originalTitle = (it.originalTitle || '').trim();
+      const score = Math.min(10, Math.max(1, parseInt(it.score, 10) || 10));
+
+      const titleLower = title.toLowerCase();
+      const origLower = originalTitle ? originalTitle.toLowerCase() : '';
+
+      let matched = findAnimeStmt.get(titleLower, origLower || titleLower);
+      if (!matched) {
+        matched = findFuzzyStmt.get(`%${titleLower}%`);
+      }
+
+      let animeId;
+      if (matched) {
+        animeId = matched.id;
+      } else {
+        const imgUrl = it.imageUrl || it.image || 'https://placehold.co/300x450/1e293b/ffffff?text=' + encodeURIComponent(title.slice(0, 30));
+        const resInfo = createAnimeStmt.run(
+          title,
+          titleLower,
+          originalTitle,
+          origLower,
+          title,
+          imgUrl,
+          it.type || 'Сериал',
+          it.year || '',
+          JSON.stringify(Array.isArray(it.genres) ? it.genres : [])
+        );
+        animeId = resInfo.lastInsertRowid;
+      }
+
+      const existing = existingRatingStmt.get(targetUserId, animeId);
+      if (existing) {
+        if (overwrite) {
+          updateRatingStmt.run(score, existing.id);
+          updatedRatedCount++;
+        } else {
+          skippedCount++;
+        }
+      } else {
+        insertRatingStmt.run(targetUserId, animeId, score);
+        newlyRatedCount++;
+      }
+    }
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({
+      success: true,
+      total: items.length,
+      newlyRatedCount,
+      updatedRatedCount,
+      skippedCount
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка импорта оценок: ' + err.message });
   }
 });
 
