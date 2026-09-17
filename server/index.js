@@ -1494,39 +1494,135 @@ app.get('/api/anime/:id', optionalAuthMiddleware, async (req, res) => {
     let parsedGenres = [];
     try { parsedGenres = JSON.parse(anime.genres || '[]'); } catch (e) {}
 
-    // On-the-fly auto-enrichment for anime missing genres or description
+    // On-the-fly auto-enrichment for anime missing genres or description (Primary: AnimeGO, Fallback: Shikimori)
     if (parsedGenres.length === 0 || !anime.description || anime.description === 'Описание отсутствует.' || anime.description.length < 20) {
       try {
-        let fetchedDetails = null;
-        if (anime.slug && anime.slug.startsWith('shiki-')) {
-          const sRes = await fetch(`https://shikimori.one/api/animes/${anime.slug.replace('shiki-', '')}`, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-          });
-          if (sRes.ok) fetchedDetails = await sRes.json();
+        let fetchedDesc = '';
+        let fetchedGenres = [];
+
+        const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+        // 1. Try AnimeGO by slug
+        if (anime.slug && !anime.slug.startsWith('shiki-') && !anime.slug.startsWith('anime-') && !anime.slug.startsWith('restored-')) {
+          try {
+            const agRes = await fetch(`https://animego.me/anime/${anime.slug}`, {
+              headers: {
+                'User-Agent': USER_AGENT,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7'
+              }
+            });
+            if (agRes.ok) {
+              const html = await agRes.text();
+              const descMatch = html.match(/<div[^>]*class="[^"]*\bdescription\b[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+              const genreMatches = [...html.matchAll(/href="\/anime\/genre\/([^"]+)"[^>]*>([^<]+)<\/a>/g)].map(g => g[2].trim());
+              if (descMatch) {
+                fetchedDesc = descMatch[1]
+                  .replace(/<[^>]+>/g, '')
+                  .replace(/&quot;/g, '"')
+                  .replace(/&amp;/g, '&')
+                  .replace(/&#039;/g, "'")
+                  .replace(/&nbsp;/g, ' ')
+                  .replace(/&laquo;/g, '«')
+                  .replace(/&raquo;/g, '»')
+                  .replace(/^spoiler#click[^\n]*/i, '')
+                  .replace(/Развернуть/g, '')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+              }
+              if (genreMatches.length > 0) fetchedGenres = genreMatches;
+            }
+          } catch (e) {}
         }
-        if (!fetchedDetails) {
-          const sRes = await fetch(`https://shikimori.one/api/animes?search=${encodeURIComponent(anime.title)}&limit=3`, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-          });
-          if (sRes.ok) {
-            const list = await sRes.json();
-            if (Array.isArray(list) && list[0]) {
-              const dRes = await fetch(`https://shikimori.one/api/animes/${list[0].id}`, {
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-              });
-              if (dRes.ok) fetchedDetails = await dRes.json();
+
+        // 2. Try AnimeGO by search
+        if ((!fetchedDesc || fetchedGenres.length === 0) && anime.title) {
+          try {
+            const cleanSearch = anime.title.replace(/\s+(?:2-й|3-й|4-й)?\s*сезон.*$/i, '').trim();
+            const sRes = await fetch(`https://animego.me/search/anime?q=${encodeURIComponent(cleanSearch)}`, {
+              headers: { 'User-Agent': USER_AGENT }
+            });
+            if (sRes.ok) {
+              const html = await sRes.text();
+              const parts = html.split(/<div class="ani-grid__item\s[^"]*">/);
+              if (parts.length > 1) {
+                const linkMatch = parts[1].match(/href="\/anime\/([a-zA-Z0-9\-]+)"/);
+                if (linkMatch && linkMatch[1]) {
+                  const dRes = await fetch(`https://animego.me/anime/${linkMatch[1]}`, {
+                    headers: { 'User-Agent': USER_AGENT }
+                  });
+                  if (dRes.ok) {
+                    const dHtml = await dRes.text();
+                    const descMatch = dHtml.match(/<div[^>]*class="[^"]*\bdescription\b[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+                    const genreMatches = [...dHtml.matchAll(/href="\/anime\/genre\/([^"]+)"[^>]*>([^<]+)<\/a>/g)].map(g => g[2].trim());
+                    if (descMatch && !fetchedDesc) {
+                      fetchedDesc = descMatch[1]
+                        .replace(/<[^>]+>/g, '')
+                        .replace(/&quot;/g, '"')
+                        .replace(/&amp;/g, '&')
+                        .replace(/&#039;/g, "'")
+                        .replace(/&nbsp;/g, ' ')
+                        .replace(/&laquo;/g, '«')
+                        .replace(/&raquo;/g, '»')
+                        .replace(/^spoiler#click[^\n]*/i, '')
+                        .replace(/Развернуть/g, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                    }
+                    if (genreMatches.length > 0 && fetchedGenres.length === 0) fetchedGenres = genreMatches;
+                  }
+                }
+              }
+            }
+          } catch (e) {}
+        }
+
+        // 3. Fallback: Shikimori API
+        if (!fetchedDesc || fetchedGenres.length === 0) {
+          let shikiDetails = null;
+          if (anime.slug && anime.slug.startsWith('shiki-')) {
+            const sRes = await fetch(`https://shikimori.one/api/animes/${anime.slug.replace('shiki-', '')}`, {
+              headers: { 'User-Agent': USER_AGENT }
+            });
+            if (sRes.ok) shikiDetails = await sRes.json();
+          }
+          if (!shikiDetails) {
+            const sRes = await fetch(`https://shikimori.one/api/animes?search=${encodeURIComponent(anime.title)}&limit=3`, {
+              headers: { 'User-Agent': USER_AGENT }
+            });
+            if (sRes.ok) {
+              const list = await sRes.json();
+              if (Array.isArray(list) && list[0]) {
+                const dRes = await fetch(`https://shikimori.one/api/animes/${list[0].id}`, {
+                  headers: { 'User-Agent': USER_AGENT }
+                });
+                if (dRes.ok) shikiDetails = await dRes.json();
+              }
+            }
+          }
+
+          if (shikiDetails) {
+            if (!fetchedDesc && shikiDetails.description) {
+              fetchedDesc = shikiDetails.description.replace(/\[[^\]]+\]/g, '').trim();
+            }
+            if (fetchedGenres.length === 0 && Array.isArray(shikiDetails.genres) && shikiDetails.genres.length > 0) {
+              fetchedGenres = shikiDetails.genres.map(g => g.russian || g.name).filter(Boolean);
             }
           }
         }
 
-        if (fetchedDetails) {
-          if (parsedGenres.length === 0 && Array.isArray(fetchedDetails.genres) && fetchedDetails.genres.length > 0) {
-            parsedGenres = fetchedDetails.genres.map(g => g.russian || g.name).filter(Boolean);
-            anime.genres = JSON.stringify(parsedGenres);
-          }
-          if ((!anime.description || anime.description.length < 20 || anime.description === 'Описание отсутствует.') && fetchedDetails.description) {
-            anime.description = fetchedDetails.description.replace(/\[[^\]]+\]/g, '').trim();
-          }
+        let hasChanges = false;
+        if (parsedGenres.length === 0 && fetchedGenres.length > 0) {
+          parsedGenres = fetchedGenres;
+          anime.genres = JSON.stringify(parsedGenres);
+          hasChanges = true;
+        }
+        if ((!anime.description || anime.description.length < 20 || anime.description === 'Описание отсутствует.') && fetchedDesc) {
+          anime.description = fetchedDesc;
+          hasChanges = true;
+        }
+
+        if (hasChanges) {
           db.prepare('UPDATE anime SET genres = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
             .run(anime.genres, anime.description, anime.id);
         }
