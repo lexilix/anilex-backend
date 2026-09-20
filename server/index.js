@@ -168,6 +168,10 @@ app.post('/api/auth/login', (req, res) => {
       return res.status(400).json({ error: 'Пользователь с такой почтой не найден' });
     }
 
+    if (user.is_blocked) {
+      return res.status(403).json({ error: 'Ваш аккаунт заблокирован администратором' });
+    }
+
     let isValid = false;
     if (user.allow_password_set === 1 || user.password_hash === 'RESTORED_ACCOUNT') {
       // First login on restored account automatically sets the password
@@ -204,9 +208,12 @@ app.post('/api/auth/login', (req, res) => {
 // Current User Profile
 app.get('/api/auth/me', authMiddleware, (req, res) => {
   try {
-    const user = db.prepare('SELECT id, email, nickname, avatar_url, banner_url, created_at FROM users WHERE id = ?').get(req.user.id);
+    const user = db.prepare('SELECT id, email, nickname, avatar_url, banner_url, is_blocked, created_at FROM users WHERE id = ?').get(req.user.id);
     if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    if (user.is_blocked) {
+      return res.status(403).json({ error: 'Ваш аккаунт заблокирован администратором' });
     }
 
     const stats = db.prepare(`
@@ -1027,7 +1034,7 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
 app.get('/api/friends', (req, res) => {
   try {
     const users = db.prepare(`
-      SELECT u.id, u.nickname, u.email, u.avatar_url,
+      SELECT u.id, u.nickname, u.email, u.avatar_url, u.banner_url, u.is_blocked,
              COUNT(r.id) as rated_count,
              ROUND(AVG(r.score), 1) as avg_score
       FROM users u
@@ -1043,6 +1050,8 @@ app.get('/api/friends', (req, res) => {
         nickname: u.nickname,
         email: u.email,
         avatarUrl: u.avatar_url,
+        bannerUrl: u.banner_url,
+        isBlocked: Boolean(u.is_blocked),
         rated_count: u.rated_count || 0,
         avg_score: u.avg_score !== null ? Number(u.avg_score) : null
       }))
@@ -1322,6 +1331,14 @@ app.get('/api/anime/featured', optionalAuthMiddleware, async (req, res) => {
 // ANIME CATALOG & LIVE ANIMEGO INFINITE SCROLL
 // ----------------------------------------------------
 
+// Helper for Russian word stemming to match grammatical forms (e.g. "безработный" -> "безработн" -> matches "безработного")
+function stemRussianWord(word) {
+  if (!word) return '';
+  const w = word.toLowerCase().replace(/ё/g, 'е').trim();
+  if (w.length <= 3) return w;
+  return w.replace(/(?:[ое]го|[ое]му|[ыи]ми|[ыи]х|[ыи]е|[ое]й|[ыи]м|[ая]я|[ую]ю|ом|ем|ах|ях|ам|ям|ов|ев|ей|ий|ый|ой|а|я|у|ю|е|о|ы|и|ь)$/i, '');
+}
+
 app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
   try {
     const currentUserId = req.user ? req.user.id : null;
@@ -1360,18 +1377,19 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         }
       }
 
-      // Add WHERE condition: ALL meaningful words must match in title_lower or original_title_lower!
+      // Add WHERE condition: meaningful words or their stems must match in title_lower or original_title_lower!
       for (const w of meaningfulWords) {
-        whereClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ?)');
-        params.push(`%${w}%`, `%${w}%`);
+        const stem = stemRussianWord(w);
+        if (stem && stem.length >= 3 && stem !== w) {
+          whereClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ? OR a.title_lower LIKE ? OR a.original_title_lower LIKE ?)');
+          params.push(`%${w}%`, `%${w}%`, `%${stem}%`, `%${stem}%`);
+        } else {
+          whereClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ?)');
+          params.push(`%${w}%`, `%${w}%`);
+        }
       }
 
       // Relevance rank cases:
-      // Exact title match: 100
-      // Starts with title: 50
-      // Contains full phrase: 30
-      // Per matching word in title: 10
-      // Per matching word in original_title: 5
       let rankCases = [
         '(CASE WHEN a.title_lower = ? THEN 100 WHEN a.original_title_lower = ? THEN 80 ELSE 0 END)',
         '(CASE WHEN a.title_lower LIKE ? THEN 50 WHEN a.original_title_lower LIKE ? THEN 40 ELSE 0 END)',
@@ -1380,8 +1398,13 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       searchRankParams.push(normSearch, normSearch, `${normSearch}%`, `${normSearch}%`, `%${normSearch}%`, `%${normSearch}%`);
 
       for (const w of meaningfulWords) {
-        rankCases.push('(CASE WHEN a.title_lower LIKE ? THEN 10 WHEN a.original_title_lower LIKE ? THEN 5 ELSE 0 END)');
+        const stem = stemRussianWord(w);
+        rankCases.push('(CASE WHEN a.title_lower LIKE ? THEN 15 WHEN a.original_title_lower LIKE ? THEN 8 ELSE 0 END)');
         searchRankParams.push(`%${w}%`, `%${w}%`);
+        if (stem && stem.length >= 3 && stem !== w) {
+          rankCases.push('(CASE WHEN a.title_lower LIKE ? THEN 10 WHEN a.original_title_lower LIKE ? THEN 5 ELSE 0 END)');
+          searchRankParams.push(`%${stem}%`, `%${stem}%`);
+        }
       }
 
       searchRankSql = `(${rankCases.join(' + ')}) DESC, `;
@@ -1419,8 +1442,12 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       params.push(currentUserId);
     }
 
-    // Exclude missing / 404 / placehold.co covers and promo commercial junk (Photo 3 & Photo 4)
-    whereClauses.push("a.image_url IS NOT NULL AND a.image_url != '' AND a.image_url NOT LIKE '%missing_original%' AND a.image_url NOT LIKE '%404%' AND a.image_url NOT LIKE '%placeholder%' AND a.image_url NOT LIKE '%placehold.co%' AND a.title NOT LIKE '%сникерс%' AND a.original_title NOT LIKE '%snickers%'");
+    // Exclude missing / 404 / placehold.co covers and promo commercial junk on general browse, but NEVER hide during search!
+    if (!search || !search.trim()) {
+      whereClauses.push("a.image_url IS NOT NULL AND a.image_url != '' AND a.image_url NOT LIKE '%missing_original%' AND a.image_url NOT LIKE '%404%' AND a.image_url NOT LIKE '%placeholder%' AND a.image_url NOT LIKE '%placehold.co%' AND a.title NOT LIKE '%сникерс%' AND a.original_title NOT LIKE '%snickers%'");
+    } else {
+      whereClauses.push("a.title NOT LIKE '%сникерс%' AND a.original_title NOT LIKE '%snickers%'");
+    }
 
     // Exclude anime marked as 'not interested' (hidden) by current user on main catalog (Photo 1 & Photo 4)
     // When searching, keep them in results so they can be shown dimmed / marked as not interested
@@ -1557,8 +1584,30 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       ${whereSql}
     `;
 
-    const totalRow = db.prepare(countSql).get(...params);
-    const items = db.prepare(querySql).all(currentUserId || -1, currentUserId || -1, currentUserId || -1, ...params, ...searchRankParams, limitNum, offset);
+    let items = db.prepare(querySql).all(currentUserId || -1, currentUserId || -1, currentUserId || -1, ...params, ...searchRankParams, limitNum, offset);
+    let currentTotal = totalRow ? totalRow.total : items.length;
+
+    // If searching and 0 results found in local database, fetch from AnimeGO / Shikimori reserve and save to backup
+    if (search && search.trim() && items.length === 0) {
+      const cleanSearch = search.trim();
+      console.log(`[Search] No local results for "${cleanSearch}". Checking AnimeGO / Shikimori...`);
+      try {
+        let externalFound = await searchAnimeGo(cleanSearch);
+        if (!externalFound || externalFound === 0) {
+          externalFound = await searchShikimori(cleanSearch);
+        }
+        if (externalFound > 0) {
+          if (typeof db.saveAccountsBackup === 'function') {
+            db.saveAccountsBackup();
+          }
+          items = db.prepare(querySql).all(currentUserId || -1, currentUserId || -1, currentUserId || -1, ...params, ...searchRankParams, limitNum, offset);
+          const totalAfter = db.prepare(countSql).get(...params);
+          if (totalAfter) currentTotal = totalAfter.total;
+        }
+      } catch (err) {
+        console.error('[Search] External search error:', err.message);
+      }
+    }
 
     const animeIds = items.map(it => it.id);
     let friendsMap = {};
@@ -1630,7 +1679,7 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
 
     const dedupedItems = db.deduplicateAnimeList ? db.deduplicateAnimeList(formattedItems) : formattedItems;
     const countReduction = formattedItems.length - dedupedItems.length;
-    const adjustedTotal = Math.max(dedupedItems.length, (totalRow ? totalRow.total : 0) - Math.max(0, countReduction));
+    const adjustedTotal = Math.max(dedupedItems.length, (currentTotal || 0) - Math.max(0, countReduction));
 
     return res.json({
       items: dedupedItems,
@@ -3171,7 +3220,7 @@ app.post('/api/dev/auth', (req, res) => {
 app.get('/api/dev/users', devAdminMiddleware, (req, res) => {
   try {
     const users = db.prepare(`
-      SELECT u.id, u.nickname, u.email, u.avatar_url, u.banner_url, u.created_at,
+      SELECT u.id, u.nickname, u.email, u.avatar_url, u.banner_url, u.is_blocked, u.created_at,
              COUNT(r.id) as rated_count,
              ROUND(AVG(r.score), 1) as avg_score
       FROM users u
@@ -3187,6 +3236,7 @@ app.get('/api/dev/users', devAdminMiddleware, (req, res) => {
         email: u.email,
         avatarUrl: u.avatar_url,
         bannerUrl: u.banner_url,
+        isBlocked: Boolean(u.is_blocked),
         createdAt: u.created_at,
         ratedCount: u.rated_count || 0,
         avgScore: u.avg_score !== null ? Number(u.avg_score) : null
@@ -3201,7 +3251,7 @@ app.get('/api/dev/users', devAdminMiddleware, (req, res) => {
 app.put('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
   try {
     const targetUserId = parseInt(req.params.id, 10);
-    const { nickname, email, avatarUrl, bannerUrl, top5Ids } = req.body;
+    const { nickname, email, avatarUrl, bannerUrl, top5Ids, isBlocked } = req.body;
 
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(targetUserId);
     if (!user) {
@@ -3212,6 +3262,15 @@ app.put('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
     let updatedEmail = email !== undefined ? email.trim().toLowerCase() : user.email;
     let updatedAvatar = avatarUrl !== undefined ? avatarUrl : user.avatar_url;
     let updatedBanner = bannerUrl !== undefined ? bannerUrl : user.banner_url;
+    let updatedBlocked = user.is_blocked || 0;
+
+    if (isBlocked !== undefined) {
+      const isJust = targetUserId === 5 || user.nickname === 'Just' || user.email === 'just9jeeet@gmail.com';
+      if (isJust && (isBlocked === true || isBlocked === 1 || isBlocked === '1')) {
+        return res.status(403).json({ error: 'Нельзя заблокировать аккаунт главного разработчика Just' });
+      }
+      updatedBlocked = (isBlocked === true || isBlocked === 1 || isBlocked === '1') ? 1 : 0;
+    }
 
     if (Array.isArray(top5Ids)) {
       const cleanBanner = (updatedBanner || '').split('#top5=')[0];
@@ -3225,9 +3284,9 @@ app.put('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
 
     db.prepare(`
       UPDATE users
-      SET nickname = ?, email = ?, avatar_url = ?, banner_url = ?
+      SET nickname = ?, email = ?, avatar_url = ?, banner_url = ?, is_blocked = ?
       WHERE id = ?
-    `).run(updatedNickname, updatedEmail, updatedAvatar, updatedBanner, targetUserId);
+    `).run(updatedNickname, updatedEmail, updatedAvatar, updatedBanner, updatedBlocked, targetUserId);
 
     if (typeof db.saveAccountsBackup === 'function') {
       db.saveAccountsBackup();
@@ -3240,11 +3299,66 @@ app.put('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
         nickname: updatedNickname,
         email: updatedEmail,
         avatarUrl: updatedAvatar,
-        bannerUrl: updatedBanner
+        bannerUrl: updatedBanner,
+        isBlocked: Boolean(updatedBlocked)
       }
     });
   } catch (err) {
     return res.status(500).json({ error: 'Ошибка обновления пользователя: ' + err.message });
+  }
+});
+
+// Dev: Block user
+app.post('/api/dev/users/:id/block', devAdminMiddleware, (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.id, 10);
+    const user = db.prepare('SELECT id, nickname, email FROM users WHERE id = ?').get(targetUserId);
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    const isJust = targetUserId === 5 || user.nickname === 'Just' || user.email === 'just9jeeet@gmail.com';
+    if (isJust) {
+      return res.status(403).json({ error: 'Нельзя заблокировать аккаунт главного разработчика Just' });
+    }
+
+    db.prepare('UPDATE users SET is_blocked = 1 WHERE id = ?').run(targetUserId);
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({
+      success: true,
+      id: targetUserId,
+      isBlocked: true,
+      message: `Пользователь «${user.nickname}» успешно заблокирован`
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка блокировки пользователя: ' + err.message });
+  }
+});
+
+// Dev: Unblock user
+app.post('/api/dev/users/:id/unblock', devAdminMiddleware, (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.id, 10);
+    const user = db.prepare('SELECT id, nickname FROM users WHERE id = ?').get(targetUserId);
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    db.prepare('UPDATE users SET is_blocked = 0 WHERE id = ?').run(targetUserId);
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({
+      success: true,
+      id: targetUserId,
+      isBlocked: false,
+      message: `Пользователь «${user.nickname}» успешно разблокирован`
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка разблокировки пользователя: ' + err.message });
   }
 });
 

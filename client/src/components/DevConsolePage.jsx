@@ -30,7 +30,8 @@ import {
   ChevronRight,
   Loader2,
   Sparkles,
-  Link
+  Link,
+  Ban
 } from 'lucide-react';
 import { apiUrl } from '../api';
 import { updateCachedAnimeItem, removeCachedAnimeItem, upsertCachedAnimeItem, searchCachedAnime } from '../utils/catalogCache';
@@ -415,6 +416,7 @@ export default function DevConsolePage({
   const [editUserEmail, setEditUserEmail] = useState('');
   const [editUserAvatar, setEditUserAvatar] = useState('');
   const [editUserBanner, setEditUserBanner] = useState('');
+  const [editUserBlocked, setEditUserBlocked] = useState(false);
   const [saveUserLoading, setSaveUserLoading] = useState(false);
   const userAvatarFileRef = useRef(null);
   const userBannerFileRef = useRef(null);
@@ -1248,12 +1250,68 @@ export default function DevConsolePage({
   // ----------------------------------------------------
   // USER EDIT HANDLERS
   // ----------------------------------------------------
+  const handleUserImageFile = (e, setter) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+      showToast('Файл слишком большой. Выберите изображение до 8 МБ.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setter(reader.result);
+      showToast('Файл изображения загружен!');
+    };
+    reader.onerror = () => {
+      showToast('Ошибка при чтении файла', 'error');
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleOpenEditUser = (targetUser) => {
     setEditingUser(targetUser);
     setEditUserNick(targetUser.nickname || '');
     setEditUserEmail(targetUser.email || '');
     setEditUserAvatar(targetUser.avatarUrl || '');
     setEditUserBanner(targetUser.bannerUrl ? targetUser.bannerUrl.split('#top5=')[0] : '');
+    setEditUserBlocked(Boolean(targetUser.isBlocked || targetUser.is_blocked));
+  };
+
+  const handleToggleBlockUser = async (targetUser) => {
+    if (!targetUser || Number(targetUser.id) === 5 || targetUser.nickname === 'Just') {
+      showToast('Нельзя заблокировать главного администратора Just', 'error');
+      return;
+    }
+    const currentlyBlocked = Boolean(targetUser.isBlocked || targetUser.is_blocked);
+    const action = currentlyBlocked ? 'unblock' : 'block';
+    const actionName = currentlyBlocked ? 'разблокирован' : 'заблокирован';
+
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      const res = await fetch(apiUrl(`/api/dev/users/${targetUser.id}/${action}`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Ошибка изменения статуса блокировки');
+      }
+
+      const updated = { ...targetUser, isBlocked: !currentlyBlocked, is_blocked: !currentlyBlocked ? 1 : 0 };
+      setUsersList((prev) => prev.map((u) => (Number(u.id) === Number(targetUser.id) ? updated : u)));
+      if (editingUser && Number(editingUser.id) === Number(targetUser.id)) {
+        setEditUserBlocked(!currentlyBlocked);
+      }
+      window.dispatchEvent(new CustomEvent('anilex:user-updated', { detail: updated }));
+      showToast(`Пользователь «${targetUser.nickname}» успешно ${actionName}!`);
+    } catch (err) {
+      showToast('Ошибка: ' + err.message, 'error');
+    }
   };
 
   const handleSaveUser = async (e) => {
@@ -1264,12 +1322,17 @@ export default function DevConsolePage({
     try {
       const token = localStorage.getItem('anime_auth_token');
       const targetUserId = Number(editingUser.id);
+      const isJust = targetUserId === 5 || editingUser.nickname === 'Just';
+      const finalBlocked = isJust ? false : Boolean(editUserBlocked);
+
       const payload = {
         id: targetUserId,
         nickname: editUserNick.trim(),
         email: editUserEmail.trim(),
         avatarUrl: editUserAvatar || null,
-        bannerUrl: editUserBanner || null
+        bannerUrl: editUserBanner || null,
+        isBlocked: finalBlocked,
+        is_blocked: finalBlocked ? 1 : 0
       };
 
       const updatedObj = { ...editingUser, ...payload };
@@ -1288,7 +1351,7 @@ export default function DevConsolePage({
       }
 
       // 4. Send PUT /api/dev/users/:id to server
-      fetch(apiUrl(`/api/dev/users/${targetUserId}`), {
+      const res = await fetch(apiUrl(`/api/dev/users/${targetUserId}`), {
         method: 'PUT',
         headers: {
           'Accept': 'application/json',
@@ -1296,9 +1359,15 @@ export default function DevConsolePage({
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(payload)
-      }).catch((err) => {
-        console.warn('Backend update user warning:', err);
       });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.warn('Backend update user notice:', errData.error);
+      }
+
+      // 5. Notify app and other open components via global event
+      window.dispatchEvent(new CustomEvent('anilex:user-updated', { detail: updatedObj }));
 
       // Fallback to /api/auth/profile if updating self
       if (targetUserId === user?.id) {
@@ -2082,6 +2151,11 @@ export default function DevConsolePage({
                             Admin
                           </span>
                         )}
+                        {Boolean(u.isBlocked || u.is_blocked) && (
+                          <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-500 text-[9px] font-black uppercase tracking-wider">
+                            Блок
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-neutral-400 truncate">
                         ID: {u.id} · {u.email}
@@ -2120,6 +2194,26 @@ export default function DevConsolePage({
                       <Star className="w-3 h-3" />
                       <span>Оценки</span>
                     </button>
+
+                    {u.nickname !== 'Just' && Number(u.id) !== 5 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleToggleBlockUser(u);
+                        }}
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${
+                          (u.isBlocked || u.is_blocked)
+                            ? 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white dark:text-emerald-400'
+                            : 'bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+                        }`}
+                        title={(u.isBlocked || u.is_blocked) ? 'Разблокировать пользователя' : 'Заблокировать пользователя'}
+                      >
+                        <Ban className="w-3 h-3" />
+                        <span>{(u.isBlocked || u.is_blocked) ? 'Разблок' : 'Блок'}</span>
+                      </button>
+                    )}
 
                     {u.nickname !== 'Just' && u.id !== 5 && (
                       <button
@@ -3368,31 +3462,140 @@ export default function DevConsolePage({
                 />
               </div>
 
+              {/* Avatar Field with File Picker & Preview */}
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">
-                  URL Аватарки или Base64
-                </label>
-                <input
-                  type="text"
-                  value={editUserAvatar}
-                  onChange={(e) => setEditUserAvatar(e.target.value)}
-                  placeholder="https://... или data:image/..."
-                  className="w-full px-3.5 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                    Аватарка (URL или из файла)
+                  </label>
+                  <input
+                    ref={userAvatarFileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleUserImageFile(e, setEditUserAvatar)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => userAvatarFileRef.current?.click()}
+                    className="text-[11px] font-semibold text-amber-500 hover:text-amber-400 flex items-center gap-1 transition-colors"
+                  >
+                    <Upload className="w-3 h-3" />
+                    <span>Выбрать файл</span>
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editUserAvatar}
+                    onChange={(e) => setEditUserAvatar(e.target.value)}
+                    placeholder="https://... или выберите файл с диска"
+                    className="flex-1 px-3.5 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs"
+                  />
+                  {editUserAvatar && (
+                    <button
+                      type="button"
+                      onClick={() => setEditUserAvatar('')}
+                      className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white transition-colors"
+                      title="Удалить аватарку"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                {editUserAvatar && (
+                  <div className="mt-2 flex items-center gap-2.5 p-2 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/60 dark:border-neutral-800">
+                    <img
+                      src={editUserAvatar}
+                      alt="Предпросмотр аватара"
+                      className="w-10 h-10 rounded-full object-cover border border-neutral-300 dark:border-neutral-700"
+                    />
+                    <span className="text-[11px] text-neutral-500 truncate">
+                      Предпросмотр аватара
+                    </span>
+                  </div>
+                )}
               </div>
 
+              {/* Banner Field with File Picker & Preview */}
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">
-                  URL Баннера или Base64
-                </label>
-                <input
-                  type="text"
-                  value={editUserBanner}
-                  onChange={(e) => setEditUserBanner(e.target.value)}
-                  placeholder="https://... или data:image/..."
-                  className="w-full px-3.5 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                    Баннер профиля (URL или из файла)
+                  </label>
+                  <input
+                    ref={userBannerFileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleUserImageFile(e, setEditUserBanner)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => userBannerFileRef.current?.click()}
+                    className="text-[11px] font-semibold text-amber-500 hover:text-amber-400 flex items-center gap-1 transition-colors"
+                  >
+                    <Upload className="w-3 h-3" />
+                    <span>Выбрать файл</span>
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editUserBanner}
+                    onChange={(e) => setEditUserBanner(e.target.value)}
+                    placeholder="https://... или выберите файл с диска"
+                    className="flex-1 px-3.5 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs"
+                  />
+                  {editUserBanner && (
+                    <button
+                      type="button"
+                      onClick={() => setEditUserBanner('')}
+                      className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white transition-colors"
+                      title="Удалить баннер"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                {editUserBanner && (
+                  <div className="mt-2 rounded-2xl overflow-hidden border border-neutral-200/60 dark:border-neutral-800 max-h-24 bg-neutral-100 dark:bg-neutral-900">
+                    <img
+                      src={editUserBanner}
+                      alt="Предпросмотр баннера"
+                      className="w-full h-20 object-cover"
+                    />
+                  </div>
+                )}
               </div>
+
+              {/* Block / Unblock Control */}
+              {editingUser && Number(editingUser.id) !== 5 && editingUser.nickname !== 'Just' && (
+                <div className="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/60 dark:border-neutral-800 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold text-neutral-900 dark:text-white flex items-center gap-1.5">
+                      <Ban className={`w-3.5 h-3.5 ${editUserBlocked ? 'text-rose-500' : 'text-neutral-400'}`} />
+                      <span>Статус блокировки аккаунта</span>
+                    </p>
+                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                      {editUserBlocked
+                        ? 'Пользователь заблокирован (вход и действия ограничены)'
+                        : 'Аккаунт активен (доступ открыт)'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditUserBlocked((prev) => !prev)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                      editUserBlocked
+                        ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-xs'
+                        : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-300'
+                    }`}
+                  >
+                    {editUserBlocked ? 'Заблокирован' : 'Разблокирован'}
+                  </button>
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-neutral-100 dark:border-neutral-800">
                 <button
@@ -3405,9 +3608,10 @@ export default function DevConsolePage({
                 <button
                   type="submit"
                   disabled={saveUserLoading}
-                  className="px-5 py-2 rounded-xl bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 text-xs font-bold hover:opacity-90 transition-opacity"
+                  className="px-5 py-2 rounded-xl bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 text-xs font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5"
                 >
-                  {saveUserLoading ? 'Сохранение...' : 'Сохранить профиль'}
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{saveUserLoading ? 'Сохранение...' : 'Сохранить профиль'}</span>
                 </button>
               </div>
             </form>

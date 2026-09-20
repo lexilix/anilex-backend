@@ -68,6 +68,7 @@ db.exec(`
     salt TEXT NOT NULL,
     avatar_url TEXT,
     banner_url TEXT,
+    is_blocked INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -212,6 +213,9 @@ try {
   if (!userColNames.includes('allow_password_set')) {
     db.exec('ALTER TABLE users ADD COLUMN allow_password_set INTEGER DEFAULT 0;');
   }
+  if (!userColNames.includes('is_blocked')) {
+    db.exec('ALTER TABLE users ADD COLUMN is_blocked INTEGER NOT NULL DEFAULT 0;');
+  }
 
   const commentsInfo = db.prepare('PRAGMA table_info(comments)').all();
   const commentColNames = commentsInfo.map(c => c.name);
@@ -301,13 +305,14 @@ function restoreAccountsFromBackup() {
     // Restore users with strict protection of existing avatar, banner, and nickname
     if (Array.isArray(data.users)) {
       const insertUserStmt = db.prepare(`
-        INSERT INTO users (id, email, nickname, password_hash, salt, avatar_url, banner_url, allow_password_set, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (id, email, nickname, password_hash, salt, avatar_url, banner_url, allow_password_set, is_blocked, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           avatar_url = COALESCE(users.avatar_url, excluded.avatar_url),
           banner_url = COALESCE(users.banner_url, excluded.banner_url),
           nickname = COALESCE(users.nickname, excluded.nickname),
-          email = COALESCE(users.email, excluded.email)
+          email = COALESCE(users.email, excluded.email),
+          is_blocked = COALESCE(excluded.is_blocked, users.is_blocked, 0)
       `);
       for (const u of data.users) {
         try {
@@ -320,6 +325,7 @@ function restoreAccountsFromBackup() {
             u.avatar_url || null,
             u.banner_url || null,
             u.allow_password_set !== undefined ? u.allow_password_set : 0,
+            u.is_blocked !== undefined ? u.is_blocked : 0,
             u.created_at || new Date().toISOString()
           );
         } catch (e) {}

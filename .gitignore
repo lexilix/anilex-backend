@@ -14,3 +14,4 @@ yarn-error.log*
 
 # Preserve SQLite database with 3000+ anime titles for cloud deployment
 !data/anime_ratings.db
+scratch/

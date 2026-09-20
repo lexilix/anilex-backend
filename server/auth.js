@@ -47,6 +47,15 @@ function authMiddleware(req, res, next) {
   }
 
   req.user = decoded;
+
+  try {
+    const db = require('./db');
+    const u = db.prepare('SELECT is_blocked FROM users WHERE id = ?').get(decoded.id);
+    if (u && u.is_blocked) {
+      return res.status(403).json({ error: 'Ваш аккаунт заблокирован администратором' });
+    }
+  } catch (e) {}
+
   next();
 }
 
