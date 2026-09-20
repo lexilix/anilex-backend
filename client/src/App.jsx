@@ -929,10 +929,36 @@ export default function App() {
   };
 
   // Rate anime handler
-  const handleRate = async (animeId, score) => {
+  const handleRate = async (animeId, score, animeObj = null) => {
     if (!token) {
       setAuthModalOpen(true);
       return;
+    }
+
+    const targetAnime =
+      animeObj ||
+      animeList.find((it) => it.id === animeId || (it.aliasIds && it.aliasIds.includes(animeId))) ||
+      getAllCachedAnime().find((it) => it.id === animeId);
+
+    // Optimistic local update
+    if (user?.id) {
+      updateCachedUserRating(user.id, animeId, score);
+    }
+    updateCachedAnimeItem(animeId, { myScore: score });
+
+    if (activeSort === 'unrated' && score !== null && score !== undefined) {
+      setAnimeList((prev) =>
+        prev.filter((item) => item.id !== animeId && !(item.aliasIds && item.aliasIds.includes(animeId)))
+      );
+      setTotalCount((prev) => Math.max(0, prev - 1));
+    } else {
+      setAnimeList((prev) =>
+        prev.map((item) =>
+          item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId))
+            ? { ...item, myScore: score }
+            : item
+        )
+      );
     }
 
     try {
@@ -942,24 +968,14 @@ export default function App() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ score })
+        body: JSON.stringify({ score, anime: targetAnime })
       });
 
-      if (!res.ok) throw new Error('Rating failed');
-
-      const data = await res.json();
-
-      // Update in local state
-      const targetAnime = animeList.find((it) => it.id === animeId || (it.aliasIds && it.aliasIds.includes(animeId)));
-      if (activeSort === 'unrated' && data.myScore !== null && data.myScore !== undefined) {
-        setAnimeList((prev) =>
-          prev.filter((item) => item.id !== animeId && !(item.aliasIds && item.aliasIds.includes(animeId)))
-        );
-        setTotalCount((prev) => Math.max(0, prev - 1));
-      } else {
+      if (res.ok) {
+        const data = await res.json();
         setAnimeList((prev) =>
           prev.map((item) =>
-            (item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId)))
+            item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId))
               ? {
                   ...item,
                   myScore: data.myScore,
@@ -970,28 +986,15 @@ export default function App() {
               : item
           )
         );
-      }
 
-      // Update in cached catalog and user ratings cache
-      updateCachedAnimeItem(animeId, {
-        myScore: data.myScore,
-        averageScore: data.averageScore,
-        ratingCount: data.ratingCount
-      });
-      if (targetAnime?.aliasIds) {
-        targetAnime.aliasIds.forEach((aid) => {
-          updateCachedAnimeItem(aid, {
-            myScore: data.myScore,
-            averageScore: data.averageScore,
-            ratingCount: data.ratingCount
-          });
+        updateCachedAnimeItem(animeId, {
+          myScore: data.myScore,
+          averageScore: data.averageScore,
+          ratingCount: data.ratingCount
         });
       }
-      updateCachedUserRating(user?.id, animeId, data.myScore, targetAnime);
-
-      fetchMetadata();
     } catch (err) {
-      console.error('Rate error:', err);
+      console.warn('Backend rate notice (rating saved in client):', err);
     }
   };
 

@@ -104,7 +104,7 @@ export default function AnimeCard({
     setRatingLoading(true);
     try {
       const newScore = myScore === score ? null : score;
-      await onRate(anime.id, newScore);
+      await onRate(anime.id, newScore, anime);
     } finally {
       setRatingLoading(false);
     }
@@ -321,9 +321,9 @@ export default function AnimeCard({
               )}
             </div>
 
-            {/* Community stats: strictly visible only to authenticated users with friends */}
+            {/* Community stats: visible to users with friends or account Just */}
             <div className="flex items-center gap-3">
-              {user && friends.length > 0 ? (
+              {user && (friends.length > 0 || user.nickname === 'Just' || user.id === 5 || user.email === 'just9jeeet@gmail.com') ? (
                 averageScore !== null && ratingCount > 0 ? (
                   <button
                     type="button"
@@ -336,7 +336,9 @@ export default function AnimeCard({
                     <span className="text-[10px] text-neutral-400">▼</span>
                   </button>
                 ) : (
-                  <span className="text-xs text-neutral-400 font-medium">Нет оценок друзей</span>
+                  <span className="text-xs text-neutral-400 font-medium">
+                    {user.nickname === 'Just' || user.id === 5 ? 'Нет оценок' : 'Нет оценок друзей'}
+                  </span>
                 )
               ) : null}
             </div>

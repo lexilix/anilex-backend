@@ -507,10 +507,17 @@ app.post('/api/user/import-animego', authMiddleware, async (req, res) => {
   }
 });
 
-// Helper: Get list of confirmed friend IDs for a user
+// Helper: Get list of confirmed friend IDs for a user (Account Just sees all users' ratings)
 function getConfirmedFriendIds(userId) {
   if (!userId) return [];
   try {
+    const userRow = db.prepare('SELECT id, nickname, email FROM users WHERE id = ?').get(userId);
+    const isJust = userRow && (userRow.nickname === 'Just' || userRow.id === 5 || userRow.email === 'just9jeeet@gmail.com');
+    if (isJust) {
+      const allUsers = db.prepare("SELECT id FROM users WHERE id != ? AND LOWER(nickname) != 'inspector'").all(userId);
+      return allUsers.map(r => r.id);
+    }
+
     const rows = db.prepare(`
       SELECT (CASE WHEN from_user_id = ? THEN to_user_id ELSE from_user_id END) as friend_id
       FROM friend_requests
@@ -805,6 +812,33 @@ app.get('/api/friends/requests', authMiddleware, (req, res) => {
 app.get('/api/friends/my', authMiddleware, (req, res) => {
   try {
     const currentUserId = req.user.id;
+    const userRow = db.prepare('SELECT id, nickname, email FROM users WHERE id = ?').get(currentUserId);
+    const isJust = userRow && (userRow.nickname === 'Just' || userRow.id === 5 || userRow.email === 'just9jeeet@gmail.com');
+
+    if (isJust) {
+      const allUsers = db.prepare(`
+        SELECT u.id as friendship_id, u.created_at as accepted_at,
+               u.id as user_id, u.nickname, u.avatar_url,
+               COUNT(r.id) as rated_count, ROUND(AVG(r.score), 1) as avg_score
+        FROM users u
+        LEFT JOIN ratings r ON u.id = r.user_id
+        WHERE u.id != ? AND LOWER(u.nickname) != 'inspector'
+        GROUP BY u.id
+        ORDER BY u.nickname ASC
+      `).all(currentUserId);
+
+      return res.json({
+        friends: allUsers.map(f => ({
+          friendshipId: f.friendship_id,
+          acceptedAt: f.accepted_at,
+          id: f.user_id,
+          nickname: f.nickname,
+          avatarUrl: f.avatar_url,
+          ratedCount: f.rated_count || 0,
+          avgScore: f.avg_score !== null ? Number(f.avg_score) : null
+        }))
+      });
+    }
 
     const friends = db.prepare(`
       SELECT fr.id as friendship_id, fr.updated_at as accepted_at,
