@@ -177,18 +177,143 @@ export function getAnyCachedCatalog() {
 }
 
 /**
- * Searches across all cached items for matches on title, original title, or description.
+ * Helper for Russian word stemming to match grammatical forms (e.g. "безработный" -> "безработн" -> matches "безработного")
+ */
+export function stemRussianWord(word) {
+  if (!word) return '';
+  const w = word.toLowerCase().replace(/ё/g, 'е').trim();
+  if (w.length <= 3) return w;
+  return w.replace(/(?:[ое]го|[ое]му|[ыи]ми|[ыи]х|[ыи]е|[ое]й|[ыи]м|[ая]я|[ую]ю|ом|ем|ах|ях|ам|ям|ов|ев|ей|ий|ый|ой|а|я|у|ю|е|о|ы|и|ь)$/i, '');
+}
+
+/**
+ * Searches across all cached items for matches on title, original title, or description with stemming and relevance ranking.
  */
 export function searchCachedAnime(query) {
   if (!query || !query.trim()) return [];
-  const q = query.trim().toLowerCase();
+  const q = query.trim().toLowerCase().replace(/ё/g, 'е');
   const all = getAllCachedAnime();
-  return all.filter((item) => {
-    const t = (item.title || '').toLowerCase();
-    const ot = (item.originalTitle || item.original_title || '').toLowerCase();
-    const desc = (item.description || '').toLowerCase();
-    return t.includes(q) || ot.includes(q) || desc.includes(q);
-  });
+
+  const words = q.split(/\s+/).filter((w) => w.length > 0);
+  const stopWords = new Set(['у', 'в', 'и', 'с', 'к', 'о', 'на', 'по', 'за', 'из', 'от', 'до', 'об', 'a', 'an', 'the', 'in', 'on', 'of', 'to', 'is', 'no', 'wa']);
+  let meaningfulWords = words.filter((w) => w.length > 2 && !stopWords.has(w));
+  if (meaningfulWords.length === 0) {
+    meaningfulWords = words.filter((w) => w.length > 1);
+    if (meaningfulWords.length === 0) meaningfulWords = words;
+  }
+
+  const wordStems = meaningfulWords.map((w) => ({
+    raw: w,
+    stem: stemRussianWord(w)
+  }));
+
+  const scored = [];
+
+  for (const item of all) {
+    if (!item || !item.id) continue;
+    const t = (item.title || '').toLowerCase().replace(/ё/g, 'е');
+    const ot = (item.originalTitle || item.original_title || '').toLowerCase().replace(/ё/g, 'е');
+    const desc = (item.description || '').toLowerCase().replace(/ё/g, 'е');
+
+    // 1. Direct phrase matching
+    let matchScore = 0;
+    if (t === q) matchScore += 120;
+    else if (t.startsWith(q)) matchScore += 70;
+    else if (t.includes(q)) matchScore += 50;
+    else if (ot.includes(q)) matchScore += 35;
+    else if (desc.includes(q)) matchScore += 10;
+
+    // 2. Multi-word / stem matching
+    let allWordsMatched = true;
+    for (const ws of wordStems) {
+      const inTitle = t.includes(ws.raw) || (ws.stem && ws.stem.length >= 3 && t.includes(ws.stem));
+      const inOrig = ot.includes(ws.raw) || (ws.stem && ws.stem.length >= 3 && ot.includes(ws.stem));
+      const inDesc = desc.includes(ws.raw) || (ws.stem && ws.stem.length >= 3 && desc.includes(ws.stem));
+
+      if (inTitle) matchScore += 20;
+      else if (inOrig) matchScore += 12;
+      else if (inDesc) matchScore += 5;
+      else {
+        allWordsMatched = false;
+      }
+    }
+
+    if (matchScore > 0 && (allWordsMatched || t.includes(q) || ot.includes(q))) {
+      scored.push({ item, score: matchScore });
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map((s) => s.item);
+}
+
+/**
+ * Fallback to search Shikimori public API directly from client within seconds if not found locally.
+ */
+export async function searchExternalAnimeFallback(query) {
+  if (!query || !query.trim()) return [];
+  const cleanQ = query.trim();
+  try {
+    const url = `https://shikimori.io/api/animes?search=${encodeURIComponent(cleanQ)}&limit=15`;
+    const res = await fetch(url, {
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return [];
+
+    const typeMap = {
+      tv: 'Сериал',
+      movie: 'Фильм',
+      ova: 'OVA',
+      ona: 'ONA',
+      special: 'Спешл',
+      music: 'Клип'
+    };
+
+    const newItems = [];
+    for (const d of data) {
+      const title = d.russian || d.name;
+      const originalTitle = d.name || '';
+      const slug = `shiki-${d.id}`;
+      // Give fallback synthetic ID above 80000 to prevent collisions, or use shikimori ID
+      const numericId = 80000 + Number(d.id);
+      let img = d.image?.original ? (d.image.original.startsWith('http') ? d.image.original : `https://shikimori.io${d.image.original}`) : '';
+      if (!img || img.includes('missing_original')) {
+        img = d.image?.preview ? (d.image.preview.startsWith('http') ? d.image.preview : `https://shikimori.io${d.image.preview}`) : '';
+      }
+      const type = typeMap[d.kind] || 'Сериал';
+      const year = d.aired_on ? d.aired_on.slice(0, 4) : '';
+
+      if (title && slug && img) {
+        const itemObj = {
+          id: numericId,
+          slug,
+          title,
+          originalTitle,
+          imageUrl: img,
+          type,
+          year,
+          genres: [],
+          description: '',
+          myScore: null,
+          averageScore: d.score ? Number(d.score) : null,
+          ratingCount: 1,
+          isFavorite: false,
+          isHidden: false,
+          commentsCount: 0
+        };
+        newItems.push(itemObj);
+        appendCachedAnimeItem(itemObj);
+      }
+    }
+    return newItems;
+  } catch (err) {
+    console.warn('External search fallback warning:', err);
+    return [];
+  }
 }
 
 export function updateCachedAnimeItem(animeIdOrItem, updates = null) {

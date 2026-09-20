@@ -509,7 +509,7 @@ function saveAccountsBackup() {
     const comments = db.prepare('SELECT * FROM comments').all();
     const hiddenAnime = db.prepare('SELECT * FROM user_hidden_anime').all();
     const userTop5 = db.prepare('SELECT * FROM user_top5').all();
-    const customAnime = db.prepare('SELECT * FROM anime WHERE id > 7000').all();
+    const customAnime = db.prepare("SELECT * FROM anime WHERE id > 3400 OR slug LIKE 'shiki-%' OR slug LIKE 'animego-%' OR id IN (6573, 6584, 6585, 6586, 7195)").all();
     let customGenres = [];
     try {
       customGenres = db.prepare('SELECT name FROM custom_genres').all().map((r) => r.name);

@@ -2307,6 +2307,87 @@ app.get('/api/anime/:id/similar', optionalAuthMiddleware, async (req, res) => {
 });
 
 
+// Register anime into database (e.g. from client external search)
+app.post('/api/anime/register', (req, res) => {
+  try {
+    const { anime } = req.body;
+    if (!anime || !anime.title) {
+      return res.status(400).json({ error: 'Требуется объект anime с названием' });
+    }
+
+    const animeId = parseInt(anime.id, 10);
+    const slug = anime.slug || (animeId ? `anime-${animeId}` : `anime-${Date.now()}`);
+    const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+    const tLower = normalize(anime.title);
+    const oLower = normalize(anime.originalTitle || anime.original_title || '');
+    const genresStr = JSON.stringify(anime.genres || []);
+
+    if (animeId && !isNaN(animeId)) {
+      db.prepare(`
+        INSERT INTO anime (id, slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          title = excluded.title,
+          title_lower = excluded.title_lower,
+          original_title = excluded.original_title,
+          original_title_lower = excluded.original_title_lower,
+          image_url = excluded.image_url,
+          type = excluded.type,
+          year = excluded.year,
+          genres = excluded.genres,
+          description = excluded.description
+      `).run(
+        animeId,
+        slug,
+        anime.title,
+        tLower,
+        anime.originalTitle || anime.original_title || '',
+        oLower,
+        anime.imageUrl || anime.image_url || '',
+        anime.type || 'Сериал',
+        anime.year || '',
+        genresStr,
+        anime.description || '',
+        anime.season || '',
+        JSON.stringify(anime.linkedAnime || [])
+      );
+
+      if (typeof db.saveAccountsBackup === 'function') {
+        db.saveAccountsBackup();
+      }
+
+      return res.json({ success: true, id: animeId });
+    } else {
+      const result = db.prepare(`
+        INSERT INTO anime (slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        slug,
+        anime.title,
+        tLower,
+        anime.originalTitle || anime.original_title || '',
+        oLower,
+        anime.imageUrl || anime.image_url || '',
+        anime.type || 'Сериал',
+        anime.year || '',
+        genresStr,
+        anime.description || '',
+        anime.season || '',
+        JSON.stringify(anime.linkedAnime || [])
+      );
+
+      if (typeof db.saveAccountsBackup === 'function') {
+        db.saveAccountsBackup();
+      }
+
+      return res.json({ success: true, id: Number(result.lastInsertRowid) });
+    }
+  } catch (err) {
+    console.error('Register anime error:', err.message);
+    return res.status(500).json({ error: 'Ошибка регистрации аниме: ' + err.message });
+  }
+});
+
 // Toggle Favorite for an anime
 app.post('/api/anime/:id/favorite', authMiddleware, (req, res) => {
   try {
@@ -2741,9 +2822,42 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
   try {
     const animeId = parseInt(req.params.id, 10);
     const userId = req.user.id;
-    const { score } = req.body;
+    const { score, anime: animeData } = req.body;
 
-    const anime = db.prepare('SELECT id FROM anime WHERE id = ?').get(animeId);
+    let anime = db.prepare('SELECT id FROM anime WHERE id = ?').get(animeId);
+    if (!anime && animeData && animeData.title) {
+      // Auto-register missing anime from client/external search
+      const slug = animeData.slug || `anime-${animeId}`;
+      const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+      const tLower = normalize(animeData.title);
+      const oLower = normalize(animeData.originalTitle || animeData.original_title || '');
+      const genresStr = JSON.stringify(animeData.genres || []);
+      try {
+        db.prepare(`
+          INSERT INTO anime (id, slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET title = excluded.title
+        `).run(
+          animeId,
+          slug,
+          animeData.title,
+          tLower,
+          animeData.originalTitle || animeData.original_title || '',
+          oLower,
+          animeData.imageUrl || animeData.image_url || '',
+          animeData.type || 'Сериал',
+          animeData.year || '',
+          genresStr,
+          animeData.description || '',
+          animeData.season || '',
+          JSON.stringify(animeData.linkedAnime || [])
+        );
+        anime = { id: animeId };
+      } catch (insertErr) {
+        console.warn('Auto-create anime on rate notice:', insertErr.message);
+      }
+    }
+
     if (!anime) {
       return res.status(404).json({ error: 'Аниме не найдено' });
     }

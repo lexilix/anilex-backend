@@ -450,13 +450,21 @@ export default function AnimeDetailPage({
     try {
       const token = localStorage.getItem('anime_auth_token');
       const newScore = anime.myScore === score ? null : score;
+      // Optimistically update UI and client cache
+      setAnime((prev) => ({
+        ...prev,
+        myScore: newScore
+      }));
+      updateCachedUserRating(user.id, animeId, newScore);
+      updateCachedAnimeItem(animeId, { myScore: newScore });
+
       const res = await fetch(apiUrl(`/api/anime/${animeId}/rate`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ score: newScore })
+        body: JSON.stringify({ score: newScore, anime })
       });
 
       if (res.ok) {

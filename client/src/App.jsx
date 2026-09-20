@@ -19,6 +19,7 @@ import {
   setCachedPage,
   getAnyCachedCatalog,
   searchCachedAnime,
+  searchExternalAnimeFallback,
   getAllCachedAnime,
   hasCatalogChanged,
   updateCachedAnimeItem,
@@ -675,6 +676,24 @@ export default function App() {
           sanitized = deduplicateAnimeList(sanitized);
         }
 
+        // If searching and 0 results found, automatically query Shikimori fallback within seconds
+        if (isSearching && sanitized.length === 0) {
+          try {
+            const externalFound = await searchExternalAnimeFallback(debouncedSearch.trim());
+            if (externalFound.length > 0) {
+              sanitized = externalFound;
+              // Register discovered titles to server in the background
+              externalFound.forEach((item) => {
+                fetch(apiUrl('/api/anime/register'), {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ anime: item })
+                }).catch(() => {});
+              });
+            }
+          } catch (e) {}
+        }
+
         // Strictly take 15 items per page for catalog navigation
         const displayPageItems = isSearching ? sanitized : sanitized.slice(0, 15);
         const resolvedTotal = Math.max(displayPageItems.length, data.total || 0);
@@ -697,8 +716,34 @@ export default function App() {
         setCatalogError(null);
       } catch (err) {
         console.error('Error loading anime catalog:', err);
-        // Fallback to cache if catalog is empty
-        if (animeList.length === 0) {
+        // If search failed due to timeout or network, query external fallback
+        if (isSearching) {
+          try {
+            const externalFound = await searchExternalAnimeFallback(debouncedSearch.trim());
+            if (externalFound.length > 0) {
+              setAnimeList(externalFound);
+              setTotalCount(externalFound.length);
+              setTotalPages(1);
+              setCatalogError(null);
+              // Register discovered titles to server in background
+              externalFound.forEach((item) => {
+                fetch(apiUrl('/api/anime/register'), {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ anime: item })
+                }).catch(() => {});
+              });
+            } else if (animeList.length === 0) {
+              const cached = searchCachedAnime(debouncedSearch.trim());
+              if (cached.length > 0) {
+                setAnimeList(cached);
+                setTotalCount(cached.length);
+                setTotalPages(1);
+                setCatalogError(null);
+              }
+            }
+          } catch (fallbackErr) {}
+        } else if (animeList.length === 0) {
           const anyFallback = getAnyCachedCatalog();
           if (anyFallback && Array.isArray(anyFallback.items) && anyFallback.items.length > 0) {
             const page15 = anyFallback.items.slice(0, 15).map(applyCustomAnimeEdits);
