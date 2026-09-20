@@ -438,10 +438,10 @@ app.post('/api/anime/create', authMiddleware, (req, res) => {
           score = excluded.score,
           updated_at = CURRENT_TIMESTAMP
       `).run(userId, anime.id, numScore);
+    }
 
-      if (typeof db.saveAccountsBackup === 'function') {
-        db.saveAccountsBackup();
-      }
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
     }
 
     return res.json({
@@ -643,6 +643,9 @@ app.post('/api/friends/request/:targetUserId', authMiddleware, (req, res) => {
       }
       // If rejected, re-send
       db.prepare("UPDATE friend_requests SET status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(existingDirect.id);
+      if (typeof db.saveAccountsBackup === 'function') {
+        db.saveAccountsBackup();
+      }
       return res.json({ success: true, status: 'pending_sent', requestId: existingDirect.id });
     }
 
@@ -653,6 +656,9 @@ app.post('/api/friends/request/:targetUserId', authMiddleware, (req, res) => {
       if (existingReverse.status === 'pending') {
         // Automatically accept reverse request
         db.prepare("UPDATE friend_requests SET status = 'accepted', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(existingReverse.id);
+        if (typeof db.saveAccountsBackup === 'function') {
+          db.saveAccountsBackup();
+        }
         return res.json({ success: true, status: 'accepted', message: 'Заявка принята!' });
       }
     }
@@ -661,6 +667,10 @@ app.post('/api/friends/request/:targetUserId', authMiddleware, (req, res) => {
       INSERT INTO friend_requests (from_user_id, to_user_id, status)
       VALUES (?, ?, 'pending')
     `).run(currentUserId, targetUserId);
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
 
     const newRequestId = Number(insertResult.lastInsertRowid);
     const sender = db.prepare('SELECT id, nickname, avatar_url FROM users WHERE id = ?').get(currentUserId);
@@ -1059,6 +1069,16 @@ app.get('/api/genres', (req, res) => {
       } catch (e) {}
     }
 
+    // Include custom replenished genres
+    try {
+      const customRows = db.prepare('SELECT name FROM custom_genres').all();
+      for (const cr of customRows) {
+        if (cr.name && counts[cr.name] === undefined) {
+          counts[cr.name] = 0;
+        }
+      }
+    } catch (e) {}
+
     const sortedGenres = Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
@@ -1066,6 +1086,66 @@ app.get('/api/genres', (req, res) => {
     return res.json({ genres: sortedGenres });
   } catch (err) {
     return res.status(500).json({ error: 'Ошибка получения жанров' });
+  }
+});
+
+// Endpoint to replenish/add new custom genres
+app.post('/api/genres', (req, res) => {
+  try {
+    const { name, genres } = req.body;
+    const toAdd = [];
+    if (typeof name === 'string' && name.trim()) {
+      toAdd.push(name.trim());
+    }
+    if (Array.isArray(genres)) {
+      for (const g of genres) {
+        if (typeof g === 'string' && g.trim()) {
+          toAdd.push(g.trim());
+        }
+      }
+    }
+
+    if (toAdd.length === 0) {
+      return res.status(400).json({ error: 'Укажите название жанра' });
+    }
+
+    const insertStmt = db.prepare('INSERT OR IGNORE INTO custom_genres (name) VALUES (?)');
+    for (const g of toAdd) {
+      insertStmt.run(g);
+    }
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    // Re-query all genres with counts
+    const rows = db.prepare('SELECT genres FROM anime').all();
+    const counts = {};
+    for (const row of rows) {
+      try {
+        const list = JSON.parse(row.genres || '[]');
+        for (const g of list) {
+          counts[g] = (counts[g] || 0) + 1;
+        }
+      } catch (e) {}
+    }
+
+    try {
+      const customRows = db.prepare('SELECT name FROM custom_genres').all();
+      for (const cr of customRows) {
+        if (cr.name && counts[cr.name] === undefined) {
+          counts[cr.name] = 0;
+        }
+      }
+    } catch (e) {}
+
+    const sortedGenres = Object.entries(counts)
+      .map(([gName, count]) => ({ name: gName, count }))
+      .sort((a, b) => b.count - a.count);
+
+    return res.json({ success: true, genres: sortedGenres });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка добавления жанра: ' + err.message });
   }
 });
 
@@ -2203,6 +2283,10 @@ app.post('/api/anime/:id/favorite', authMiddleware, (req, res) => {
       isFavorite = true;
     }
 
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
     return res.json({ success: true, isFavorite });
   } catch (err) {
     console.error('Toggle favorite error:', err);
@@ -2832,6 +2916,10 @@ app.post('/api/anime/:id/comments', authMiddleware, (req, res) => {
       replies: []
     };
 
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
     return res.status(201).json({ comment: newComment });
   } catch (err) {
     console.error('Add comment error:', err);
@@ -2874,6 +2962,10 @@ app.post('/api/comments/:id/react', authMiddleware, (req, res) => {
       finalReaction = type;
     }
 
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
     const counts = db.prepare(`
       SELECT
         (SELECT COUNT(id) FROM comment_reactions WHERE comment_id = ? AND type = 'like') as likes_count,
@@ -2908,6 +3000,11 @@ app.delete('/api/comments/:id', authMiddleware, (req, res) => {
     }
 
     db.prepare('DELETE FROM comments WHERE id = ?').run(commentId);
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
     return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ error: 'Ошибка удаления комментария' });

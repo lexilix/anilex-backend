@@ -177,6 +177,12 @@ db.exec(`
     UNIQUE(user_id, anime_id)
   );
 
+  CREATE TABLE IF NOT EXISTS custom_genres (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE INDEX IF NOT EXISTS idx_ratings_anime ON ratings(anime_id);
   CREATE INDEX IF NOT EXISTS idx_ratings_user ON ratings(user_id);
   CREATE INDEX IF NOT EXISTS idx_user_hidden_anime_user ON user_hidden_anime(user_id);
@@ -323,8 +329,11 @@ function restoreAccountsFromBackup() {
     // Restore friend requests
     if (Array.isArray(data.friendRequests)) {
       const insertFriendStmt = db.prepare(`
-        INSERT OR IGNORE INTO friend_requests (id, from_user_id, to_user_id, status, created_at, updated_at)
+        INSERT INTO friend_requests (id, from_user_id, to_user_id, status, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(from_user_id, to_user_id) DO UPDATE SET
+          status = excluded.status,
+          updated_at = excluded.updated_at
       `);
       for (const f of data.friendRequests) {
         try {
@@ -336,8 +345,11 @@ function restoreAccountsFromBackup() {
     // Restore ratings
     if (Array.isArray(data.ratings)) {
       const insertRatingStmt = db.prepare(`
-        INSERT OR IGNORE INTO ratings (id, user_id, anime_id, score, created_at, updated_at)
+        INSERT INTO ratings (id, user_id, anime_id, score, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, anime_id) DO UPDATE SET
+          score = excluded.score,
+          updated_at = excluded.updated_at
       `);
       for (const r of data.ratings) {
         try {
@@ -345,6 +357,35 @@ function restoreAccountsFromBackup() {
           if (animeExists) {
             insertRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
           }
+        } catch (e) {}
+      }
+    }
+
+    // Restore favorites
+    if (Array.isArray(data.favorites)) {
+      const insertFavStmt = db.prepare(`
+        INSERT OR IGNORE INTO favorites (id, user_id, anime_id, created_at)
+        VALUES (?, ?, ?, ?)
+      `);
+      for (const fav of data.favorites) {
+        try {
+          insertFavStmt.run(fav.id, fav.user_id, fav.anime_id, fav.created_at || new Date().toISOString());
+        } catch (e) {}
+      }
+    }
+
+    // Restore comment reactions
+    if (Array.isArray(data.commentReactions)) {
+      const insertReactStmt = db.prepare(`
+        INSERT INTO comment_reactions (id, comment_id, user_id, type, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(comment_id, user_id) DO UPDATE SET
+          type = excluded.type,
+          created_at = excluded.created_at
+      `);
+      for (const cr of data.commentReactions) {
+        try {
+          insertReactStmt.run(cr.id, cr.comment_id, cr.user_id, cr.type, cr.created_at || new Date().toISOString());
         } catch (e) {}
       }
     }
@@ -432,7 +473,19 @@ function restoreAccountsFromBackup() {
       }
     }
 
-    console.log('[Database] Auto-restored accounts, friendships, ratings, top5, and custom anime from accounts_backup.json.');
+    // Restore customGenres
+    if (Array.isArray(data.customGenres)) {
+      const insertGenreStmt = db.prepare('INSERT OR IGNORE INTO custom_genres (name) VALUES (?)');
+      for (const g of data.customGenres) {
+        if (typeof g === 'string' && g.trim()) {
+          try {
+            insertGenreStmt.run(g.trim());
+          } catch (e) {}
+        }
+      }
+    }
+
+    console.log('[Database] Auto-restored accounts, friendships, ratings, top5, custom anime, and custom genres from accounts_backup.json.');
   } catch (err) {
     console.error('[Database] Failed to restore from accounts_backup.json:', err.message);
   }
@@ -451,6 +504,18 @@ function saveAccountsBackup() {
     const hiddenAnime = db.prepare('SELECT * FROM user_hidden_anime').all();
     const userTop5 = db.prepare('SELECT * FROM user_top5').all();
     const customAnime = db.prepare('SELECT * FROM anime WHERE id > 7000').all();
+    let customGenres = [];
+    try {
+      customGenres = db.prepare('SELECT name FROM custom_genres').all().map((r) => r.name);
+    } catch (e) {}
+    let favorites = [];
+    try {
+      favorites = db.prepare('SELECT * FROM favorites').all();
+    } catch (e) {}
+    let commentReactions = [];
+    try {
+      commentReactions = db.prepare('SELECT * FROM comment_reactions').all();
+    } catch (e) {}
 
     const snapshot = {
       version: 1,
@@ -461,7 +526,10 @@ function saveAccountsBackup() {
       comments,
       hiddenAnime,
       userTop5,
-      customAnime
+      customAnime,
+      customGenres,
+      favorites,
+      commentReactions
     };
 
     fs.writeFileSync(backupFile, JSON.stringify(snapshot, null, 2), 'utf8');

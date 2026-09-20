@@ -46,6 +46,7 @@ import {
   saveCustomUserEdit,
   applyCustomUserEdits
 } from '../utils/customEditsStorage';
+import { getCustomGenres, saveCustomGenre, saveMultipleCustomGenres } from '../utils/genresStorage';
 
 const DEV_GENRES = [
   'Все жанры',
@@ -182,6 +183,15 @@ const POPULAR_GENRES = [
 
 function GenreEditor({ selectedGenres, onChange }) {
   const [customInput, setCustomInput] = useState('');
+  const [customGenresList, setCustomGenresList] = useState(getCustomGenres());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setCustomGenresList(getCustomGenres());
+    };
+    window.addEventListener('anilex:genres-updated', handleUpdate);
+    return () => window.removeEventListener('anilex:genres-updated', handleUpdate);
+  }, []);
 
   const handleToggle = (genre) => {
     if (selectedGenres.includes(genre)) {
@@ -199,6 +209,8 @@ function GenreEditor({ selectedGenres, onChange }) {
     if (newItems.length > 0) {
       onChange([...selectedGenres, ...newItems]);
     }
+    saveMultipleCustomGenres(parts);
+    setCustomGenresList(getCustomGenres());
     setCustomInput('');
   };
 
@@ -212,6 +224,14 @@ function GenreEditor({ selectedGenres, onChange }) {
   const handleRemove = (genre) => {
     onChange(selectedGenres.filter((g) => g !== genre));
   };
+
+  const allAvailable = useMemo(() => {
+    const set = new Set(POPULAR_GENRES);
+    for (const cg of customGenresList) {
+      if (cg && typeof cg === 'string') set.add(cg.trim());
+    }
+    return Array.from(set);
+  }, [customGenresList]);
 
   return (
     <div className="space-y-2.5">
@@ -252,7 +272,7 @@ function GenreEditor({ selectedGenres, onChange }) {
           value={customInput}
           onChange={(e) => setCustomInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Добавить свой жанр (например: Киберпанк или несколько через запятую)..."
+          placeholder="Пополнить жанры (например: Киберпанк или несколько через запятую)..."
           className="flex-1 px-3.5 py-2 text-xs rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 border border-neutral-200/80 dark:border-neutral-700/80 focus:border-amber-500 transition-colors"
         />
         <button
@@ -262,30 +282,34 @@ function GenreEditor({ selectedGenres, onChange }) {
           className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black text-xs font-bold transition-all shrink-0 flex items-center gap-1"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Добавить</span>
+          <span>Пополнить</span>
         </button>
       </div>
 
-      {/* Quick Select from Popular Genres */}
+      {/* Quick Select from Popular and Replenished Genres */}
       <div>
         <label className="block text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">
-          Быстрый выбор из существующих:
+          Доступные жанры для выбора ({allAvailable.length}):
         </label>
-        <div className="max-h-32 overflow-y-auto p-2 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/60 dark:border-neutral-800 flex flex-wrap gap-1.5 custom-scrollbar">
-          {POPULAR_GENRES.map((genre) => {
+        <div className="max-h-36 overflow-y-auto p-2 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/60 dark:border-neutral-800 flex flex-wrap gap-1.5 custom-scrollbar">
+          {allAvailable.map((genre) => {
             const isSelected = selectedGenres.includes(genre);
+            const isCustom = !POPULAR_GENRES.includes(genre);
             return (
               <button
                 key={genre}
                 type="button"
                 onClick={() => handleToggle(genre)}
-                className={`px-2.5 py-1 rounded-xl text-xs font-medium transition-all ${
+                className={`px-2.5 py-1 rounded-xl text-xs font-medium transition-all flex items-center gap-1 ${
                   isSelected
                     ? 'bg-amber-500 text-black font-bold shadow-xs'
+                    : isCustom
+                    ? 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 hover:bg-amber-500/30 border border-amber-500/40'
                     : 'bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 border border-neutral-200/60 dark:border-neutral-700/60'
                 }`}
               >
-                {isSelected ? `✓ ${genre}` : `+ ${genre}`}
+                <span>{isSelected ? `✓ ${genre}` : `+ ${genre}`}</span>
+                {isCustom && <span className="text-[9px] opacity-70">★</span>}
               </button>
             );
           })}

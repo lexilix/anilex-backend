@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Filter, X, Film, Star, Users, Calendar, RotateCcw, RefreshCw, Lock } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Filter, X, Film, Star, Users, Calendar, RotateCcw, RefreshCw, Lock, Plus } from 'lucide-react';
+import { getCustomGenres, saveCustomGenre, mergeGenresWithCustom } from '../utils/genresStorage';
 
 export default function FilterSidebar({
   genres = [],
@@ -22,7 +23,23 @@ export default function FilterSidebar({
   onOpenFriendsSearch
 }) {
   const [showAllGenres, setShowAllGenres] = useState(false);
-  const displayedGenres = showAllGenres ? genres : genres.slice(0, 14);
+  const [customGenres, setCustomGenres] = useState(getCustomGenres());
+  const [isAddingGenre, setIsAddingGenre] = useState(false);
+  const [newGenreInput, setNewGenreInput] = useState('');
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setCustomGenres(getCustomGenres());
+    };
+    window.addEventListener('anilex:genres-updated', handleUpdate);
+    return () => window.removeEventListener('anilex:genres-updated', handleUpdate);
+  }, []);
+
+  const allGenresList = useMemo(() => {
+    return mergeGenresWithCustom(genres, customGenres);
+  }, [genres, customGenres]);
+
+  const displayedGenres = showAllGenres ? allGenresList : allGenresList.slice(0, 14);
 
   const hasActiveFilters =
     activeGenres.length > 0 ||
@@ -221,15 +238,74 @@ export default function FilterSidebar({
             })}
           </div>
 
-          {genres.length > 14 && (
+          {allGenresList.length > 14 && (
             <button
               type="button"
               onClick={() => setShowAllGenres(!showAllGenres)}
               className="mt-2.5 text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white font-medium block transition-colors"
             >
-              {showAllGenres ? 'Свернуть список' : `Показать все жанры (${genres.length})`}
+              {showAllGenres ? 'Свернуть список' : `Показать все жанры (${allGenresList.length})`}
             </button>
           )}
+
+          {/* Quick replenish custom genre in filter */}
+          <div className="mt-3 pt-2.5 border-t border-neutral-100 dark:border-neutral-800/60">
+            {isAddingGenre ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={newGenreInput}
+                  onChange={(e) => setNewGenreInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const val = newGenreInput.trim();
+                      if (val) {
+                        saveCustomGenre(val);
+                        onToggleGenre(val);
+                        setNewGenreInput('');
+                        setIsAddingGenre(false);
+                      }
+                    }
+                  }}
+                  placeholder="Новый жанр..."
+                  className="flex-1 px-2.5 py-1 text-xs rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white border border-neutral-200 dark:border-neutral-700 outline-none focus:border-amber-500"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const val = newGenreInput.trim();
+                    if (val) {
+                      saveCustomGenre(val);
+                      onToggleGenre(val);
+                      setNewGenreInput('');
+                      setIsAddingGenre(false);
+                    }
+                  }}
+                  className="px-2.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition-colors"
+                >
+                  OK
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddingGenre(false)}
+                  className="px-1.5 py-1 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAddingGenre(true)}
+                className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline font-semibold flex items-center gap-1"
+              >
+                <Plus className="w-3 h-3" />
+                <span>+ Пополнить жанры</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Sync from AnimeGO button */}
