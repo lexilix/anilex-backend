@@ -929,9 +929,7 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
     const lemonAnime = db.prepare("SELECT id, slug, title, image_url, type, year, genres FROM anime WHERE title = 'Лимонные девочки'").get();
     const lemonId = lemonAnime ? lemonAnime.id : 7170;
 
-    if ((user.nickname === 'Just' || targetUserId === 5) && top5Ids.length === 0) {
-      top5Ids = [3495, 1803, 1807, 2040, 2646];
-    }
+    // Only apply specific constraints (MrTech / Venicek for Lemon Girls)
     if (isTargetMrTech && !top5Ids.includes(lemonId)) {
       top5Ids.unshift(lemonId);
     }
@@ -2854,41 +2852,74 @@ app.get('/api/user/rated-anime', authMiddleware, (req, res) => {
 // Rate an anime (Strictly authenticated users only)
 app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
   try {
-    const animeId = parseInt(req.params.id, 10);
+    const rawAnimeId = parseInt(req.params.id, 10);
     const userId = req.user.id;
     const { score, anime: animeData } = req.body;
 
-    let anime = db.prepare('SELECT id FROM anime WHERE id = ?').get(animeId);
+    let targetId = rawAnimeId;
+    let anime = db.prepare('SELECT id, slug, title FROM anime WHERE id = ?').get(targetId);
+
+    // 1. If not found by ID, match by slug or title from animeData
+    if (!anime && animeData) {
+      if (animeData.slug) {
+        anime = db.prepare('SELECT id, slug, title FROM anime WHERE slug = ?').get(animeData.slug);
+      }
+      if (!anime && animeData.title) {
+        const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+        const tLower = normalize(animeData.title);
+        anime = db.prepare('SELECT id, slug, title FROM anime WHERE title_lower = ?').get(tLower);
+      }
+      if (anime) {
+        targetId = anime.id;
+      }
+    }
+
+    // 2. If still not found, check synthetic fallback ID (80000 + shikimori_id)
+    if (!anime && rawAnimeId > 80000) {
+      const shikiId = rawAnimeId - 80000;
+      const shikiSlug = `shiki-${shikiId}`;
+      anime = db.prepare('SELECT id, slug, title FROM anime WHERE slug = ?').get(shikiSlug);
+      if (anime) {
+        targetId = anime.id;
+      }
+    }
+
+    // 3. If still not found and animeData provided, insert into anime table safely
     if (!anime && animeData && animeData.title) {
-      // Auto-register missing anime from client/external search
-      const slug = animeData.slug || `anime-${animeId}`;
       const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
       const tLower = normalize(animeData.title);
       const oLower = normalize(animeData.originalTitle || animeData.original_title || '');
-      const genresStr = JSON.stringify(animeData.genres || []);
-      try {
-        db.prepare(`
-          INSERT INTO anime (id, slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET title = excluded.title
-        `).run(
-          animeId,
-          slug,
-          animeData.title,
-          tLower,
-          animeData.originalTitle || animeData.original_title || '',
-          oLower,
-          animeData.imageUrl || animeData.image_url || '',
-          animeData.type || 'Сериал',
-          animeData.year || '',
-          genresStr,
-          animeData.description || '',
-          animeData.season || '',
-          JSON.stringify(animeData.linkedAnime || [])
-        );
-        anime = { id: animeId };
-      } catch (insertErr) {
-        console.warn('Auto-create anime on rate notice:', insertErr.message);
+      let slug = animeData.slug || `anime-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      const existingSlug = db.prepare('SELECT id, slug, title FROM anime WHERE slug = ?').get(slug);
+      if (existingSlug) {
+        targetId = existingSlug.id;
+        anime = existingSlug;
+      } else {
+        const genresStr = JSON.stringify(animeData.genres || []);
+        try {
+          const insertInfo = db.prepare(`
+            INSERT INTO anime (slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            slug,
+            animeData.title,
+            tLower,
+            animeData.originalTitle || animeData.original_title || '',
+            oLower,
+            animeData.imageUrl || animeData.image_url || '',
+            animeData.type || 'Сериал',
+            animeData.year || '',
+            genresStr,
+            animeData.description || '',
+            animeData.season || '',
+            JSON.stringify(animeData.linkedAnime || [])
+          );
+          targetId = Number(insertInfo.lastInsertRowid);
+          anime = { id: targetId };
+        } catch (insertErr) {
+          console.warn('Auto-create anime on rate notice:', insertErr.message);
+        }
       }
     }
 
@@ -2897,7 +2928,7 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
     }
 
     if (score === null || score === undefined || score === '') {
-      db.prepare('DELETE FROM ratings WHERE user_id = ? AND anime_id = ?').run(userId, animeId);
+      db.prepare('DELETE FROM ratings WHERE user_id = ? AND anime_id = ?').run(userId, targetId);
     } else {
       const numScore = parseInt(score, 10);
       if (isNaN(numScore) || numScore < 0 || numScore > 10) {
@@ -2910,7 +2941,7 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
         ON CONFLICT(user_id, anime_id) DO UPDATE SET
           score = excluded.score,
           updated_at = CURRENT_TIMESTAMP
-      `).run(userId, animeId, numScore);
+      `).run(userId, targetId, numScore);
     }
 
     if (typeof db.saveAccountsBackup === 'function') {
@@ -2923,7 +2954,7 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
         COUNT(id) as rating_count
       FROM ratings
       WHERE anime_id = ?
-    `).get(animeId);
+    `).get(targetId);
 
     let friendsRatings = [];
     const friendIds = getConfirmedFriendIds(userId);
@@ -2935,11 +2966,13 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
         JOIN users u ON r.user_id = u.id
         WHERE r.anime_id = ? AND r.user_id IN (${friendPlaceholders})
         ORDER BY r.updated_at DESC
-      `).all(animeId, ...friendIds);
+      `).all(targetId, ...friendIds);
     }
 
     return res.json({
       success: true,
+      animeId: targetId,
+      aliasId: rawAnimeId,
       myScore: score !== null && score !== undefined ? parseInt(score, 10) : null,
       averageScore: stats.rating_count > 0 && stats.avg_score !== null ? Number(stats.avg_score) : null,
       ratingCount: Number(stats.rating_count),
@@ -2951,7 +2984,76 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
       }))
     });
   } catch (err) {
+    console.error('Rate anime error:', err.message);
     return res.status(500).json({ error: 'Ошибка сохранения оценки' });
+  }
+});
+
+// Register anime discovered from external search (Shikimori/AnimeGO) directly to DB
+app.post('/api/anime/register', (req, res) => {
+  try {
+    const { anime: animeData } = req.body;
+    if (!animeData || !animeData.title) {
+      return res.status(400).json({ error: 'Требуются данные аниме' });
+    }
+
+    const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+    const tLower = normalize(animeData.title);
+    const oLower = normalize(animeData.originalTitle || animeData.original_title || '');
+    let slug = animeData.slug;
+
+    let existing = null;
+    if (slug) {
+      existing = db.prepare('SELECT id, slug, title FROM anime WHERE slug = ?').get(slug);
+    }
+    if (!existing && tLower) {
+      existing = db.prepare('SELECT id, slug, title FROM anime WHERE title_lower = ?').get(tLower);
+    }
+
+    if (existing) {
+      return res.json({ success: true, anime: existing, created: false });
+    }
+
+    if (!slug) {
+      slug = `anime-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    }
+    const slugCheck = db.prepare('SELECT id FROM anime WHERE slug = ?').get(slug);
+    if (slugCheck) {
+      slug = `${slug}-${Date.now()}`;
+    }
+
+    const genresStr = JSON.stringify(animeData.genres || []);
+    const info = db.prepare(`
+      INSERT INTO anime (slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      slug,
+      animeData.title,
+      tLower,
+      animeData.originalTitle || animeData.original_title || '',
+      oLower,
+      animeData.imageUrl || animeData.image_url || '',
+      animeData.type || 'Сериал',
+      animeData.year || '',
+      genresStr,
+      animeData.description || '',
+      animeData.season || '',
+      JSON.stringify(animeData.linkedAnime || [])
+    );
+
+    const insertedId = Number(info.lastInsertRowid);
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({
+      success: true,
+      anime: { id: insertedId, slug, title: animeData.title },
+      created: true
+    });
+  } catch (err) {
+    console.error('Register anime error:', err.message);
+    return res.status(500).json({ error: 'Ошибка регистрации аниме' });
   }
 });
 
@@ -4194,18 +4296,6 @@ if (require.main === module) {
         db.prepare('DELETE FROM user_hidden_anime WHERE user_id = ?').run(inspectorUser.id);
         db.prepare('DELETE FROM favorites WHERE user_id = ?').run(inspectorUser.id);
         db.prepare('DELETE FROM users WHERE id = ?').run(inspectorUser.id);
-      }
-
-      // Guarantee top-5 for user Just (id: 5)
-      const justUser = db.prepare("SELECT id FROM users WHERE nickname = 'Just' OR id = 5").get();
-      if (justUser) {
-        const justTop5 = [3495, 1803, 1807, 2040, 2646];
-        const countRow = db.prepare('SELECT COUNT(*) as count FROM user_top5 WHERE user_id = ?').get(justUser.id);
-        if (!countRow || countRow.count === 0) {
-          for (const aId of justTop5) {
-            db.prepare('INSERT OR IGNORE INTO user_top5 (user_id, anime_id) VALUES (?, ?)').run(justUser.id, aId);
-          }
-        }
       }
 
       // Strictly purge any Lemon Girls rating or top5 from Venicek

@@ -935,26 +935,27 @@ export default function App() {
       return;
     }
 
+    const numAnimeId = Number(animeId);
     const targetAnime =
       animeObj ||
-      animeList.find((it) => it.id === animeId || (it.aliasIds && it.aliasIds.includes(animeId))) ||
-      getAllCachedAnime().find((it) => it.id === animeId);
+      animeList.find((it) => Number(it.id) === numAnimeId || (it.aliasIds && it.aliasIds.map(Number).includes(numAnimeId))) ||
+      getAllCachedAnime().find((it) => Number(it.id) === numAnimeId);
 
     // Optimistic local update
     if (user?.id) {
-      updateCachedUserRating(user.id, animeId, score);
+      updateCachedUserRating(user.id, numAnimeId, score, targetAnime);
     }
-    updateCachedAnimeItem(animeId, { myScore: score });
+    updateCachedAnimeItem(numAnimeId, { myScore: score });
 
     if (activeSort === 'unrated' && score !== null && score !== undefined) {
       setAnimeList((prev) =>
-        prev.filter((item) => item.id !== animeId && !(item.aliasIds && item.aliasIds.includes(animeId)))
+        prev.filter((item) => Number(item.id) !== numAnimeId && !(item.aliasIds && item.aliasIds.map(Number).includes(numAnimeId)))
       );
       setTotalCount((prev) => Math.max(0, prev - 1));
     } else {
       setAnimeList((prev) =>
         prev.map((item) =>
-          item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId))
+          Number(item.id) === numAnimeId || (item.aliasIds && item.aliasIds.map(Number).includes(numAnimeId))
             ? { ...item, myScore: score }
             : item
         )
@@ -973,25 +974,45 @@ export default function App() {
 
       if (res.ok) {
         const data = await res.json();
+        const resolvedId = data.animeId ? Number(data.animeId) : numAnimeId;
+
         setAnimeList((prev) =>
-          prev.map((item) =>
-            item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId))
-              ? {
-                  ...item,
-                  myScore: data.myScore,
-                  averageScore: data.averageScore,
-                  ratingCount: data.ratingCount,
-                  friendsRatings: data.friendsRatings
-                }
-              : item
-          )
+          prev.map((item) => {
+            const isMatch =
+              Number(item.id) === numAnimeId ||
+              Number(item.id) === resolvedId ||
+              (item.aliasIds && item.aliasIds.map(Number).some((id) => id === numAnimeId || id === resolvedId));
+
+            if (!isMatch) return item;
+
+            const existingAliases = Array.isArray(item.aliasIds) ? item.aliasIds : [item.id];
+            const updatedAliases = Array.from(new Set([...existingAliases, numAnimeId, resolvedId]));
+
+            return {
+              ...item,
+              id: resolvedId,
+              aliasIds: updatedAliases,
+              myScore: data.myScore,
+              averageScore: data.averageScore,
+              ratingCount: data.ratingCount,
+              friendsRatings: data.friendsRatings || item.friendsRatings
+            };
+          })
         );
 
-        updateCachedAnimeItem(animeId, {
+        updateCachedAnimeItem(numAnimeId, {
           myScore: data.myScore,
           averageScore: data.averageScore,
           ratingCount: data.ratingCount
         });
+        updateCachedAnimeItem(resolvedId, {
+          myScore: data.myScore,
+          averageScore: data.averageScore,
+          ratingCount: data.ratingCount
+        });
+        if (user?.id) {
+          updateCachedUserRating(user.id, resolvedId, data.myScore, targetAnime);
+        }
       }
     } catch (err) {
       console.warn('Backend rate notice (rating saved in client):', err);

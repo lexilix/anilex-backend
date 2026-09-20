@@ -320,6 +320,20 @@ export default function ProfilePage({
             if (found) ordered.push(found);
           });
           items = ordered.slice(0, 5);
+
+          // If myTop5Ids contains phantom/unrated items, auto-prune to user's real rated top 5
+          const validIds = ordered.map((it) => Number(it.id));
+          if (validIds.length !== myTop5Ids.length) {
+            setMyTop5Ids(validIds);
+            localStorage.setItem('anilex_top5_' + user?.id, JSON.stringify(validIds));
+            if (token) {
+              fetch(apiUrl('/api/user/top5/set'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ animeIds: validIds })
+              }).catch(() => {});
+            }
+          }
         } else if (selectedScore !== 'all') {
           items = allItems.filter((it) => it.myScore === parseInt(selectedScore, 10));
         }
@@ -827,9 +841,6 @@ export default function ProfilePage({
         // Known default fallbacks
         if ((data.user?.nickname === 'Katsu' || friendId === 15 || data.user?.id === 15) && friendTop5.length === 0) {
           friendTop5 = [6080, 3495, 2143, 1807];
-        }
-        if ((data.user?.nickname === 'Just' || friendId === 5 || data.user?.id === 5) && friendTop5.length === 0) {
-          friendTop5 = [3495, 1803, 1807, 2040, 2646];
         }
         if (data.user?.nickname === 'MrTech' || data.user?.id === 20 || friendId === 20) {
           if (!friendTop5.includes(7170)) friendTop5.unshift(7170);

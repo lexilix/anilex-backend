@@ -34,7 +34,13 @@ import {
   Ban
 } from 'lucide-react';
 import { apiUrl } from '../api';
-import { updateCachedAnimeItem, removeCachedAnimeItem, upsertCachedAnimeItem, searchCachedAnime } from '../utils/catalogCache';
+import {
+  updateCachedAnimeItem,
+  removeCachedAnimeItem,
+  upsertCachedAnimeItem,
+  searchCachedAnime,
+  searchExternalAnimeFallback
+} from '../utils/catalogCache';
 import { toggleHiddenAnime } from '../utils/hiddenStorage';
 import { getScoreBadgeClass } from '../utils/scoreColors';
 import { extractPlatformIdentifier, parseAnimeLibContent } from '../utils/importer';
@@ -547,11 +553,35 @@ export default function DevConsolePage({
           deletedAnimeIds = new Set(JSON.parse(localStorage.getItem('anilex_deleted_anime_ids') || '[]').map(Number));
         } catch (e) {}
         const rawItems = data.items || [];
-        const filtered = rawItems
+        let filtered = rawItems
           .filter((it) => !deletedAnimeIds.has(Number(it.id)))
           .map((it) => applyCustomAnimeEdits(it));
+
+        // If search returned 0 items from server, query external Shikimori/AnimeGO fallback and cache
+        if (searchQuery.trim() && filtered.length === 0) {
+          try {
+            const external = await searchExternalAnimeFallback(searchQuery.trim());
+            if (external && external.length > 0) {
+              filtered = external.filter((it) => !deletedAnimeIds.has(Number(it.id)));
+              // Register discovered titles to the server so they are persisted in SQLite DB
+              external.forEach((it) => {
+                fetch(apiUrl('/api/anime/register'), {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ anime: it })
+                }).catch(() => {});
+              });
+            } else {
+              const cached = searchCachedAnime(searchQuery.trim());
+              if (cached && cached.length > 0) {
+                filtered = cached.filter((it) => !deletedAnimeIds.has(Number(it.id))).map((it) => applyCustomAnimeEdits(it));
+              }
+            }
+          } catch (fallbackErr) {}
+        }
+
         setAnimeList(filtered);
-        setAnimeTotal(Math.max(0, (data.total || filtered.length) - (rawItems.length - filtered.length)));
+        setAnimeTotal(Math.max(filtered.length, (data.total || filtered.length) - (rawItems.length - filtered.length)));
       }
     } catch (err) {
       console.error('Error fetching anime for dev:', err);

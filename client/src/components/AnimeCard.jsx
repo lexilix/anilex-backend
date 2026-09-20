@@ -39,8 +39,15 @@ export default function AnimeCard({
     setLocalHidden(Boolean(anime.isHidden) || isAnimeHiddenLocally(anime.id, user?.id));
   }, [anime.isHidden, anime.id, user?.id]);
 
+  // Optimistic local rating state synced with anime prop
+  const [localScore, setLocalScore] = useState(anime.myScore);
+
+  useEffect(() => {
+    setLocalScore(anime.myScore);
+  }, [anime.myScore]);
+
   // User's rating and community stats
-  const myScore = anime.myScore;
+  const myScore = localScore !== undefined ? localScore : anime.myScore;
   const isFavorite = anime.isFavorite;
   const isHidden = localHidden;
   const averageScore = anime.averageScore;
@@ -101,10 +108,13 @@ export default function AnimeCard({
       return;
     }
 
+    const newScore = myScore === score ? null : score;
+    setLocalScore(newScore);
     setRatingLoading(true);
     try {
-      const newScore = myScore === score ? null : score;
       await onRate(anime.id, newScore, anime);
+    } catch (err) {
+      console.warn('Rating error:', err);
     } finally {
       setRatingLoading(false);
     }
