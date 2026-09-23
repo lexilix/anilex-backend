@@ -27,10 +27,52 @@ import {
   removeCachedAnimeItem
 } from './utils/catalogCache';
 import { getHiddenAnimeIds, toggleHiddenAnime } from './utils/hiddenStorage';
-import { getCachedUserProfile, setCachedUserProfile, clearCachedUserProfile, updateCachedUserRating } from './utils/profileCache';
+import { getCachedUserProfile, setCachedUserProfile, clearCachedUserProfile, updateCachedUserRating, getCachedUserRatings } from './utils/profileCache';
 import { deduplicateAnimeList } from './utils/animeDeduplicator';
 import { getCustomAnimeEdits, saveCustomAnimeEdit, applyCustomAnimeEdits } from './utils/customEditsStorage';
 import initialCatalog from './data/initialCatalog.json';
+
+function overlayUserRatings(items, userId) {
+  if (!userId || !Array.isArray(items) || items.length === 0) return items;
+  const userRatings = getCachedUserRatings(userId);
+  if (!userRatings || userRatings.length === 0) return items;
+
+  const idMap = new Map();
+  const titleMap = new Map();
+
+  for (const r of userRatings) {
+    if (r && r.id !== undefined && r.id !== null) {
+      idMap.set(Number(r.id), r);
+    }
+    if (r && r.title) {
+      titleMap.set(r.title.trim().toLowerCase(), r);
+    }
+  }
+
+  return items.map((item) => {
+    const numId = Number(item.id);
+    let matched = idMap.get(numId);
+    if (!matched && Array.isArray(item.aliasIds)) {
+      for (const a of item.aliasIds) {
+        if (idMap.has(Number(a))) {
+          matched = idMap.get(Number(a));
+          break;
+        }
+      }
+    }
+    if (!matched && item.title) {
+      matched = titleMap.get(item.title.trim().toLowerCase());
+    }
+
+    if (matched && matched.myScore !== null && matched.myScore !== undefined) {
+      return {
+        ...item,
+        myScore: Number(matched.myScore)
+      };
+    }
+    return item;
+  });
+}
 
 export default function App() {
   // Theme state
@@ -66,6 +108,31 @@ export default function App() {
     }, 250);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Live listener for ratings updated anywhere in the app (detail page, profile, dev console)
+  useEffect(() => {
+    const handleRatingUpdated = (e) => {
+      const { animeId, score, anime: updatedAnime } = e.detail || {};
+      if (!animeId && !updatedAnime?.id) return;
+      const numId = Number(animeId || updatedAnime?.id);
+
+      setAnimeList((prev) =>
+        prev.map((item) => {
+          const isMatch =
+            Number(item.id) === numId ||
+            (Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId)) ||
+            (updatedAnime?.title && item.title && item.title.trim().toLowerCase() === updatedAnime.title.trim().toLowerCase());
+          if (isMatch) {
+            return { ...item, myScore: score };
+          }
+          return item;
+        })
+      );
+    };
+
+    window.addEventListener('anilex:rating-updated', handleRatingUpdated);
+    return () => window.removeEventListener('anilex:rating-updated', handleRatingUpdated);
+  }, []);
 
   // Data states (pre-seeded with 15 titles so page is NEVER blank or hanging)
   const [animeList, setAnimeList] = useState(() => {
@@ -709,7 +776,7 @@ export default function App() {
         }
 
         // Strictly take 15 items per page for catalog navigation
-        const displayPageItems = isSearching ? sanitized : sanitized.slice(0, 15);
+        const displayPageItems = overlayUserRatings(isSearching ? sanitized : sanitized.slice(0, 15), user?.id);
         const resolvedTotal = Math.max(displayPageItems.length, data.total || 0);
         const resolvedPages = data.totalPages || Math.max(1, Math.ceil(resolvedTotal / 15));
 
@@ -734,7 +801,7 @@ export default function App() {
         if (isSearching) {
           const cached = searchCachedAnime(debouncedSearch.trim());
           if (cached.length > 0) {
-            setAnimeList(cached);
+            setAnimeList(overlayUserRatings(cached, user?.id));
             setTotalCount(cached.length);
             setTotalPages(1);
             setCatalogError(null);
@@ -742,7 +809,7 @@ export default function App() {
             try {
               const externalFound = await searchExternalAnimeFallback(debouncedSearch.trim());
               if (externalFound.length > 0) {
-                setAnimeList(externalFound);
+                setAnimeList(overlayUserRatings(externalFound, user?.id));
                 setTotalCount(externalFound.length);
                 setTotalPages(1);
                 setCatalogError(null);
@@ -760,7 +827,7 @@ export default function App() {
           const anyFallback = getAnyCachedCatalog();
           if (anyFallback && Array.isArray(anyFallback.items) && anyFallback.items.length > 0) {
             const page15 = anyFallback.items.slice(0, 15).map(applyCustomAnimeEdits);
-            setAnimeList(page15);
+            setAnimeList(overlayUserRatings(page15, user?.id));
             setTotalCount(anyFallback.total || page15.length);
             setTotalPages(anyFallback.totalPages || Math.max(1, Math.ceil((anyFallback.total || page15.length) / 15)));
             setCatalogError(null);
@@ -960,6 +1027,14 @@ export default function App() {
     }
     updateCachedAnimeItem(numAnimeId, { myScore: score });
 
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('anilex:rating-updated', {
+          detail: { animeId: numAnimeId, score, anime: targetAnime }
+        })
+      );
+    }
+
     if (activeSort === 'unrated' && score !== null && score !== undefined) {
       setAnimeList((prev) =>
         prev.filter((item) => Number(item.id) !== numAnimeId && !(item.aliasIds && item.aliasIds.map(Number).includes(numAnimeId)))
@@ -1025,6 +1100,13 @@ export default function App() {
         });
         if (user?.id) {
           updateCachedUserRating(user.id, resolvedId, data.myScore, targetAnime);
+        }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('anilex:rating-updated', {
+              detail: { animeId: resolvedId, score: data.myScore, anime: targetAnime }
+            })
+          );
         }
       }
     } catch (err) {

@@ -525,7 +525,7 @@ export default function ProfilePage({
       return;
     }
     const scoreNum = Number(newScoreVal);
-    if (isNaN(scoreNum) || scoreNum < 1 || scoreNum > 10) return;
+    if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 10) return;
 
     const token = localStorage.getItem('anime_auth_token');
     const updatedAnime = { ...anime, myScore: scoreNum };
@@ -1487,12 +1487,12 @@ export default function ProfilePage({
                             <span className="text-[11px] text-neutral-400">Оценка:</span>
                             <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
                               <select
-                                value={anime.myScore ?? ''}
+                                value={anime.myScore !== null && anime.myScore !== undefined ? Number(anime.myScore) : ''}
                                 onChange={(e) => handleQuickChangeScore(e, anime, e.target.value)}
-                                className={`px-2 py-0.5 rounded-lg font-bold text-xs cursor-pointer border border-transparent hover:border-amber-400 focus:outline-none transition-all ${getScoreBadgeClass(anime.myScore)}`}
+                                className={`appearance-none -webkit-appearance-none px-2 py-0.5 rounded-lg font-bold text-xs cursor-pointer border border-transparent hover:border-amber-400 focus:outline-none transition-all text-center leading-tight shadow-xs ${getScoreBadgeClass(anime.myScore)}`}
                                 title="Нажмите, чтобы изменить оценку"
                               >
-                                {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((s) => (
+                                {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].map((s) => (
                                   <option key={s} value={s} className="bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white">
                                     {s} / 10
                                   </option>

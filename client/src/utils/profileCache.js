@@ -102,8 +102,8 @@ export function updateCachedUserRating(userId, animeId, score, animeData = null)
           genres: animeData?.genres || [],
           description: animeData?.description || '',
           myScore: Number(score),
-          averageScore: animeData?.averageScore || score,
-          ratingCount: animeData?.ratingCount || 1
+          averageScore: animeData?.averageScore !== undefined && animeData?.averageScore !== null ? Number(animeData.averageScore) : null,
+          ratingCount: animeData?.ratingCount !== undefined && animeData?.ratingCount !== null ? Number(animeData.ratingCount) : 0
         });
       }
     }

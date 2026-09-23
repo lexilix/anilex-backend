@@ -313,8 +313,8 @@ export async function searchExternalAnimeFallback(query) {
           genres: [],
           description: '',
           myScore: null,
-          averageScore: d.score ? Number(d.score) : null,
-          ratingCount: 1,
+          averageScore: null,
+          ratingCount: 0,
           isFavorite: false,
           isHidden: false,
           commentsCount: 0

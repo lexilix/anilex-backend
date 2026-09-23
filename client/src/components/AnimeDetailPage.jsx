@@ -157,8 +157,8 @@ export default function AnimeDetailPage({
               relation: 'Часть 2',
               isCurrent: animeId === 7180,
               myScore: null,
-              averageScore: 10,
-              ratingCount: 1
+              averageScore: null,
+              ratingCount: 0
             });
           }
           if (!hasFinal1) {
@@ -173,8 +173,8 @@ export default function AnimeDetailPage({
               relation: '4-й сезон / Финал',
               isCurrent: animeId === 7181,
               myScore: null,
-              averageScore: 10,
-              ratingCount: 1
+              averageScore: null,
+              ratingCount: 0
             });
           }
           if (!hasFinal2) {
@@ -189,8 +189,8 @@ export default function AnimeDetailPage({
               relation: 'Часть 2',
               isCurrent: animeId === 7182,
               myScore: null,
-              averageScore: 10,
-              ratingCount: 1
+              averageScore: null,
+              ratingCount: 0
             });
           }
         }

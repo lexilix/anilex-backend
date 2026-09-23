@@ -1516,8 +1516,16 @@ export default function DevConsolePage({
         body: JSON.stringify({ animeId, score: numScore })
       }).catch(() => {});
 
-      // If editing current user, also fire /api/anime/:id/rate
+      // If editing current user, also fire /api/anime/:id/rate and sync client state
       if (selectedUserId === user?.id) {
+        updateCachedUserRating(user.id, animeId, numScore);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('anilex:rating-updated', {
+              detail: { animeId: Number(animeId), score: numScore }
+            })
+          );
+        }
         fetch(apiUrl(`/api/anime/${animeId}/rate`), {
           method: 'POST',
           headers: {
@@ -1551,6 +1559,14 @@ export default function DevConsolePage({
 
       // Fallback if current user
       if (selectedUserId === user?.id) {
+        updateCachedUserRating(user.id, animeId, null);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('anilex:rating-updated', {
+              detail: { animeId: Number(animeId), score: null }
+            })
+          );
+        }
         fetch(apiUrl(`/api/anime/${animeId}/rate`), {
           method: 'POST',
           headers: {
@@ -1704,6 +1720,13 @@ export default function DevConsolePage({
 
       // Update client cache
       updateCachedUserRating(selectedUserId, animeItem.id, numScore, animeItem);
+      if (selectedUserId === user?.id && typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('anilex:rating-updated', {
+            detail: { animeId: Number(animeItem.id), score: numScore, anime: animeItem }
+          })
+        );
+      }
 
       showToast(`«${animeItem.title}» оценено на ${numScore}/10!`);
     } catch (err) {
@@ -2499,6 +2522,7 @@ export default function DevConsolePage({
                     <option value="6">6 ★</option>
                     <option value="5">5 ★</option>
                     <option value="low">1-4 ★</option>
+                    <option value="0">0 ★</option>
                   </select>
                 </div>
               )}
@@ -2683,7 +2707,7 @@ export default function DevConsolePage({
 
                         {/* Inline Score Buttons (1..10) */}
                         <div className="flex items-center gap-1 flex-wrap">
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((scoreNum) => {
+                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((scoreNum) => {
                             const isCurrent = Number(item.score) === scoreNum;
                             return (
                               <button
@@ -2699,6 +2723,8 @@ export default function DevConsolePage({
                                       ? 'bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-400 scale-105'
                                       : scoreNum >= 6
                                       ? 'bg-blue-500 text-white shadow-sm ring-2 ring-blue-400 scale-105'
+                                      : scoreNum === 0
+                                      ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-500 scale-105'
                                       : 'bg-neutral-600 text-white shadow-sm scale-105'
                                     : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-neutral-900 dark:hover:text-white'
                                 }`}
@@ -2819,7 +2845,7 @@ export default function DevConsolePage({
                           Поставить оценку:
                         </span>
                         <div className="flex items-center gap-1 flex-wrap">
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((scoreNum) => (
+                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((scoreNum) => (
                             <button
                               key={scoreNum}
                               type="button"
@@ -3799,7 +3825,7 @@ export default function DevConsolePage({
                       onChange={(e) => setNewScore(Number(e.target.value))}
                       className="px-2.5 py-1 rounded-xl bg-white dark:bg-neutral-800 text-xs font-black"
                     >
-                      {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((s) => (
+                      {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].map((s) => (
                         <option key={s} value={s}>
                           {s} / 10
                         </option>
