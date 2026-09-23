@@ -66,6 +66,16 @@ export function applyCustomAnimeEdits(item) {
         season: bestSeason,
         linkedAnime: bestLinked
       };
+    } else if (!item.linkedAnime && item.related_json) {
+      try {
+        const parsed = JSON.parse(item.related_json);
+        if (Array.isArray(parsed)) {
+          return {
+            ...item,
+            linkedAnime: parsed
+          };
+        }
+      } catch (e) {}
     }
   } catch (e) {}
   return item;

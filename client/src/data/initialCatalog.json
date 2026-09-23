@@ -45,7 +45,8 @@
     "description": "Культовая экранизация манги Коты Хирано. Королевский орден протестантских рыцарей «Хеллсинг» охраняет Англию от темных сил. На службе у Интегры Хеллсинг находится сильнейший из вампиров — Алукард, чьё бессмертие и мощь предстоит испытать в масштабной войне с нацистским батальоном «Миллениум».",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "OVA"
   },
   {
     "id": 7193,
@@ -64,7 +65,16 @@
     "description": "Кадзума Сато оказывается под судом за подрыв особняка дворянина после победы над генералом армии Короля Демонов. Чтобы расплатиться с огромными долгами, его бестолковая команда снова берется за самые нелепые и опасные авантюры в окрестностях города Аксель.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "2-й сезон",
+    "linkedAnime": [
+      {
+        "id": 6020,
+        "title": "Этот замечательный мир!",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":6020,\"title\":\"Этот замечательный мир!\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 7192,
@@ -84,7 +94,21 @@
     "description": "Второй сезон приключений Римуру Темпеста. Развитие Федерации Джура Темпест привлекает алчные взоры человеческих королевств. Столкнувшись с предательским нападением на мирную столицу, Римуру решается на ритуал пробуждения истинного Князя Тьмы.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "2-й сезон",
+    "linkedAnime": [
+      {
+        "id": 7191,
+        "title": "О моём перерождении в слизь",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 1446,
+        "title": "О моём перерождении в слизь 3",
+        "relation": "3-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7191,\"title\":\"О моём перерождении в слизь\",\"relation\":\"1-й сезон\"},{\"id\":1446,\"title\":\"О моём перерождении в слизь 3\",\"relation\":\"3-й сезон\"}]"
   },
   {
     "id": 7191,
@@ -104,7 +128,21 @@
     "description": "Сатору Миками, погибнув от руки грабителя, перерождается в фэнтезийном мире в облике разумной синей слизи по имени Римуру. Получив способность поглощать чужие умения, он освобождает грозного штормового дракона Вельдору и основывает процветающее государство, где монстры могут жить в мире.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 7192,
+        "title": "О моём перерождении в слизь 2",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 1446,
+        "title": "О моём перерождении в слизь 3",
+        "relation": "3-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7192,\"title\":\"О моём перерождении в слизь 2\",\"relation\":\"2-й сезон\"},{\"id\":1446,\"title\":\"О моём перерождении в слизь 3\",\"relation\":\"3-й сезон\"}]"
   },
   {
     "id": 7190,
@@ -124,7 +162,21 @@
     "description": "В мире магии сирота Аста рождается совершенно без магических сил, в то время как его названый брат Юно наделен редчайшим даром ветра. В пятнадцать лет Аста получает гримуар с пятилистным черным клевером антимагии, и оба парня объявляют, что станут соперниками за титул Короля Магов.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 557,
+        "title": "Чёрный клевер 2",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 1630,
+        "title": "Чёрный клевер: Меч короля магов",
+        "relation": "Фильм"
+      }
+    ],
+    "related_json": "[{\"id\":557,\"title\":\"Чёрный клевер 2\",\"relation\":\"2-й сезон\"},{\"id\":1630,\"title\":\"Чёрный клевер: Меч короля магов\",\"relation\":\"Фильм\"}]"
   },
   {
     "id": 7189,
@@ -145,7 +197,16 @@
     "description": "Продолжение истории магов гильдии «Хвост Феи». Великие Магические Игры выходят на кульминационную прямую, но древний заговор с проектом «Врата Затмения» угрожает выпустить на свободу десять тысяч свирепых драконов из четырёхсотлетнего прошлого.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "2-й сезон",
+    "linkedAnime": [
+      {
+        "id": 7188,
+        "title": "Хвост Феи",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7188,\"title\":\"Хвост Феи\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 7188,
@@ -166,7 +227,16 @@
     "description": "Семнадцатилетняя заклинательница духов Люси Хартфилия сбегает из дома, чтобы вступить в самую безбашенную гильдию волшебников — «Хвост Феи». В городе Магнолия она встречает огненного убийцу драконов Нацу Драгнила и его кота Хэппи. Вместе они выполняют задания, спасают друзей и защищают королевство Фиор.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 7189,
+        "title": "Хвост Феи 2",
+        "relation": "2-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7189,\"title\":\"Хвост Феи 2\",\"relation\":\"2-й сезон\"}]"
   },
   {
     "id": 7187,
@@ -186,7 +256,16 @@
     "description": "Манки Д. Луффи, съевший дьявольский плод Резина-Резина, отправляется в опаснейшее морское путешествие по Гранд Лайн. Его цель — найти величайшее сокровище «Ван-Пис», оставленное легендарным Королём Пиратов Гол Д. Роджером, и стать новым Королём Пиратов вместе со своей верной командой Соломенной Шляпы.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 814,
+        "title": "Ван-Пис: Красный",
+        "relation": "Фильм"
+      }
+    ],
+    "related_json": "[{\"id\":814,\"title\":\"Ван-Пис: Красный\",\"relation\":\"Фильм\"}]"
   },
   {
     "id": 7186,
@@ -205,7 +284,21 @@
     "description": "2015 год. Земля пережила катастрофу «Второй удар» и сталкивается с нападением гигантских созданий — Ангелов. Организация NERV создает гигантских биороботов «Евангелионы». Четырнадцатилетний Синдзи Икари по вызову отца прибывает в Токио-3 и вынужден стать пилотом Евы-01, погружаясь в тайны человеческой души и судьбы цивилизации.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 2898,
+        "title": "Евангелион: Конец Евангелиона",
+        "relation": "Финал сериала"
+      },
+      {
+        "id": 2897,
+        "title": "Евангелион 1.11: Ты (не) один",
+        "relation": "Ребилд"
+      }
+    ],
+    "related_json": "[{\"id\":2898,\"title\":\"Евангелион: Конец Евангелиона\",\"relation\":\"Финал сериала\"},{\"id\":2897,\"title\":\"Евангелион 1.11: Ты (не) один\",\"relation\":\"Ребилд\"}]"
   },
   {
     "id": 7185,
@@ -225,7 +318,21 @@
     "description": "Пятнадцатилетний школьник Ичиго Куросаки с детства способен видеть призраков. Однажды в его комнате появляется синигами (проводник душ) Рукия Кучики, сражающаяся со злым духом «Пустым». Спасая свою семью, Ичиго перенимает силы Рукии и становится синигами, вставая на защиту мира живых и Общества Душ.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 1806,
+        "title": "Блич: Тысячелетняя кровавая война",
+        "relation": "Продолжение"
+      },
+      {
+        "id": 934,
+        "title": "Блич: Воспоминания ни о ком",
+        "relation": "Фильм"
+      }
+    ],
+    "related_json": "[{\"id\":1806,\"title\":\"Блич: Тысячелетняя кровавая война\",\"relation\":\"Продолжение\"},{\"id\":934,\"title\":\"Блич: Воспоминания ни о ком\",\"relation\":\"Фильм\"}]"
   },
   {
     "id": 7184,
@@ -244,7 +351,21 @@
     "description": "Сигэо Кагэяма по прозвищу Моб — ученик восьмого класса с невероятными экстрасенсорными способностями. Он изо всех сил старается подавлять эмоции, ведь при достижении уровня стресса 100% его сила выходит из-под контроля. Моб подрабатывает у шарлатана Аратаки Рэйгэна, пытаясь жить обычной подростковой жизнью.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 2986,
+        "title": "Моб Психо 100 2",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 1804,
+        "title": "Моб Психо 100 3",
+        "relation": "3-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":2986,\"title\":\"Моб Психо 100 2\",\"relation\":\"2-й сезон\"},{\"id\":1804,\"title\":\"Моб Психо 100 3\",\"relation\":\"3-й сезон\"}]"
   },
   {
     "id": 7183,
@@ -264,7 +385,8 @@
     "description": "Ягами Лайт — прилежный старшеклассник и сын шефа полиции. Однажды он находит таинственную чёрную тетрадь, оброненную богом смерти Рюком. Согласно правилам, человек, чьё имя будет вписано в эту тетрадь, умирает. Лайт решает построить идеальный мир без преступников и стать его богом, но на его след выходит гениальный детектив L.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "1-й сезон"
   },
   {
     "id": 7182,
@@ -788,7 +910,27 @@
     "description": "Кем вы хотели стать в детстве? Известным футболистом? Супергероем? Или, быть может, певцом, собирающим огромную толпу на концертах? Всё это не про нашего главного героя Сида, ведь он всегда восхищался людьми из закулисья, теми, кто почти не предпринимает никаких действий в открытую, а появляется лишь в самый ответственный момент и, сделав дело, бесследно исчезает. \n\nВ нашем мире такое трудно провернуть, ведь что ни делай, а против атомной бомбы не попрёшь. И вот, раздумывая о способах отражения ядерного оружия голыми руками, наш герой приходит к умозаключению, что без магии никак. Удобно получилось, ведь вскоре после этого парень встретил пресловутый грузовик, который и отправил его на тот свет, а если быть точнее, то в мир, полный мечей, магии и прочих прелестей фэнтези-вселенных. Уж теперь-то у Сида не будет препятствий на пути к становлению величайшим правителем из тени.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 6096,
+        "title": "Восхождение в тени! 2",
+        "originalTitle": "Kage no Jitsuryokusha ni Naritakute! 2nd Season",
+        "year": "2023",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 5655,
+        "title": "Восхождение в тени! Реверберация",
+        "originalTitle": "Kage no Jitsuryokusha ni Naritakute! Movie: Zankyou-hen",
+        "year": "2027",
+        "type": "Фильм",
+        "relation": "Фильм"
+      }
+    ],
+    "related_json": "[{\"id\":6096,\"title\":\"Восхождение в тени! 2\",\"originalTitle\":\"Kage no Jitsuryokusha ni Naritakute! 2nd Season\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5655,\"title\":\"Восхождение в тени! Реверберация\",\"originalTitle\":\"Kage no Jitsuryokusha ni Naritakute! Movie: Zankyou-hen\",\"year\":\"2027\",\"type\":\"Фильм\",\"relation\":\"Фильм\"}]"
   },
   {
     "id": 6966,
@@ -1341,7 +1483,27 @@
     "description": "После происшествия на фестивале Бусин, которое взбудоражило всю страну, главному герою Сиду Кагэно казалось, дали время отдохнуть. Но это было лишь затишье перед бурей, ведь совсем скоро вновь объявилась несносная сестра главного героя, Клэр, которая взяла его с собой в «Беззаконный город» ради охоты на Кровавую Королеву — легендарного вампира-прародителя. Изначально Сид был не в восторге от идеи совместного времяпрепровождения, но осознав, насколько круто это всё звучит, не смог отказать себе в удовольствии поучаствовать. Между тем, трое правителей «Беззаконного» тоже собираются вмешаться в ситуацию, а луна вообще обратилась алым цветом. Что со всем этим будет делать Сид — величайший правитель из тени, которого только видел этот мир?",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "2-й сезон",
+    "linkedAnime": [
+      {
+        "id": 6970,
+        "title": "Восхождение в тени!",
+        "originalTitle": "Kage no Jitsuryokusha ni Naritakute! / The Eminence in Shadow",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 5655,
+        "title": "Восхождение в тени! Реверберация",
+        "originalTitle": "Kage no Jitsuryokusha ni Naritakute! Movie: Zankyou-hen",
+        "year": "2027",
+        "type": "Фильм",
+        "relation": "Фильм"
+      }
+    ],
+    "related_json": "[{\"id\":6970,\"title\":\"Восхождение в тени!\",\"originalTitle\":\"Kage no Jitsuryokusha ni Naritakute! / The Eminence in Shadow\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5655,\"title\":\"Восхождение в тени! Реверберация\",\"originalTitle\":\"Kage no Jitsuryokusha ni Naritakute! Movie: Zankyou-hen\",\"year\":\"2027\",\"type\":\"Фильм\",\"relation\":\"Фильм\"}]"
   },
   {
     "id": 6094,
@@ -2543,7 +2705,15 @@
     "description": "Дополнительный эпизод аниме-сериала «», выпущенный в комплекте с девятым томом одноимённой новеллы.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "linkedAnime": [
+      {
+        "id": 7193,
+        "title": "Этот замечательный мир! 2",
+        "relation": "2-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7193,\"title\":\"Этот замечательный мир! 2\",\"relation\":\"2-й сезон\"}]"
   },
   {
     "id": 6019,
@@ -4891,7 +5061,83 @@
     "description": "Сериал рассказывает о подростках Дэне Кузо, Шуне Казами, Уинтоне Стайлзе, Лии Венегас и их псе Лайтнинге. Они известны как «Крутая компания» и снимают видео для сайта ViewTube. Однажды ребята случайно натыкаются на расу биомеханических существ-бойцов под названием Бакуган. Вскоре они становятся друзьями с Бакуганами и начинают устраивать с ними battle, при этом защищая свой район от хулиганов, которые используют Бакуганов в дурных целях.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "5-й сезон",
+    "linkedAnime": [
+      {
+        "id": 5296,
+        "title": "Отчаянные бойцы Бакуган",
+        "imageUrl": "https://shikimori.one/system/animes/original/2156.jpg?1711943303",
+        "year": "2007",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 5295,
+        "title": "Отчаянные бойцы Бакуган: Новая Вестроя",
+        "imageUrl": "https://shikimori.one/system/animes/original/5337.jpg?1711943305",
+        "year": "2009",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 5294,
+        "title": "Отчаянные бойцы Бакуган: Вторжение гандэлианцев",
+        "imageUrl": "https://shikimori.one/system/animes/original/7334.jpg?1711943302",
+        "year": "2010",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 5297,
+        "title": "Отчаянные бойцы Бакуган: Импульс Мектаниума",
+        "imageUrl": "https://shikimori.one/system/animes/original/10330.jpg?1711943325",
+        "year": "2011",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 5302,
+        "title": "Бакуган: Планета сражений — Мини-аниме",
+        "imageUrl": "https://shikimori.one/system/animes/original/40395.jpg?1711943296",
+        "year": "2019",
+        "type": "ONA",
+        "relation": "Спешл"
+      },
+      {
+        "id": 5301,
+        "title": "Бакуган: Бронированный альянс",
+        "imageUrl": "https://shikimori.one/system/animes/original/41405.jpg?1711943321",
+        "year": "2020",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 5300,
+        "title": "Бакуган: Восход геоганов",
+        "imageUrl": "https://shikimori.one/system/animes/original/48555.jpg?1708717290",
+        "year": "2021",
+        "type": "ONA",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 5298,
+        "title": "Бакуган: Эволюции",
+        "imageUrl": "https://shikimori.one/system/animes/original/51263.jpg?1708927558",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "8-й сезон"
+      },
+      {
+        "id": 5299,
+        "title": "Бакуган: Легенды",
+        "imageUrl": "https://shikimori.one/system/animes/original/54637.jpg?1712539657",
+        "year": "2023",
+        "type": "Сериал",
+        "relation": "9-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
   },
   {
     "id": 5302,
@@ -4908,7 +5154,83 @@
     "description": "Серия анимационных веб-короткометражек, в которых персонажи из  Бакуган: Планета сражений взаимодействуют в более комедийной манере.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "Спешл",
+    "linkedAnime": [
+      {
+        "id": 5296,
+        "title": "Отчаянные бойцы Бакуган",
+        "imageUrl": "https://shikimori.one/system/animes/original/2156.jpg?1711943303",
+        "year": "2007",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 5295,
+        "title": "Отчаянные бойцы Бакуган: Новая Вестроя",
+        "imageUrl": "https://shikimori.one/system/animes/original/5337.jpg?1711943305",
+        "year": "2009",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 5294,
+        "title": "Отчаянные бойцы Бакуган: Вторжение гандэлианцев",
+        "imageUrl": "https://shikimori.one/system/animes/original/7334.jpg?1711943302",
+        "year": "2010",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 5297,
+        "title": "Отчаянные бойцы Бакуган: Импульс Мектаниума",
+        "imageUrl": "https://shikimori.one/system/animes/original/10330.jpg?1711943325",
+        "year": "2011",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 5303,
+        "title": "Бакуган: Планета сражений",
+        "imageUrl": "https://shikimori.one/system/animes/original/39622.jpg?1711943282",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 5301,
+        "title": "Бакуган: Бронированный альянс",
+        "imageUrl": "https://shikimori.one/system/animes/original/41405.jpg?1711943321",
+        "year": "2020",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 5300,
+        "title": "Бакуган: Восход геоганов",
+        "imageUrl": "https://shikimori.one/system/animes/original/48555.jpg?1708717290",
+        "year": "2021",
+        "type": "ONA",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 5298,
+        "title": "Бакуган: Эволюции",
+        "imageUrl": "https://shikimori.one/system/animes/original/51263.jpg?1708927558",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "8-й сезон"
+      },
+      {
+        "id": 5299,
+        "title": "Бакуган: Легенды",
+        "imageUrl": "https://shikimori.one/system/animes/original/54637.jpg?1712539657",
+        "year": "2023",
+        "type": "Сериал",
+        "relation": "9-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
   },
   {
     "id": 5301,
@@ -4926,7 +5248,83 @@
     "description": "Второй сезон аниме «Бакуган: Планета сражений».",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "6-й сезон",
+    "linkedAnime": [
+      {
+        "id": 5296,
+        "title": "Отчаянные бойцы Бакуган",
+        "imageUrl": "https://shikimori.one/system/animes/original/2156.jpg?1711943303",
+        "year": "2007",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 5295,
+        "title": "Отчаянные бойцы Бакуган: Новая Вестроя",
+        "imageUrl": "https://shikimori.one/system/animes/original/5337.jpg?1711943305",
+        "year": "2009",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 5294,
+        "title": "Отчаянные бойцы Бакуган: Вторжение гандэлианцев",
+        "imageUrl": "https://shikimori.one/system/animes/original/7334.jpg?1711943302",
+        "year": "2010",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 5297,
+        "title": "Отчаянные бойцы Бакуган: Импульс Мектаниума",
+        "imageUrl": "https://shikimori.one/system/animes/original/10330.jpg?1711943325",
+        "year": "2011",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 5303,
+        "title": "Бакуган: Планета сражений",
+        "imageUrl": "https://shikimori.one/system/animes/original/39622.jpg?1711943282",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 5302,
+        "title": "Бакуган: Планета сражений — Мини-аниме",
+        "imageUrl": "https://shikimori.one/system/animes/original/40395.jpg?1711943296",
+        "year": "2019",
+        "type": "ONA",
+        "relation": "Спешл"
+      },
+      {
+        "id": 5300,
+        "title": "Бакуган: Восход геоганов",
+        "imageUrl": "https://shikimori.one/system/animes/original/48555.jpg?1708717290",
+        "year": "2021",
+        "type": "ONA",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 5298,
+        "title": "Бакуган: Эволюции",
+        "imageUrl": "https://shikimori.one/system/animes/original/51263.jpg?1708927558",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "8-й сезон"
+      },
+      {
+        "id": 5299,
+        "title": "Бакуган: Легенды",
+        "imageUrl": "https://shikimori.one/system/animes/original/54637.jpg?1712539657",
+        "year": "2023",
+        "type": "Сериал",
+        "relation": "9-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
   },
   {
     "id": 5300,
@@ -4945,7 +5343,83 @@
     "description": "В Бакуган: Восход геоганов герой Драгоноид возвращается, пока бакуганы из команды Отважных Бойцов пребывают в глубоком сне, восстанавливаясь после того, как в последний раз им пришлось спасать мир. На этот раз команду ждут приключения с новыми персонажами-бакуганами — геоганами, существами, похожими на бакуганов, но слитыми с элементами кристаллов и образующими новую геометрическую форму. Геоганы не только выглядят иначе, чем их собратья-бакуганы, но и обладают исключительной силой, будучи созданными специально для боя. Не проходит много времени, как Отважные Бойцы превращают этих непокорных бакуганов в верных партнёров, и геоганы выходят на сцену, готовые доказать свою ценность и одержать победу на арене бакуганских сражений.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "7-й сезон",
+    "linkedAnime": [
+      {
+        "id": 5296,
+        "title": "Отчаянные бойцы Бакуган",
+        "imageUrl": "https://shikimori.one/system/animes/original/2156.jpg?1711943303",
+        "year": "2007",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 5295,
+        "title": "Отчаянные бойцы Бакуган: Новая Вестроя",
+        "imageUrl": "https://shikimori.one/system/animes/original/5337.jpg?1711943305",
+        "year": "2009",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 5294,
+        "title": "Отчаянные бойцы Бакуган: Вторжение гандэлианцев",
+        "imageUrl": "https://shikimori.one/system/animes/original/7334.jpg?1711943302",
+        "year": "2010",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 5297,
+        "title": "Отчаянные бойцы Бакуган: Импульс Мектаниума",
+        "imageUrl": "https://shikimori.one/system/animes/original/10330.jpg?1711943325",
+        "year": "2011",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 5303,
+        "title": "Бакуган: Планета сражений",
+        "imageUrl": "https://shikimori.one/system/animes/original/39622.jpg?1711943282",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 5302,
+        "title": "Бакуган: Планета сражений — Мини-аниме",
+        "imageUrl": "https://shikimori.one/system/animes/original/40395.jpg?1711943296",
+        "year": "2019",
+        "type": "ONA",
+        "relation": "Спешл"
+      },
+      {
+        "id": 5301,
+        "title": "Бакуган: Бронированный альянс",
+        "imageUrl": "https://shikimori.one/system/animes/original/41405.jpg?1711943321",
+        "year": "2020",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 5298,
+        "title": "Бакуган: Эволюции",
+        "imageUrl": "https://shikimori.one/system/animes/original/51263.jpg?1708927558",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "8-й сезон"
+      },
+      {
+        "id": 5299,
+        "title": "Бакуган: Легенды",
+        "imageUrl": "https://shikimori.one/system/animes/original/54637.jpg?1712539657",
+        "year": "2023",
+        "type": "Сериал",
+        "relation": "9-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
   },
   {
     "id": 5299,
@@ -4961,7 +5435,83 @@
     "description": "Бакуган: Легенды — пятый сезон серии Бакуган: Планета сражений и девятый сезон франшизы в целом.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "9-й сезон",
+    "linkedAnime": [
+      {
+        "id": 5296,
+        "title": "Отчаянные бойцы Бакуган",
+        "imageUrl": "https://shikimori.one/system/animes/original/2156.jpg?1711943303",
+        "year": "2007",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 5295,
+        "title": "Отчаянные бойцы Бакуган: Новая Вестроя",
+        "imageUrl": "https://shikimori.one/system/animes/original/5337.jpg?1711943305",
+        "year": "2009",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 5294,
+        "title": "Отчаянные бойцы Бакуган: Вторжение гандэлианцев",
+        "imageUrl": "https://shikimori.one/system/animes/original/7334.jpg?1711943302",
+        "year": "2010",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 5297,
+        "title": "Отчаянные бойцы Бакуган: Импульс Мектаниума",
+        "imageUrl": "https://shikimori.one/system/animes/original/10330.jpg?1711943325",
+        "year": "2011",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 5303,
+        "title": "Бакуган: Планета сражений",
+        "imageUrl": "https://shikimori.one/system/animes/original/39622.jpg?1711943282",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 5302,
+        "title": "Бакуган: Планета сражений — Мини-аниме",
+        "imageUrl": "https://shikimori.one/system/animes/original/40395.jpg?1711943296",
+        "year": "2019",
+        "type": "ONA",
+        "relation": "Спешл"
+      },
+      {
+        "id": 5301,
+        "title": "Бакуган: Бронированный альянс",
+        "imageUrl": "https://shikimori.one/system/animes/original/41405.jpg?1711943321",
+        "year": "2020",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 5300,
+        "title": "Бакуган: Восход геоганов",
+        "imageUrl": "https://shikimori.one/system/animes/original/48555.jpg?1708717290",
+        "year": "2021",
+        "type": "ONA",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 5298,
+        "title": "Бакуган: Эволюции",
+        "imageUrl": "https://shikimori.one/system/animes/original/51263.jpg?1708927558",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "8-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"}]"
   },
   {
     "id": 5298,
@@ -4981,7 +5531,83 @@
     "description": "В Бакуган: Эволюции любимые фанатами бакуганы-герои — включая Драго, Трокса, Пегатрикс, Гидоруса, Хаулкора и Фарола — возвращаются, став ещё сильнее, быстрее и круче, чем прежде! В новом полном динамичного экшена сезоне начинают происходить странные вещи: элементальная энергия Вестроя просачивается на Землю, порождая необычные явления и заставляя бакуганов буйствовать от переизбытка энергии! Впрочем, не всё так плохо — наши герои понимают, что вестройская элементальная энергия также вызывает элементальные эволюции у бакуганов! Вместе с новыми эволюциями появляется и новое поколение элементальных бойцов, что заставляет Классных Бойцов адаптироваться и вывести баталии бакуганов на совершенно новый уровень, открывая ещё более потрясающие силы и эволюции! И вновь судьба двух миров — Земли и Вестроя — оказывается в руках Классных Бойцов и их партнёров-бакуганов.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "8-й сезон",
+    "linkedAnime": [
+      {
+        "id": 5296,
+        "title": "Отчаянные бойцы Бакуган",
+        "imageUrl": "https://shikimori.one/system/animes/original/2156.jpg?1711943303",
+        "year": "2007",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 5295,
+        "title": "Отчаянные бойцы Бакуган: Новая Вестроя",
+        "imageUrl": "https://shikimori.one/system/animes/original/5337.jpg?1711943305",
+        "year": "2009",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 5294,
+        "title": "Отчаянные бойцы Бакуган: Вторжение гандэлианцев",
+        "imageUrl": "https://shikimori.one/system/animes/original/7334.jpg?1711943302",
+        "year": "2010",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 5297,
+        "title": "Отчаянные бойцы Бакуган: Импульс Мектаниума",
+        "imageUrl": "https://shikimori.one/system/animes/original/10330.jpg?1711943325",
+        "year": "2011",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 5303,
+        "title": "Бакуган: Планета сражений",
+        "imageUrl": "https://shikimori.one/system/animes/original/39622.jpg?1711943282",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 5302,
+        "title": "Бакуган: Планета сражений — Мини-аниме",
+        "imageUrl": "https://shikimori.one/system/animes/original/40395.jpg?1711943296",
+        "year": "2019",
+        "type": "ONA",
+        "relation": "Спешл"
+      },
+      {
+        "id": 5301,
+        "title": "Бакуган: Бронированный альянс",
+        "imageUrl": "https://shikimori.one/system/animes/original/41405.jpg?1711943321",
+        "year": "2020",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 5300,
+        "title": "Бакуган: Восход геоганов",
+        "imageUrl": "https://shikimori.one/system/animes/original/48555.jpg?1708717290",
+        "year": "2021",
+        "type": "ONA",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 5299,
+        "title": "Бакуган: Легенды",
+        "imageUrl": "https://shikimori.one/system/animes/original/54637.jpg?1712539657",
+        "year": "2023",
+        "type": "Сериал",
+        "relation": "9-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
   },
   {
     "id": 5297,
@@ -5001,7 +5627,83 @@
     "description": "После окончания войны с Ганделией наступают мирные дни. Однако спустя год Дэну  начинают сниться кошмары о загадочной персоне по имени МагМелл. Помимо этого у Драго возникают проблемы с контролем своей силы после последней эволюции, из-за чего он призывает загадочного мектогана по имени Зентон. На беду в Бакуган Интерспейс появляются новые звёзды: Анубиас и Селлон, способные сбросить Дэна с позиции сильнейшего бойца Бакуган.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "4-й сезон",
+    "linkedAnime": [
+      {
+        "id": 5296,
+        "title": "Отчаянные бойцы Бакуган",
+        "imageUrl": "https://shikimori.one/system/animes/original/2156.jpg?1711943303",
+        "year": "2007",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 5295,
+        "title": "Отчаянные бойцы Бакуган: Новая Вестроя",
+        "imageUrl": "https://shikimori.one/system/animes/original/5337.jpg?1711943305",
+        "year": "2009",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 5294,
+        "title": "Отчаянные бойцы Бакуган: Вторжение гандэлианцев",
+        "imageUrl": "https://shikimori.one/system/animes/original/7334.jpg?1711943302",
+        "year": "2010",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 5303,
+        "title": "Бакуган: Планета сражений",
+        "imageUrl": "https://shikimori.one/system/animes/original/39622.jpg?1711943282",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 5302,
+        "title": "Бакуган: Планета сражений — Мини-аниме",
+        "imageUrl": "https://shikimori.one/system/animes/original/40395.jpg?1711943296",
+        "year": "2019",
+        "type": "ONA",
+        "relation": "Спешл"
+      },
+      {
+        "id": 5301,
+        "title": "Бакуган: Бронированный альянс",
+        "imageUrl": "https://shikimori.one/system/animes/original/41405.jpg?1711943321",
+        "year": "2020",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 5300,
+        "title": "Бакуган: Восход геоганов",
+        "imageUrl": "https://shikimori.one/system/animes/original/48555.jpg?1708717290",
+        "year": "2021",
+        "type": "ONA",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 5298,
+        "title": "Бакуган: Эволюции",
+        "imageUrl": "https://shikimori.one/system/animes/original/51263.jpg?1708927558",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "8-й сезон"
+      },
+      {
+        "id": 5299,
+        "title": "Бакуган: Легенды",
+        "imageUrl": "https://shikimori.one/system/animes/original/54637.jpg?1712539657",
+        "year": "2023",
+        "type": "Сериал",
+        "relation": "9-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
   },
   {
     "id": 5296,
@@ -5019,7 +5721,83 @@
     "description": "Однажды с неба на землю посыпались карты, которые достались детям по всему миру. В этих картах находились монстры разных стихий и способностей. Вскоре шестеро главных героев придумали игру под названием «Бакуган», а потом дополнили её правилами. Вдобавок они назвали свою команду «Отчаянные бойцы бакуган».\nВ один прекрасный день, когда все были поглощены игрой, в неё вступил неизвестный игрок Маска и при помощи специальной карты стал отправлять проигравших монстров в «Измерение смерти», из которого нет выхода. Команда «Отчаянных бойцов» решила остановить его, но это оказалось не так уж и просто...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 5295,
+        "title": "Отчаянные бойцы Бакуган: Новая Вестроя",
+        "imageUrl": "https://shikimori.one/system/animes/original/5337.jpg?1711943305",
+        "year": "2009",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 5294,
+        "title": "Отчаянные бойцы Бакуган: Вторжение гандэлианцев",
+        "imageUrl": "https://shikimori.one/system/animes/original/7334.jpg?1711943302",
+        "year": "2010",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 5297,
+        "title": "Отчаянные бойцы Бакуган: Импульс Мектаниума",
+        "imageUrl": "https://shikimori.one/system/animes/original/10330.jpg?1711943325",
+        "year": "2011",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 5303,
+        "title": "Бакуган: Планета сражений",
+        "imageUrl": "https://shikimori.one/system/animes/original/39622.jpg?1711943282",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 5302,
+        "title": "Бакуган: Планета сражений — Мини-аниме",
+        "imageUrl": "https://shikimori.one/system/animes/original/40395.jpg?1711943296",
+        "year": "2019",
+        "type": "ONA",
+        "relation": "Спешл"
+      },
+      {
+        "id": 5301,
+        "title": "Бакуган: Бронированный альянс",
+        "imageUrl": "https://shikimori.one/system/animes/original/41405.jpg?1711943321",
+        "year": "2020",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 5300,
+        "title": "Бакуган: Восход геоганов",
+        "imageUrl": "https://shikimori.one/system/animes/original/48555.jpg?1708717290",
+        "year": "2021",
+        "type": "ONA",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 5298,
+        "title": "Бакуган: Эволюции",
+        "imageUrl": "https://shikimori.one/system/animes/original/51263.jpg?1708927558",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "8-й сезон"
+      },
+      {
+        "id": 5299,
+        "title": "Бакуган: Легенды",
+        "imageUrl": "https://shikimori.one/system/animes/original/54637.jpg?1712539657",
+        "year": "2023",
+        "type": "Сериал",
+        "relation": "9-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
   },
   {
     "id": 5295,
@@ -5038,7 +5816,83 @@
     "description": "Спустя два года после событий первого сезона Дэн  и его друзья наслаждаются тихой и спокойной жизнью. Внезапно перед Дэном открывается портал, из которого прибывает Драго. Драго просит своего напарника помочь ему спасти Новую Вестрою от захвативших его родину вестов. Прибыв на Новую Вестрою, Дэн и последовавший за ним Маручо  встречают бойцов Фронта Освобождения Бакуган: бойца ] Миру , бойца ] Эйса  и бойца ] Бэйрона . Вместе с ними наши главные герои начинают противостояние шести сильнейшим бойцам среди вестов — вексам.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "2-й сезон",
+    "linkedAnime": [
+      {
+        "id": 5296,
+        "title": "Отчаянные бойцы Бакуган",
+        "imageUrl": "https://shikimori.one/system/animes/original/2156.jpg?1711943303",
+        "year": "2007",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 5294,
+        "title": "Отчаянные бойцы Бакуган: Вторжение гандэлианцев",
+        "imageUrl": "https://shikimori.one/system/animes/original/7334.jpg?1711943302",
+        "year": "2010",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 5297,
+        "title": "Отчаянные бойцы Бакуган: Импульс Мектаниума",
+        "imageUrl": "https://shikimori.one/system/animes/original/10330.jpg?1711943325",
+        "year": "2011",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 5303,
+        "title": "Бакуган: Планета сражений",
+        "imageUrl": "https://shikimori.one/system/animes/original/39622.jpg?1711943282",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 5302,
+        "title": "Бакуган: Планета сражений — Мини-аниме",
+        "imageUrl": "https://shikimori.one/system/animes/original/40395.jpg?1711943296",
+        "year": "2019",
+        "type": "ONA",
+        "relation": "Спешл"
+      },
+      {
+        "id": 5301,
+        "title": "Бакуган: Бронированный альянс",
+        "imageUrl": "https://shikimori.one/system/animes/original/41405.jpg?1711943321",
+        "year": "2020",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 5300,
+        "title": "Бакуган: Восход геоганов",
+        "imageUrl": "https://shikimori.one/system/animes/original/48555.jpg?1708717290",
+        "year": "2021",
+        "type": "ONA",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 5298,
+        "title": "Бакуган: Эволюции",
+        "imageUrl": "https://shikimori.one/system/animes/original/51263.jpg?1708927558",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "8-й сезон"
+      },
+      {
+        "id": 5299,
+        "title": "Бакуган: Легенды",
+        "imageUrl": "https://shikimori.one/system/animes/original/54637.jpg?1712539657",
+        "year": "2023",
+        "type": "Сериал",
+        "relation": "9-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
   },
   {
     "id": 5294,
@@ -5057,7 +5911,83 @@
     "description": "Новая Вестроя была спасена, и «Отчаянные бойцы» уже было расслабились, как вдруг появляется Рен Кролер с Гандэлии, который пытается перетянуть на сторону своей планеты «Отчаянных бойцов». Рен убеждает их в том, что ему нужна помощь, дабы защитить свою планету от нифианцев. Дэн  и его друзья охотно верят ему, но в это же время появляется принцесса Фабия  с планеты Нифия, которая рассказывает, что настоящие враги «Отчаянных бойцов» — это гандэлианцы, а нифианцы — те, кому действительно нужна помощь. Рен пытается перетянуть на свою сторону других бойцов бакуган, как бы «зомбируя» их. Итак, Дэну, Маручо , Джейкобу , Шуну  и Фабии  предстоит остановить гандэлианцев, а также не позволить последним уничтожить Нифию и Землю.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "3-й сезон",
+    "linkedAnime": [
+      {
+        "id": 5296,
+        "title": "Отчаянные бойцы Бакуган",
+        "imageUrl": "https://shikimori.one/system/animes/original/2156.jpg?1711943303",
+        "year": "2007",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 5295,
+        "title": "Отчаянные бойцы Бакуган: Новая Вестроя",
+        "imageUrl": "https://shikimori.one/system/animes/original/5337.jpg?1711943305",
+        "year": "2009",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 5297,
+        "title": "Отчаянные бойцы Бакуган: Импульс Мектаниума",
+        "imageUrl": "https://shikimori.one/system/animes/original/10330.jpg?1711943325",
+        "year": "2011",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 5303,
+        "title": "Бакуган: Планета сражений",
+        "imageUrl": "https://shikimori.one/system/animes/original/39622.jpg?1711943282",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 5302,
+        "title": "Бакуган: Планета сражений — Мини-аниме",
+        "imageUrl": "https://shikimori.one/system/animes/original/40395.jpg?1711943296",
+        "year": "2019",
+        "type": "ONA",
+        "relation": "Спешл"
+      },
+      {
+        "id": 5301,
+        "title": "Бакуган: Бронированный альянс",
+        "imageUrl": "https://shikimori.one/system/animes/original/41405.jpg?1711943321",
+        "year": "2020",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 5300,
+        "title": "Бакуган: Восход геоганов",
+        "imageUrl": "https://shikimori.one/system/animes/original/48555.jpg?1708717290",
+        "year": "2021",
+        "type": "ONA",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 5298,
+        "title": "Бакуган: Эволюции",
+        "imageUrl": "https://shikimori.one/system/animes/original/51263.jpg?1708927558",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "8-й сезон"
+      },
+      {
+        "id": 5299,
+        "title": "Бакуган: Легенды",
+        "imageUrl": "https://shikimori.one/system/animes/original/54637.jpg?1712539657",
+        "year": "2023",
+        "type": "Сериал",
+        "relation": "9-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
   },
   {
     "id": 5280,
@@ -8272,7 +9202,75 @@
     "description": "После нападения злодеев во время тренировок класса 1-А академия Юэй оказывается под пристальным вниманием общества. Несмотря на произошедшее и серьёзные ранения некоторых преподавателей, занятия продолжаются, а ученики возвращаются к практическим тренировкам...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "OVA",
+    "linkedAnime": [
+      {
+        "id": 1205,
+        "title": "Моя геройская академия",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694",
+        "year": "2016",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 1206,
+        "title": "Моя геройская академия 2",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946",
+        "year": "2017",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 1207,
+        "title": "Моя геройская академия 3",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 1208,
+        "title": "Моя геройская академия 4",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066",
+        "year": "2019",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 1209,
+        "title": "Моя геройская академия 5",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178",
+        "year": "2021",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 1210,
+        "title": "Моя геройская академия 6",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 1211,
+        "title": "Моя геройская академия 7",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609",
+        "year": "2024",
+        "type": "Сериал",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 1281,
+        "title": "Моя геройская академия: Ты следующий",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860",
+        "year": "2024",
+        "type": "Фильм",
+        "relation": "Фильм 4"
+      }
+    ],
+    "related_json": "[{\"id\":1205,\"title\":\"Моя геройская академия\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694\",\"year\":\"2016\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":1206,\"title\":\"Моя геройская академия 2\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946\",\"year\":\"2017\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":1207,\"title\":\"Моя геройская академия 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":1208,\"title\":\"Моя геройская академия 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":1209,\"title\":\"Моя геройская академия 5\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178\",\"year\":\"2021\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":1210,\"title\":\"Моя геройская академия 6\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":1211,\"title\":\"Моя геройская академия 7\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609\",\"year\":\"2024\",\"type\":\"Сериал\",\"relation\":\"7-й сезон\"},{\"id\":1281,\"title\":\"Моя геройская академия: Ты следующий\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860\",\"year\":\"2024\",\"type\":\"Фильм\",\"relation\":\"Фильм 4\"}]"
   },
   {
     "id": 3394,
@@ -15511,7 +16509,19 @@
     "description": "Шигэо «Моб» Кагэяма продолжает развивать свои экстрасенсорные способности и всё чаще задумывается о том, как его сила влияет на окружающих. Вместе с Аратакой Рэйгэном он по-прежнему берётся за работу, связанную с духами, проклятиями и городскими легендами....",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "linkedAnime": [
+      {
+        "id": 7184,
+        "title": "Моб Психо 100",
+        "originalTitle": "Mob Psycho 100",
+        "year": "2016",
+        "type": "Сериал",
+        "imageUrl": "https://shikimori.one/system/animes/original/32182.jpg",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7184,\"title\":\"Моб Психо 100\",\"originalTitle\":\"Mob Psycho 100\",\"year\":\"2016\",\"type\":\"Сериал\",\"imageUrl\":\"https://shikimori.one/system/animes/original/32182.jpg\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 2985,
@@ -17081,7 +18091,19 @@
     "description": "После победы над последним Ангелом, у Nerv остался единственный враг — люди под командованием Seele. Впавшему в депрессию нерешительному Синдзи Икари предстоит сделать важный выбор: полностью принять существование человечества или отказаться от человеческой индивидуальности. Параллельно, командующий Nerv Гэндо Икари готовится инициировать проект совершенствования человечества, используя Рей Аянами и Лилит для реализации своей заветной мечты. Судьба мира висит на волоске, приближается решающая финальная битва.\n«Евангелион нового поколения: Конец Евангелиона» служит альтернативным финалом противоречивых последних эпизодов «Евангелион нового поколения».",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "linkedAnime": [
+      {
+        "id": 7186,
+        "title": "Евангелион нового поколения",
+        "originalTitle": "Shin Seiki Evangelion",
+        "year": "1995",
+        "type": "Сериал",
+        "imageUrl": "https://shikimori.one/system/animes/original/30.jpg",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7186,\"title\":\"Евангелион нового поколения\",\"originalTitle\":\"Shin Seiki Evangelion\",\"year\":\"1995\",\"type\":\"Сериал\",\"imageUrl\":\"https://shikimori.one/system/animes/original/30.jpg\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 2897,
@@ -17101,7 +18123,19 @@
     "description": "После Второго удара всё, что остаётся от Японии — это город Токио-3, подвергаемый постоянным атакам гигантских существ, стремящихся уничтожить человечество, называемых Ангелами.\nСиндзи Икари , до этого не видевшийся с отцом три года, получает от него телефонный звонок с требованием немедленно прибыть в штаб-квартиру Nerv, организации, противостоящей Ангелам. Для борьбы с Ангелами Nerv используют гигантских роботов, называемых Евангелионами.\nЗадачей Синдзи становится пилотирование Евы-01 и работа в команде с пилотом ] Рей Аянами .",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "linkedAnime": [
+      {
+        "id": 7186,
+        "title": "Евангелион нового поколения",
+        "originalTitle": "Shin Seiki Evangelion",
+        "year": "1995",
+        "type": "Сериал",
+        "imageUrl": "https://shikimori.one/system/animes/original/30.jpg",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7186,\"title\":\"Евангелион нового поколения\",\"originalTitle\":\"Shin Seiki Evangelion\",\"year\":\"1995\",\"type\":\"Сериал\",\"imageUrl\":\"https://shikimori.one/system/animes/original/30.jpg\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 2896,
@@ -36349,7 +37383,19 @@
     "description": "Конец близок. \"Готей 13\" под угрозой полного уничтожения. Старый могущественный враг всех шинигами вновь объявляет войну Обществу душ. И это не кто иной, как сами квинси, возглавляемые новым императором Ванденрейха, зовущим себя Яхве. И цель его ясна,...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "linkedAnime": [
+      {
+        "id": 7185,
+        "title": "Блич",
+        "originalTitle": "Bleach",
+        "year": "2004",
+        "type": "Сериал",
+        "imageUrl": "https://shikimori.one/system/animes/original/269.jpg",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7185,\"title\":\"Блич\",\"originalTitle\":\"Bleach\",\"year\":\"2004\",\"type\":\"Сериал\",\"imageUrl\":\"https://shikimori.one/system/animes/original/269.jpg\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 1805,
@@ -36385,7 +37431,19 @@
     "description": "После событий, связанных с заговором мирового масштаба, Шигэо «Моб» Кагэяма возвращается к привычной жизни. Теперь его волнуют не только экстрасенсорные способности, но и вполне обычные вещи вроде выбора будущей профессии. Одновременно с этим Моб продолжает...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "linkedAnime": [
+      {
+        "id": 7184,
+        "title": "Моб Психо 100",
+        "originalTitle": "Mob Psycho 100",
+        "year": "2016",
+        "type": "Сериал",
+        "imageUrl": "https://shikimori.one/system/animes/original/32182.jpg",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7184,\"title\":\"Моб Психо 100\",\"originalTitle\":\"Mob Psycho 100\",\"year\":\"2016\",\"type\":\"Сериал\",\"imageUrl\":\"https://shikimori.one/system/animes/original/32182.jpg\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 1803,
@@ -39465,7 +40523,15 @@
     "description": "На фестивале магических битв «Триумф», который проходит в славном Королевстве Клевера раз в десять лет, Аста намерен показать себя и вновь сразиться со своим другом детства Юно. Но радость предвкушения достойной битвы была прервана появлением Конрада...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "linkedAnime": [
+      {
+        "id": 7190,
+        "title": "Чёрный клевер",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7190,\"title\":\"Чёрный клевер\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 1629,
@@ -42736,7 +43802,20 @@
     "description": "Римуру Темпест одерживает победу в решающем поединке с Повелителем демонов Клейманом. При поддержке Диабло война с королевством Фалмут завершается убедительным триумфом Темпеста. Благодаря наплыву переселенцев и объединению с Лесом Джуры государство...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "linkedAnime": [
+      {
+        "id": 7191,
+        "title": "О моём перерождении в слизь",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 7192,
+        "title": "О моём перерождении в слизь 2",
+        "relation": "2-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7191,\"title\":\"О моём перерождении в слизь\",\"relation\":\"1-й сезон\"},{\"id\":7192,\"title\":\"О моём перерождении в слизь 2\",\"relation\":\"2-й сезон\"}]"
   },
   {
     "id": 1445,
@@ -45650,7 +46729,75 @@
     "description": "Молодой режиссёр Нацуко Хиросэ взбудоражила мир своим дебютным аниме, и теперь от неё ждут новых шедевров. Но работа над вторым проектом не спорится… Нацуко нужно нарисовать ромком, но она ни разу в жизни не влюблялась! Девушка никак не может подступиться...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "Фильм 4",
+    "linkedAnime": [
+      {
+        "id": 1205,
+        "title": "Моя геройская академия",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694",
+        "year": "2016",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 1206,
+        "title": "Моя геройская академия 2",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946",
+        "year": "2017",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 1207,
+        "title": "Моя геройская академия 3",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 1208,
+        "title": "Моя геройская академия 4",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066",
+        "year": "2019",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 1209,
+        "title": "Моя геройская академия 5",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178",
+        "year": "2021",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 1210,
+        "title": "Моя геройская академия 6",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 1211,
+        "title": "Моя геройская академия 7",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609",
+        "year": "2024",
+        "type": "Сериал",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 3395,
+        "title": "Моя геройская академия: Тренировка спасателей",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737",
+        "year": "2017",
+        "type": "OVA",
+        "relation": "OVA"
+      }
+    ],
+    "related_json": "[{\"id\":1205,\"title\":\"Моя геройская академия\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694\",\"year\":\"2016\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":1206,\"title\":\"Моя геройская академия 2\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946\",\"year\":\"2017\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":1207,\"title\":\"Моя геройская академия 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":1208,\"title\":\"Моя геройская академия 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":1209,\"title\":\"Моя геройская академия 5\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178\",\"year\":\"2021\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":1210,\"title\":\"Моя геройская академия 6\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":1211,\"title\":\"Моя геройская академия 7\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609\",\"year\":\"2024\",\"type\":\"Сериал\",\"relation\":\"7-й сезон\"},{\"id\":3395,\"title\":\"Моя геройская академия: Тренировка спасателей\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737\",\"year\":\"2017\",\"type\":\"OVA\",\"relation\":\"OVA\"}]"
   },
   {
     "id": 1280,
@@ -46850,7 +47997,75 @@
     "description": "Когда угроза со стороны Урсуса и Восстановления нависла над Лунмынем с удвоенной силой, Чэнь — некогда самая грозная защитница города — отрекается от своей верности перед Верховным правителем Лунмыня Вэй Йенву Вэй, открыто признавая, что заражена и приходится сестрой Талуле, загадочной предводительнице Восстановления. Изгнанная из Лунмыня и объявленная в розыск, Чэнь отправляется навстречу Восстановлению, убеждённая, что лишь она способна свершить возмездие, которого заслуживает её сестра. Пока Родос вмешивается, чтобы предотвратить полное уничтожение города, Доктор, Амия, Кальцит и остальная команда надеются провести конфликт через тонкую грань, за которой едва тлеющая искра справедливости сможет наконец разжечь возрождение Лунмыня из пепла.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "7-й сезон",
+    "linkedAnime": [
+      {
+        "id": 1205,
+        "title": "Моя геройская академия",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694",
+        "year": "2016",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 1206,
+        "title": "Моя геройская академия 2",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946",
+        "year": "2017",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 1207,
+        "title": "Моя геройская академия 3",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 1208,
+        "title": "Моя геройская академия 4",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066",
+        "year": "2019",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 1209,
+        "title": "Моя геройская академия 5",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178",
+        "year": "2021",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 1210,
+        "title": "Моя геройская академия 6",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 1281,
+        "title": "Моя геройская академия: Ты следующий",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860",
+        "year": "2024",
+        "type": "Фильм",
+        "relation": "Фильм 4"
+      },
+      {
+        "id": 3395,
+        "title": "Моя геройская академия: Тренировка спасателей",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737",
+        "year": "2017",
+        "type": "OVA",
+        "relation": "OVA"
+      }
+    ],
+    "related_json": "[{\"id\":1205,\"title\":\"Моя геройская академия\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694\",\"year\":\"2016\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":1206,\"title\":\"Моя геройская академия 2\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946\",\"year\":\"2017\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":1207,\"title\":\"Моя геройская академия 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":1208,\"title\":\"Моя геройская академия 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":1209,\"title\":\"Моя геройская академия 5\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178\",\"year\":\"2021\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":1210,\"title\":\"Моя геройская академия 6\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":1281,\"title\":\"Моя геройская академия: Ты следующий\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860\",\"year\":\"2024\",\"type\":\"Фильм\",\"relation\":\"Фильм 4\"},{\"id\":3395,\"title\":\"Моя геройская академия: Тренировка спасателей\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737\",\"year\":\"2017\",\"type\":\"OVA\",\"relation\":\"OVA\"}]"
   },
   {
     "id": 1210,
@@ -46868,7 +48083,75 @@
     "description": "'> Семья Шадеран переживает тяжёлые времена, и жадные, бессердечные барон и баронесса готовы на всё, лишь бы вернуть утраченное положение. Они делают ставку на свою прекрасную старшую дочь Анастасию, надеясь выгодно выдать её замуж, тогда как ко второй дочери, Мари, относятся почти как к служанке. Годы жестокого обращения внушили Мари мысль, что она недостойна ни любви, ни внимания. В день рождения Мари, который родители используют лишь как повод показать Анастасию обществу, девушка знакомится с графом Киросом Гранадо. Он сразу очаровывается Мари и её знанием культуры его родины. Однако, ошибочно приняв Анастасию за ту, в кого влюбился, Кирос делает предложение руки и сердца, отправив письмо. По пути к свадьбе Анастасия трагически погибает, и Мари вынуждена занять её место, став невестой Кироса — как он и намеревался с самого начала, пусть и не осознавая этого. Несмотря на глубокую неуверенность в себе, Мари постепенно раскрывается рядом с Киросом. Его мягкость и искренность помогают ей обрести веру в собственную ценность, увидеть свою красоту и понять, что значит быть по-настоящему любимой.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "6-й сезон",
+    "linkedAnime": [
+      {
+        "id": 1205,
+        "title": "Моя геройская академия",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694",
+        "year": "2016",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 1206,
+        "title": "Моя геройская академия 2",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946",
+        "year": "2017",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 1207,
+        "title": "Моя геройская академия 3",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 1208,
+        "title": "Моя геройская академия 4",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066",
+        "year": "2019",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 1209,
+        "title": "Моя геройская академия 5",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178",
+        "year": "2021",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 1211,
+        "title": "Моя геройская академия 7",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609",
+        "year": "2024",
+        "type": "Сериал",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 1281,
+        "title": "Моя геройская академия: Ты следующий",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860",
+        "year": "2024",
+        "type": "Фильм",
+        "relation": "Фильм 4"
+      },
+      {
+        "id": 3395,
+        "title": "Моя геройская академия: Тренировка спасателей",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737",
+        "year": "2017",
+        "type": "OVA",
+        "relation": "OVA"
+      }
+    ],
+    "related_json": "[{\"id\":1205,\"title\":\"Моя геройская академия\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694\",\"year\":\"2016\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":1206,\"title\":\"Моя геройская академия 2\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946\",\"year\":\"2017\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":1207,\"title\":\"Моя геройская академия 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":1208,\"title\":\"Моя геройская академия 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":1209,\"title\":\"Моя геройская академия 5\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178\",\"year\":\"2021\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":1211,\"title\":\"Моя геройская академия 7\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609\",\"year\":\"2024\",\"type\":\"Сериал\",\"relation\":\"7-й сезон\"},{\"id\":1281,\"title\":\"Моя геройская академия: Ты следующий\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860\",\"year\":\"2024\",\"type\":\"Фильм\",\"relation\":\"Фильм 4\"},{\"id\":3395,\"title\":\"Моя геройская академия: Тренировка спасателей\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737\",\"year\":\"2017\",\"type\":\"OVA\",\"relation\":\"OVA\"}]"
   },
   {
     "id": 1209,
@@ -46884,7 +48167,75 @@
     "description": "Моника Эверетт — одна из Семи Мудрецов королевства Ридилл и первая волшебница, сумевшая овладеть магией без произнесения заклинаний. Её способности настолько велики, что она способна в одиночку расправиться даже с легендарным чёрным драконом. Однако...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "5-й сезон",
+    "linkedAnime": [
+      {
+        "id": 1205,
+        "title": "Моя геройская академия",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694",
+        "year": "2016",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 1206,
+        "title": "Моя геройская академия 2",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946",
+        "year": "2017",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 1207,
+        "title": "Моя геройская академия 3",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 1208,
+        "title": "Моя геройская академия 4",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066",
+        "year": "2019",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 1210,
+        "title": "Моя геройская академия 6",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 1211,
+        "title": "Моя геройская академия 7",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609",
+        "year": "2024",
+        "type": "Сериал",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 1281,
+        "title": "Моя геройская академия: Ты следующий",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860",
+        "year": "2024",
+        "type": "Фильм",
+        "relation": "Фильм 4"
+      },
+      {
+        "id": 3395,
+        "title": "Моя геройская академия: Тренировка спасателей",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737",
+        "year": "2017",
+        "type": "OVA",
+        "relation": "OVA"
+      }
+    ],
+    "related_json": "[{\"id\":1205,\"title\":\"Моя геройская академия\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694\",\"year\":\"2016\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":1206,\"title\":\"Моя геройская академия 2\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946\",\"year\":\"2017\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":1207,\"title\":\"Моя геройская академия 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":1208,\"title\":\"Моя геройская академия 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":1210,\"title\":\"Моя геройская академия 6\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":1211,\"title\":\"Моя геройская академия 7\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609\",\"year\":\"2024\",\"type\":\"Сериал\",\"relation\":\"7-й сезон\"},{\"id\":1281,\"title\":\"Моя геройская академия: Ты следующий\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860\",\"year\":\"2024\",\"type\":\"Фильм\",\"relation\":\"Фильм 4\"},{\"id\":3395,\"title\":\"Моя геройская академия: Тренировка спасателей\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737\",\"year\":\"2017\",\"type\":\"OVA\",\"relation\":\"OVA\"}]"
   },
   {
     "id": 1208,
@@ -46901,7 +48252,75 @@
     "description": "Японский работник зала игровых автоматов повстречал девочку из Англии, с которой у него завязалась дружба.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "4-й сезон",
+    "linkedAnime": [
+      {
+        "id": 1205,
+        "title": "Моя геройская академия",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694",
+        "year": "2016",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 1206,
+        "title": "Моя геройская академия 2",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946",
+        "year": "2017",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 1207,
+        "title": "Моя геройская академия 3",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 1209,
+        "title": "Моя геройская академия 5",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178",
+        "year": "2021",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 1210,
+        "title": "Моя геройская академия 6",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 1211,
+        "title": "Моя геройская академия 7",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609",
+        "year": "2024",
+        "type": "Сериал",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 1281,
+        "title": "Моя геройская академия: Ты следующий",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860",
+        "year": "2024",
+        "type": "Фильм",
+        "relation": "Фильм 4"
+      },
+      {
+        "id": 3395,
+        "title": "Моя геройская академия: Тренировка спасателей",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737",
+        "year": "2017",
+        "type": "OVA",
+        "relation": "OVA"
+      }
+    ],
+    "related_json": "[{\"id\":1205,\"title\":\"Моя геройская академия\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694\",\"year\":\"2016\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":1206,\"title\":\"Моя геройская академия 2\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946\",\"year\":\"2017\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":1207,\"title\":\"Моя геройская академия 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":1209,\"title\":\"Моя геройская академия 5\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178\",\"year\":\"2021\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":1210,\"title\":\"Моя геройская академия 6\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":1211,\"title\":\"Моя геройская академия 7\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609\",\"year\":\"2024\",\"type\":\"Сериал\",\"relation\":\"7-й сезон\"},{\"id\":1281,\"title\":\"Моя геройская академия: Ты следующий\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860\",\"year\":\"2024\",\"type\":\"Фильм\",\"relation\":\"Фильм 4\"},{\"id\":3395,\"title\":\"Моя геройская академия: Тренировка спасателей\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737\",\"year\":\"2017\",\"type\":\"OVA\",\"relation\":\"OVA\"}]"
   },
   {
     "id": 1207,
@@ -46918,7 +48337,75 @@
     "description": "С момента переезда Иори Китахары в прибрежный магазин дайвинга Grand Blue прошло несколько месяцев, и его студенческая жизнь приняла совершенно неожиданный оборот. Вместо спокойной учёбы он оказался в компании шумных любителей подводного плавания, где...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "3-й сезон",
+    "linkedAnime": [
+      {
+        "id": 1205,
+        "title": "Моя геройская академия",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694",
+        "year": "2016",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 1206,
+        "title": "Моя геройская академия 2",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946",
+        "year": "2017",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 1208,
+        "title": "Моя геройская академия 4",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066",
+        "year": "2019",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 1209,
+        "title": "Моя геройская академия 5",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178",
+        "year": "2021",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 1210,
+        "title": "Моя геройская академия 6",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 1211,
+        "title": "Моя геройская академия 7",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609",
+        "year": "2024",
+        "type": "Сериал",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 1281,
+        "title": "Моя геройская академия: Ты следующий",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860",
+        "year": "2024",
+        "type": "Фильм",
+        "relation": "Фильм 4"
+      },
+      {
+        "id": 3395,
+        "title": "Моя геройская академия: Тренировка спасателей",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737",
+        "year": "2017",
+        "type": "OVA",
+        "relation": "OVA"
+      }
+    ],
+    "related_json": "[{\"id\":1205,\"title\":\"Моя геройская академия\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694\",\"year\":\"2016\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":1206,\"title\":\"Моя геройская академия 2\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946\",\"year\":\"2017\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":1208,\"title\":\"Моя геройская академия 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":1209,\"title\":\"Моя геройская академия 5\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178\",\"year\":\"2021\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":1210,\"title\":\"Моя геройская академия 6\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":1211,\"title\":\"Моя геройская академия 7\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609\",\"year\":\"2024\",\"type\":\"Сериал\",\"relation\":\"7-й сезон\"},{\"id\":1281,\"title\":\"Моя геройская академия: Ты следующий\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860\",\"year\":\"2024\",\"type\":\"Фильм\",\"relation\":\"Фильм 4\"},{\"id\":3395,\"title\":\"Моя геройская академия: Тренировка спасателей\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737\",\"year\":\"2017\",\"type\":\"OVA\",\"relation\":\"OVA\"}]"
   },
   {
     "id": 1206,
@@ -46935,7 +48422,75 @@
     "description": "С момента знакомства с увлекательным миром косплея жизнь Ваканы Годзё заметно изменилась. Создание костюмов для Марин Китагава становится для него не просто новым опытом, а возможностью ещё глубже раскрыть свой талант к шитью и ремеслу, которому его...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "2-й сезон",
+    "linkedAnime": [
+      {
+        "id": 1205,
+        "title": "Моя геройская академия",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694",
+        "year": "2016",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 1207,
+        "title": "Моя геройская академия 3",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 1208,
+        "title": "Моя геройская академия 4",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066",
+        "year": "2019",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 1209,
+        "title": "Моя геройская академия 5",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178",
+        "year": "2021",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 1210,
+        "title": "Моя геройская академия 6",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 1211,
+        "title": "Моя геройская академия 7",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609",
+        "year": "2024",
+        "type": "Сериал",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 1281,
+        "title": "Моя геройская академия: Ты следующий",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860",
+        "year": "2024",
+        "type": "Фильм",
+        "relation": "Фильм 4"
+      },
+      {
+        "id": 3395,
+        "title": "Моя геройская академия: Тренировка спасателей",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737",
+        "year": "2017",
+        "type": "OVA",
+        "relation": "OVA"
+      }
+    ],
+    "related_json": "[{\"id\":1205,\"title\":\"Моя геройская академия\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/685a68a340ab8841838694\",\"year\":\"2016\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":1207,\"title\":\"Моя геройская академия 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":1208,\"title\":\"Моя геройская академия 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":1209,\"title\":\"Моя геройская академия 5\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178\",\"year\":\"2021\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":1210,\"title\":\"Моя геройская академия 6\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":1211,\"title\":\"Моя геройская академия 7\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609\",\"year\":\"2024\",\"type\":\"Сериал\",\"relation\":\"7-й сезон\"},{\"id\":1281,\"title\":\"Моя геройская академия: Ты следующий\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860\",\"year\":\"2024\",\"type\":\"Фильм\",\"relation\":\"Фильм 4\"},{\"id\":3395,\"title\":\"Моя геройская академия: Тренировка спасателей\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737\",\"year\":\"2017\",\"type\":\"OVA\",\"relation\":\"OVA\"}]"
   },
   {
     "id": 1205,
@@ -46952,7 +48507,75 @@
     "description": "Необычное перерождение превратило обычного любителя вендинговых автоматов в самого настоящего торгового автомата по имени Бокссо, но даже в таком виде он сумел найти своё место в новом мире. Благодаря уникальной способности менять форму и предлагать...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 1206,
+        "title": "Моя геройская академия 2",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946",
+        "year": "2017",
+        "type": "Сериал",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 1207,
+        "title": "Моя геройская академия 3",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735",
+        "year": "2018",
+        "type": "Сериал",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 1208,
+        "title": "Моя геройская академия 4",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066",
+        "year": "2019",
+        "type": "Сериал",
+        "relation": "4-й сезон"
+      },
+      {
+        "id": 1209,
+        "title": "Моя геройская академия 5",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178",
+        "year": "2021",
+        "type": "Сериал",
+        "relation": "5-й сезон"
+      },
+      {
+        "id": 1210,
+        "title": "Моя геройская академия 6",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269",
+        "year": "2022",
+        "type": "Сериал",
+        "relation": "6-й сезон"
+      },
+      {
+        "id": 1211,
+        "title": "Моя геройская академия 7",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609",
+        "year": "2024",
+        "type": "Сериал",
+        "relation": "7-й сезон"
+      },
+      {
+        "id": 1281,
+        "title": "Моя геройская академия: Ты следующий",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860",
+        "year": "2024",
+        "type": "Фильм",
+        "relation": "Фильм 4"
+      },
+      {
+        "id": 3395,
+        "title": "Моя геройская академия: Тренировка спасателей",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737",
+        "year": "2017",
+        "type": "OVA",
+        "relation": "OVA"
+      }
+    ],
+    "related_json": "[{\"id\":1206,\"title\":\"Моя геройская академия 2\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/686a69e1cb816105967946\",\"year\":\"2017\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":1207,\"title\":\"Моя геройская академия 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/6858f88b5cf43553821735\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":1208,\"title\":\"Моя геройская академия 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c100c9c4d0193275066\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":1209,\"title\":\"Моя геройская академия 5\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683c0e9ada316213112178\",\"year\":\"2021\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":1210,\"title\":\"Моя геройская академия 6\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/69/696e6b294dd32870063269\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":1211,\"title\":\"Моя геройская академия 7\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/683968b2e9f76731933609\",\"year\":\"2024\",\"type\":\"Сериал\",\"relation\":\"7-й сезон\"},{\"id\":1281,\"title\":\"Моя геройская академия: Ты следующий\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676aba08923a6590670860\",\"year\":\"2024\",\"type\":\"Фильм\",\"relation\":\"Фильм 4\"},{\"id\":3395,\"title\":\"Моя геройская академия: Тренировка спасателей\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737\",\"year\":\"2017\",\"type\":\"OVA\",\"relation\":\"OVA\"}]"
   },
   {
     "id": 1204,
@@ -47411,7 +49034,20 @@
     "description": "Второй сезон «Пуниру — милая слизь».",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "2-й сезон",
+    "linkedAnime": [
+      {
+        "id": 7232,
+        "title": "Пуниру — милая слизь",
+        "originalTitle": "Puniru wa Kawaii Slime",
+        "year": "2024",
+        "type": "Сериал",
+        "imageUrl": "https://shikimori.one/system/animes/original/57802.jpg",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7232,\"title\":\"Пуниру — милая слизь\",\"originalTitle\":\"Puniru wa Kawaii Slime\",\"year\":\"2024\",\"type\":\"Сериал\",\"imageUrl\":\"https://shikimori.one/system/animes/original/57802.jpg\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 1178,
@@ -47449,7 +49085,20 @@
     "description": "История о двух падших малолетних ангелах - гламурной блондинке Панти и готической Лолите Стокинг. Их послали на Землю воевать со злыми духами, чтобы отмыть свои грехи.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "2-й сезон",
+    "linkedAnime": [
+      {
+        "id": 7231,
+        "title": "Труська, Чулко и пресвятой Подвяз",
+        "originalTitle": "Panty & Stocking with Garterbelt",
+        "year": "2010",
+        "type": "Сериал",
+        "imageUrl": "https://shikimori.one/system/animes/original/8795.jpg",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7231,\"title\":\"Труська, Чулко и пресвятой Подвяз\",\"originalTitle\":\"Panty & Stocking with Garterbelt\",\"year\":\"2010\",\"type\":\"Сериал\",\"imageUrl\":\"https://shikimori.one/system/animes/original/8795.jpg\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 1176,
@@ -48325,7 +49974,20 @@
     "description": "Принцесса Королевской империи по-прежнему томится в темницах Адской Орды, ежедневно подвергаясь их коварным методам бесчеловечного допроса — роскошным трапезам, душевному общению и удобствам, устоять перед которыми просто невозможно. Новые витки невыносимых «пыток» день за днём делают её заточение всё приятнее, и каждое новое удовольствие грозит окончательно сломить её волю, заставив выдать демонам именно то, чего они добиваются, — сколь бы бесполезными ни оказались сведения, которые она выболтает.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "2-й сезон",
+    "linkedAnime": [
+      {
+        "id": 7230,
+        "title": "Время пыток, принцесса!",
+        "originalTitle": "Hime-sama \"Goumon\" no Jikan desu / 'Tis Time for \"Torture,\" Princess",
+        "year": "2024",
+        "type": "Сериал",
+        "imageUrl": "https://shikimori.one/system/animes/original/52490.jpg",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7230,\"title\":\"Время пыток, принцесса!\",\"originalTitle\":\"Hime-sama \\\"Goumon\\\" no Jikan desu / 'Tis Time for \\\"Torture,\\\" Princess\",\"year\":\"2024\",\"type\":\"Сериал\",\"imageUrl\":\"https://shikimori.one/system/animes/original/52490.jpg\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 1127,
@@ -51071,7 +52733,20 @@
     "description": "data-read-more-hide-mode-value=\"display\" data-read-more-show-content-value=''> Второй сезон.",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "season": "2-й сезон",
+    "linkedAnime": [
+      {
+        "id": 7233,
+        "title": "Список нечисти",
+        "originalTitle": "Yaoguai Mingdan / Monster List",
+        "year": "2014",
+        "type": "Сериал",
+        "imageUrl": "https://shikimori.one/system/animes/original/28929.jpg",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7233,\"title\":\"Список нечисти\",\"originalTitle\":\"Yaoguai Mingdan / Monster List\",\"year\":\"2014\",\"type\":\"Сериал\",\"imageUrl\":\"https://shikimori.one/system/animes/original/28929.jpg\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 970,
@@ -51754,7 +53429,19 @@
     "description": "Когда жизнь человека обрывается, его душа отправляется в своё последнее пристанище — Общество душ. Однако если душа слишком долго блуждает в мире живых, она превращается в искажённого «Пустого», питающегося другими душами. В таких случаях в дело вступают...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "linkedAnime": [
+      {
+        "id": 7185,
+        "title": "Блич",
+        "originalTitle": "Bleach",
+        "year": "2004",
+        "type": "Сериал",
+        "imageUrl": "https://shikimori.one/system/animes/original/269.jpg",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7185,\"title\":\"Блич\",\"originalTitle\":\"Bleach\",\"year\":\"2004\",\"type\":\"Сериал\",\"imageUrl\":\"https://shikimori.one/system/animes/original/269.jpg\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 933,
@@ -53914,7 +55601,15 @@
     "description": "На музыкальном острове Элегия готовится грандиозный концерт Уты — певицы, чей голос покорил слушателей по всему миру, хотя до сих пор никто не видел её вживую. Ради первого публичного выступления сюда съезжаются тысячи поклонников, среди которых оказываются...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "linkedAnime": [
+      {
+        "id": 7187,
+        "title": "Ван-Пис",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7187,\"title\":\"Ван-Пис\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 813,
@@ -58479,7 +60174,15 @@
     "description": "Королевство Пик начинает вторжение, используя силу дьяволов из преисподней. Во главе наступления стоит Тёмная Триада, и даже капитаны рыцарских орденов оказываются не в силах остановить новых противников. После нападений в плен попадают Ями и Ванджанс,...",
     "myScore": null,
     "averageScore": null,
-    "ratingCount": 0
+    "ratingCount": 0,
+    "linkedAnime": [
+      {
+        "id": 7190,
+        "title": "Чёрный клевер",
+        "relation": "1-й сезон"
+      }
+    ],
+    "related_json": "[{\"id\":7190,\"title\":\"Чёрный клевер\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 556,
@@ -61971,7 +63674,8 @@
         "title": "ТораДора! Секрет приготовления бэнто",
         "relation": "Спешл"
       }
-    ]
+    ],
+    "related_json": "[{\"id\":7223,\"title\":\"ТораДора! Секрет приготовления бэнто\",\"relation\":\"Спешл\"}]"
   },
   {
     "id": 7223,
@@ -62003,7 +63707,8 @@
         "title": "ТораДора!",
         "relation": "Основной сериал"
       }
-    ]
+    ],
+    "related_json": "[{\"id\":7222,\"title\":\"ТораДора!\",\"relation\":\"Основной сериал\"}]"
   },
   {
     "id": 7224,
@@ -62130,7 +63835,8 @@
         "title": "Реинкарнация безработного: История о приключениях в другом мире 2. Часть 2",
         "relation": "2-й сезон (Часть 2)"
       }
-    ]
+    ],
+    "related_json": "[{\"id\":6573,\"title\":\"Реинкарнация безработного: История о приключениях в другом мире\",\"relation\":\"1-й сезон\"},{\"id\":6585,\"title\":\"Реинкарнация безработного: История о приключениях в другом мире. Часть 2\",\"relation\":\"1-й сезон (Часть 2)\"},{\"id\":6586,\"title\":\"Реинкарнация безработного: История о приключениях в другом мире 2\",\"relation\":\"2-й сезон\"},{\"id\":6584,\"title\":\"Реинкарнация безработного: История о приключениях в другом мире 2. Часть 2\",\"relation\":\"2-й сезон (Часть 2)\"}]"
   },
   {
     "id": 7228,
@@ -62166,7 +63872,8 @@
         "title": "Синяя тюрьма: Блю Лок против юношеской сборной Японии",
         "relation": "2-й сезон"
       }
-    ]
+    ],
+    "related_json": "[{\"id\":6015,\"title\":\"Синяя тюрьма: Блю Лок\",\"relation\":\"1-й сезон\"},{\"id\":7229,\"title\":\"Синяя тюрьма: Блю Лок против юношеской сборной Японии\",\"relation\":\"2-й сезон\"}]"
   },
   {
     "id": 7229,
@@ -62202,6 +63909,7 @@
         "title": "Синяя тюрьма: Блю Лок — Эпизод с Наги",
         "relation": "Фильм"
       }
-    ]
+    ],
+    "related_json": "[{\"id\":6015,\"title\":\"Синяя тюрьма: Блю Лок\",\"relation\":\"1-й сезон\"},{\"id\":7228,\"title\":\"Синяя тюрьма: Блю Лок — Эпизод с Наги\",\"relation\":\"Фильм\"}]"
   }
 ]

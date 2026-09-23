@@ -404,8 +404,12 @@ function restoreAccountsFromBackup() {
       }
     }
 
-    // 5. Restore ratings - IMPORTANT: DO NOT OVERWRITE existing ratings if DB already has them!
+    // 5. Restore ratings - IMPORTANT: DO NOT OVERWRITE or resurrect deleted ratings for users who already have ratings!
     if (Array.isArray(data.ratings)) {
+      const existingUserIdsWithRatings = new Set(
+        db.prepare('SELECT DISTINCT user_id FROM ratings').all().map((r) => r.user_id)
+      );
+
       const insertRatingStmt = db.prepare(`
         INSERT INTO ratings (id, user_id, anime_id, score, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -433,7 +437,10 @@ function restoreAccountsFromBackup() {
             } catch (e) {}
           }
           if (animeExists) {
-            insertOrIgnoreRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
+            // Only insert missing ratings if this user has no ratings in DB yet (initial seed)
+            if (!existingUserIdsWithRatings.has(r.user_id)) {
+              insertOrIgnoreRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
+            }
             insertRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
           }
         } catch (e) {}
@@ -1022,6 +1029,14 @@ function deduplicateAnimeList(items) {
           }
         });
         merged.friendsRatings = Array.from(friendMap.values());
+
+        if (!merged.season && other.season) {
+          merged.season = other.season;
+        }
+        if ((!merged.linkedAnime || merged.linkedAnime.length === 0) && other.linkedAnime && other.linkedAnime.length > 0) {
+          merged.linkedAnime = other.linkedAnime;
+          merged.related_json = other.related_json;
+        }
 
         merged.isFavorite = Boolean(merged.isFavorite || other.isFavorite);
         merged.isHidden = Boolean(merged.isHidden || other.isHidden);

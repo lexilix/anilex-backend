@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "savedAt": "2026-09-23T21:18:55.138Z",
+  "savedAt": "2026-09-23T21:35:07.082Z",
   "users": [
     {
       "id": 5,
@@ -253,14 +253,6 @@
       "updated_at": "2026-09-16 23:43:13"
     },
     {
-      "id": 53,
-      "user_id": 5,
-      "anime_id": 865,
-      "score": 0,
-      "created_at": "2026-09-16 11:32:17",
-      "updated_at": "2026-09-16 11:32:17"
-    },
-    {
       "id": 54,
       "user_id": 5,
       "anime_id": 6007,
@@ -403,22 +395,6 @@
       "score": 7,
       "created_at": "2026-09-16 11:32:17",
       "updated_at": "2026-09-16 23:43:12"
-    },
-    {
-      "id": 72,
-      "user_id": 5,
-      "anime_id": 3492,
-      "score": 0,
-      "created_at": "2026-09-16 11:32:17",
-      "updated_at": "2026-09-16T13:45:37.703Z"
-    },
-    {
-      "id": 73,
-      "user_id": 5,
-      "anime_id": 2591,
-      "score": 0,
-      "created_at": "2026-09-16 11:32:17",
-      "updated_at": "2026-09-16T13:45:37.705Z"
     },
     {
       "id": 74,
@@ -845,14 +821,6 @@
       "updated_at": "2026-09-16 23:43:12"
     },
     {
-      "id": 128,
-      "user_id": 5,
-      "anime_id": 2149,
-      "score": 0,
-      "created_at": "2026-09-16 11:32:17",
-      "updated_at": "2026-09-16T13:45:37.719Z"
-    },
-    {
       "id": 129,
       "user_id": 5,
       "anime_id": 1904,
@@ -915,14 +883,6 @@
       "score": 8,
       "created_at": "2026-09-16 11:32:17",
       "updated_at": "2026-09-16 23:43:12"
-    },
-    {
-      "id": 138,
-      "user_id": 5,
-      "anime_id": 2069,
-      "score": 0,
-      "created_at": "2026-09-16 11:32:17",
-      "updated_at": "2026-09-16T13:45:37.721Z"
     },
     {
       "id": 139,
@@ -1021,14 +981,6 @@
       "updated_at": "2026-09-16 23:43:12"
     },
     {
-      "id": 151,
-      "user_id": 5,
-      "anime_id": 3395,
-      "score": 0,
-      "created_at": "2026-09-16 11:32:17",
-      "updated_at": "2026-09-16T13:45:37.722Z"
-    },
-    {
       "id": 152,
       "user_id": 5,
       "anime_id": 1261,
@@ -1075,14 +1027,6 @@
       "score": 10,
       "created_at": "2026-09-16 11:32:17",
       "updated_at": "2026-09-16 23:43:12"
-    },
-    {
-      "id": 158,
-      "user_id": 5,
-      "anime_id": 650,
-      "score": 0,
-      "created_at": "2026-09-16 11:32:17",
-      "updated_at": "2026-09-16T13:45:37.726Z"
     },
     {
       "id": 159,
@@ -1259,14 +1203,6 @@
       "score": 9,
       "created_at": "2026-09-16 11:32:17",
       "updated_at": "2026-09-16 23:43:12"
-    },
-    {
-      "id": 181,
-      "user_id": 5,
-      "anime_id": 1306,
-      "score": 0,
-      "created_at": "2026-09-16 11:32:17",
-      "updated_at": "2026-09-16T13:45:37.730Z"
     },
     {
       "id": 182,
@@ -1459,22 +1395,6 @@
       "score": 6,
       "created_at": "2026-09-16 11:32:17",
       "updated_at": "2026-09-16 23:43:13"
-    },
-    {
-      "id": 354,
-      "user_id": 5,
-      "anime_id": 1577,
-      "score": 0,
-      "created_at": "2026-09-16 11:42:39",
-      "updated_at": "2026-09-16T13:45:37.702Z"
-    },
-    {
-      "id": 357,
-      "user_id": 5,
-      "anime_id": 914,
-      "score": 0,
-      "created_at": "2026-09-16 11:42:39",
-      "updated_at": "2026-09-16 11:42:39"
     },
     {
       "id": 474,
@@ -2899,6 +2819,14 @@
       "score": 10,
       "created_at": "2026-09-23 21:18:55",
       "updated_at": "2026-09-23 21:18:55"
+    },
+    {
+      "id": 1206,
+      "user_id": 5,
+      "anime_id": 7195,
+      "score": 0,
+      "created_at": "2026-09-23 21:34:05",
+      "updated_at": "2026-09-23 21:34:05"
     }
   ],
   "friendRequests": [
@@ -3043,23 +2971,6 @@
       "related_json": "[]"
     },
     {
-      "id": 650,
-      "slug": "o-moyem-pererozhdenii-v-sliz-slezy-sinego-morya-3624",
-      "title": "О моём перерождении в слизь: Слёзы синего моря",
-      "original_title": "Tensei shitara Slime Datta Ken Movie 2: Soukai no Namida-hen",
-      "image_url": "https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168",
-      "type": "Фильм",
-      "year": "2026",
-      "genres": "[\"Экшен\",\"Комедия\",\"Фэнтези\",\"Сёнен\"]",
-      "description": "В глубинах океана скрывается процветающее королевство Кайэн, которое на протяжении многих лет находится под покровительством священного Водяного дракона. Согласно древнему преданию, именно он однажды подарил странствующим людям безопасное убежище, где...",
-      "created_at": "2026-09-15 12:33:12",
-      "updated_at": "2026-09-15 12:33:12",
-      "title_lower": "о моем перерождении в слизь: слезы синего моря",
-      "original_title_lower": "tensei shitara slime datta ken movie 2: soukai no namida-hen",
-      "season": "",
-      "related_json": "[]"
-    },
-    {
       "id": 743,
       "slug": "istoriya-o-perekure-za-supermarketom-3500",
       "title": "История о перекуре за супермаркетом",
@@ -3111,23 +3022,6 @@
       "related_json": "[]"
     },
     {
-      "id": 865,
-      "slug": "re-zhizn-v-al-ternativnom-mire-s-nulya-4-3279",
-      "title": "Re:Zero. Жизнь в альтернативном мире с нуля 4",
-      "original_title": "Re:Zero kara Hajimeru Isekai Seikatsu 4th Season / Re:ZERO -Starting Life in Another World- Season 4",
-      "image_url": "https://img.cdngos.com/v/250x350/anime/69/69ac809616440394945957",
-      "type": "Сериал",
-      "year": "2026",
-      "genres": "[\"Драма\",\"Фэнтези\",\"Триллер\",\"Исэкай\",\"Психологическое\",\"Путешествие во времени\"]",
-      "description": "После ожесточённого сражения в городе Приестелла Субару и его союзники всё же сумели одержать победу, но цена оказалась слишком высокой. Из-за действия «Власти Чревоугодия» Рем впала в состояние глубокого сна, Круш лишилась воспоминаний, а само существование...",
-      "created_at": "2026-09-15 12:33:15",
-      "updated_at": "2026-09-16 12:40:36",
-      "title_lower": "re:zero. жизнь в альтернативном мире с нуля 4",
-      "original_title_lower": "re:zero kara hajimeru isekai seikatsu 4th season / re:zero -starting life in another world- season 4",
-      "season": "",
-      "related_json": "[]"
-    },
-    {
       "id": 907,
       "slug": "gde-te-devushki-chto-byli-by-dobry-k-otaku-3229",
       "title": "Где те девушки, что были бы добры к отаку?",
@@ -3158,23 +3052,6 @@
       "updated_at": "2026-09-15 12:33:16",
       "title_lower": "канан до чертиков проста",
       "original_title_lower": "kanan-sama wa akumade choroi",
-      "season": "",
-      "related_json": "[]"
-    },
-    {
-      "id": 914,
-      "slug": "o-moyem-pererozhdenii-v-sliz-4-3220",
-      "title": "О моём перерождении в слизь 4",
-      "original_title": "Tensei shitara Slime Datta Ken 4th Season",
-      "image_url": "https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569",
-      "type": "Сериал",
-      "year": "2026",
-      "genres": "[\"Экшен\",\"Комедия\",\"Фэнтези\",\"Сёнен\"]",
-      "description": "Мечта повелителя демонов Римуру — создать союз между людьми и монстрами — становится всё ближе к осуществлению. Государство Темпест продолжает стремительно развиваться, но на его пути возникают новые противники. Гранвилл Роззо и его внучка Марибел Роззо...",
-      "created_at": "2026-09-15 12:33:16",
-      "updated_at": "2026-09-16 13:45:57",
-      "title_lower": "о моем перерождении в слизь 4",
-      "original_title_lower": "tensei shitara slime datta ken 4th season",
       "season": "",
       "related_json": "[]"
     },
@@ -4042,23 +3919,6 @@
       "updated_at": "2026-09-17 10:52:58",
       "title_lower": "я секретарь гильдии, но я не люблю сверхурочную работу, поэтому я собираюсь подчинить босса в одиночку",
       "original_title_lower": "guild no uketsukejou desu ga, zangyou wa iya nanode boss wo solo toubatsu shiyou to omoimasu / guild no uketsukejou desu ga, zangyou wa iya nanode boss wo solo toubatsu shiyou to omoimasu / i may be a guild receptionist, but ill solo any boss to clock out on time / solo leveling",
-      "season": "",
-      "related_json": "[]"
-    },
-    {
-      "id": 1306,
-      "slug": "semya-shpiona-kod-belyy-2700",
-      "title": "Семья шпиона — Код: Белый",
-      "original_title": "Spy x Family Movie: Code: White / Spy x Family Code: White",
-      "image_url": "https://img.cdngos.com/v/250x350/anime/67/67561acd97fb7630891883",
-      "type": "Фильм",
-      "year": "2023",
-      "genres": "[\"Экшен\",\"Комедия\",\"Сёнен\",\"Забота о детях\",\"Супер сила\"]",
-      "description": "Кто приходит на ум, когда речь заходит о тайных агентах? Конечно же, невероятный Джеймс Бонд, который постоянно подвергает жизнь опасности, выполняя секретные миссии. О таком харизматичном и смелом мужчине мечтают многие дамы, так что Агент 007 купается в лучах женского внимания.\nГерой этой истории, Лойд Форджер, является «Джеймсом Бондом» своего времени. Погони, шпионаж, перестрелки, тайные миссии — всё это является неотъемлемой частью его жизни. Закончив одно задание, он тут же принимается за другое — усталость ему неведома. Однако на этот раз миссия оказывается немного необычной: он должен сохранить мир между двумя странами, а для этого ему предстоит обзавестись фиктивной семьёй. Роль «роковой красотки из Бондианы», и по совместительству жены Лойда, достаётся Йор Форджер — профессиональной наёмной убийце с кодовым именем Тернистая Принцесса. Для полноты картины осталось обзавестись ещё и ребёнком, и эспер Аня Форджер только рада заполучить себе крутых новых родителей. \n\nТеперь новой семье предстоит не только выполнить секретное задание, не раскрыв себя, но и понять, что семья — это гораздо больше, чем просто кровные родственники.",
-      "created_at": "2026-09-15 12:33:22",
-      "updated_at": "2026-09-16 12:36:33",
-      "title_lower": "семья шпиона — код: белый",
-      "original_title_lower": "spy x family movie: code: white / spy x family code: white",
       "season": "",
       "related_json": "[]"
     },
@@ -5202,23 +5062,6 @@
       "related_json": "[]"
     },
     {
-      "id": 2069,
-      "slug": "mest-masamune-ova-1836",
-      "title": "Месть Масамунэ OVA",
-      "original_title": "Masamune-kun no Revenge: Uchi no Mama ni Kagitte/Tsunade Shima, Futatabi./12-Ji wo Sugita Cinderella",
-      "image_url": "https://img.cdngos.com/v/250x350/anime/67/67647a6679a84171472950",
-      "type": "OVA",
-      "year": "2018",
-      "genres": "[\"Комедия\",\"Романтика\",\"Сёнен\"]",
-      "description": "Дополнительный эпизод аниме-сериала «Месть Масамунэ», выпущенный в комплекте с ограниченным тиражом 10 тома оригинальной манги. OVA состоит из трёх небольших историй: «Только ради мамы», «Снова остров Цунадэ» и «Золушка после полуночи».",
-      "created_at": "2026-09-15 12:33:29",
-      "updated_at": "2026-09-15 12:33:29",
-      "title_lower": "месть масамунэ ova",
-      "original_title_lower": "masamune-kun no revenge: uchi no mama ni kagitte/tsunade shima, futatabi./12-ji wo sugita cinderella",
-      "season": "",
-      "related_json": "[]"
-    },
-    {
       "id": 2070,
       "slug": "mest-masamune-1835",
       "title": "Месть Масамунэ",
@@ -5402,23 +5245,6 @@
       "updated_at": "2026-09-15 12:33:30",
       "title_lower": "восемьдесят шесть",
       "original_title_lower": "86",
-      "season": "",
-      "related_json": "[]"
-    },
-    {
-      "id": 2149,
-      "slug": "korzinka-fruktov-final-1746",
-      "title": "Корзинка фруктов: Финал",
-      "original_title": "Fruits Basket: The Final",
-      "image_url": "https://img.cdngos.com/v/250x350/anime/60/60ab941799f50715650987",
-      "type": "Сериал",
-      "year": "2021",
-      "genres": "[\"Драма\",\"Романтика\",\"Сверхъестественное\",\"Сёдзё\"]",
-      "description": "Сотни лет назад китайские духи Зодиака и их бог поклялись вечно оставаться вместе. Объединенные этим обещанием, одержимые члены семьи Сома должны всегда и при любых обстоятельствах возвращаться друг к другу. Однако, когда эти узы сковывают их свободу,...",
-      "created_at": "2026-09-15 12:33:30",
-      "updated_at": "2026-09-15 12:33:30",
-      "title_lower": "корзинка фруктов: финал",
-      "original_title_lower": "fruits basket: the final",
       "season": "",
       "related_json": "[]"
     },
@@ -5912,23 +5738,6 @@
       "updated_at": "2026-09-15 12:33:38",
       "title_lower": "моя геройская академия 4",
       "original_title_lower": "boku no hero academia 4th season",
-      "season": "",
-      "related_json": "[]"
-    },
-    {
-      "id": 2591,
-      "slug": "youjo-senki-movie-779",
-      "title": "Военная хроника маленькой девочки. Фильм",
-      "original_title": "Youjo Senki Movie / Saga of Tanya the Evil: The Movie",
-      "image_url": "https://img.cdngos.com/v/250x350/anime/67/67641e6340024139397550",
-      "type": "Фильм",
-      "year": "2019",
-      "genres": "[\"Экшен\",\"Фэнтези\",\"Исэкай\",\"Военное\",\"Реинкарнация\"]",
-      "description": "Империя продолжает одерживать победы и теснить противников по всему континенту. После разгрома Республики кажется, что конец войны уже близок, но на востоке появляется новый враг. Федерация Руси начинает стягивать войска к границе, готовясь вступить...",
-      "created_at": "2026-09-15 12:33:38",
-      "updated_at": "2026-09-17 09:54:04",
-      "title_lower": "военная хроника маленькой девочки. фильм",
-      "original_title_lower": "youjo senki movie / saga of tanya the evil: the movie",
       "season": "",
       "related_json": "[]"
     },
@@ -6796,23 +6605,6 @@
       "updated_at": "2026-09-15 12:33:57",
       "title_lower": "моя геройская академия 2: заметки героя",
       "original_title_lower": "boku no hero academia: hero note",
-      "season": "",
-      "related_json": "[]"
-    },
-    {
-      "id": 3395,
-      "slug": "moya-geroyskaya-akademiya-ova-296",
-      "title": "Моя геройская академия: Тренировка спасателей",
-      "original_title": "Boku no Hero Academia: Sukue! Kyuujo Kunren!",
-      "image_url": "https://img.cdngos.com/v/250x350/anime/67/676400ac2a2d5273906737",
-      "type": "OVA",
-      "year": "2017",
-      "genres": "[\"Экшен\",\"Сёнен\"]",
-      "description": "После нападения злодеев во время тренировок класса 1-А академия Юэй оказывается под пристальным вниманием общества. Несмотря на произошедшее и серьёзные ранения некоторых преподавателей, занятия продолжаются, а ученики возвращаются к практическим тренировкам...",
-      "created_at": "2026-09-15 12:33:57",
-      "updated_at": "2026-09-15 12:33:57",
-      "title_lower": "моя геройская академия: тренировка спасателей",
-      "original_title_lower": "boku no hero academia: sukue! kyuujo kunren!",
       "season": "",
       "related_json": "[]"
     },
@@ -9751,11 +9543,11 @@
       "genres": "[\"Экшен\",\"Приключения\",\"Фэнтези\",\"Игры\"]",
       "description": "Новая Вестроя была спасена, и «Отчаянные бойцы» уже было расслабились, как вдруг появляется Рен Кролер с Гандэлии, который пытается перетянуть на сторону своей планеты «Отчаянных бойцов». Рен убеждает их в том, что ему нужна помощь, дабы защитить свою планету от нифианцев. Дэн  и его друзья охотно верят ему, но в это же время появляется принцесса Фабия  с планеты Нифия, которая рассказывает, что настоящие враги «Отчаянных бойцов» — это гандэлианцы, а нифианцы — те, кому действительно нужна помощь. Рен пытается перетянуть на свою сторону других бойцов бакуган, как бы «зомбируя» их. Итак, Дэну, Маручо , Джейкобу , Шуну  и Фабии  предстоит остановить гандэлианцев, а также не позволить последним уничтожить Нифию и Землю.",
       "created_at": "2026-09-15 23:38:52",
-      "updated_at": "2026-09-15 23:38:52",
+      "updated_at": "2026-09-23 21:35:07",
       "title_lower": "отчаянные бойцы бакуган: вторжение гандэлианцев",
       "original_title_lower": "bakugan battle brawlers: gundalian invaders",
-      "season": "",
-      "related_json": "[]"
+      "season": "3-й сезон",
+      "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
     },
     {
       "id": 5295,
@@ -9768,11 +9560,11 @@
       "genres": "[\"Сёнен\",\"Приключения\",\"Фэнтези\",\"Игры\"]",
       "description": "Спустя два года после событий первого сезона Дэн  и его друзья наслаждаются тихой и спокойной жизнью. Внезапно перед Дэном открывается портал, из которого прибывает Драго. Драго просит своего напарника помочь ему спасти Новую Вестрою от захвативших его родину вестов. Прибыв на Новую Вестрою, Дэн и последовавший за ним Маручо  встречают бойцов Фронта Освобождения Бакуган: бойца ] Миру , бойца ] Эйса  и бойца ] Бэйрона . Вместе с ними наши главные герои начинают противостояние шести сильнейшим бойцам среди вестов — вексам.",
       "created_at": "2026-09-15 23:38:52",
-      "updated_at": "2026-09-17 00:28:08",
+      "updated_at": "2026-09-23 21:35:07",
       "title_lower": "отчаянные бойцы бакуган: новая вестроя",
       "original_title_lower": "bakugan battle brawlers: new vestroia",
-      "season": "",
-      "related_json": "[]"
+      "season": "2-й сезон",
+      "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
     },
     {
       "id": 5296,
@@ -9785,11 +9577,11 @@
       "genres": "[\"Экшен\",\"Фэнтези\",\"Игры\"]",
       "description": "Однажды с неба на землю посыпались карты, которые достались детям по всему миру. В этих картах находились монстры разных стихий и способностей. Вскоре шестеро главных героев придумали игру под названием «Бакуган», а потом дополнили её правилами. Вдобавок они назвали свою команду «Отчаянные бойцы бакуган».\nВ один прекрасный день, когда все были поглощены игрой, в неё вступил неизвестный игрок Маска и при помощи специальной карты стал отправлять проигравших монстров в «Измерение смерти», из которого нет выхода. Команда «Отчаянных бойцов» решила остановить его, но это оказалось не так уж и просто...",
       "created_at": "2026-09-15 23:38:52",
-      "updated_at": "2026-09-15 23:38:52",
+      "updated_at": "2026-09-23 21:35:07",
       "title_lower": "отчаянные бойцы бакуган",
       "original_title_lower": "bakugan battle brawlers",
-      "season": "",
-      "related_json": "[]"
+      "season": "1-й сезон",
+      "related_json": "[{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
     },
     {
       "id": 5297,
@@ -9802,11 +9594,11 @@
       "genres": "[\"Сёнен\",\"Экшен\",\"Приключения\",\"Фэнтези\",\"Игры\"]",
       "description": "После окончания войны с Ганделией наступают мирные дни. Однако спустя год Дэну  начинают сниться кошмары о загадочной персоне по имени МагМелл. Помимо этого у Драго возникают проблемы с контролем своей силы после последней эволюции, из-за чего он призывает загадочного мектогана по имени Зентон. На беду в Бакуган Интерспейс появляются новые звёзды: Анубиас и Селлон, способные сбросить Дэна с позиции сильнейшего бойца Бакуган.",
       "created_at": "2026-09-15 23:38:52",
-      "updated_at": "2026-09-17 00:28:08",
+      "updated_at": "2026-09-23 21:35:07",
       "title_lower": "отчаянные бойцы бакуган: импульс мектаниума",
       "original_title_lower": "bakugan battle brawlers: mechtanium surge",
-      "season": "",
-      "related_json": "[]"
+      "season": "4-й сезон",
+      "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
     },
     {
       "id": 5298,
@@ -9819,11 +9611,11 @@
       "genres": "[\"Приключения\",\"Фэнтези\",\"Романтика\",\"Гарем\",\"Исэкай\"]",
       "description": "В Бакуган: Эволюции любимые фанатами бакуганы-герои — включая Драго, Трокса, Пегатрикс, Гидоруса, Хаулкора и Фарола — возвращаются, став ещё сильнее, быстрее и круче, чем прежде! В новом полном динамичного экшена сезоне начинают происходить странные вещи: элементальная энергия Вестроя просачивается на Землю, порождая необычные явления и заставляя бакуганов буйствовать от переизбытка энергии! Впрочем, не всё так плохо — наши герои понимают, что вестройская элементальная энергия также вызывает элементальные эволюции у бакуганов! Вместе с новыми эволюциями появляется и новое поколение элементальных бойцов, что заставляет Классных Бойцов адаптироваться и вывести баталии бакуганов на совершенно новый уровень, открывая ещё более потрясающие силы и эволюции! И вновь судьба двух миров — Земли и Вестроя — оказывается в руках Классных Бойцов и их партнёров-бакуганов.",
       "created_at": "2026-09-15 23:38:52",
-      "updated_at": "2026-09-17 08:38:00",
+      "updated_at": "2026-09-23 21:35:07",
       "title_lower": "бакуган: эволюции",
       "original_title_lower": "bakugan: evolutions",
-      "season": "",
-      "related_json": "[]"
+      "season": "8-й сезон",
+      "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
     },
     {
       "id": 5299,
@@ -9836,11 +9628,11 @@
       "genres": "[\"Исполнительское искусство\"]",
       "description": "Бакуган: Легенды — пятый сезон серии Бакуган: Планета сражений и девятый сезон франшизы в целом.",
       "created_at": "2026-09-15 23:38:52",
-      "updated_at": "2026-09-17 08:38:00",
+      "updated_at": "2026-09-23 21:35:07",
       "title_lower": "бакуган: легенды",
       "original_title_lower": "bakugan: legends",
-      "season": "",
-      "related_json": "[]"
+      "season": "9-й сезон",
+      "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"}]"
     },
     {
       "id": 5300,
@@ -9853,11 +9645,11 @@
       "genres": "[\"Экшен\",\"Фантастика\",\"Военное\",\"Космос\"]",
       "description": "В Бакуган: Восход геоганов герой Драгоноид возвращается, пока бакуганы из команды Отважных Бойцов пребывают в глубоком сне, восстанавливаясь после того, как в последний раз им пришлось спасать мир. На этот раз команду ждут приключения с новыми персонажами-бакуганами — геоганами, существами, похожими на бакуганов, но слитыми с элементами кристаллов и образующими новую геометрическую форму. Геоганы не только выглядят иначе, чем их собратья-бакуганы, но и обладают исключительной силой, будучи созданными специально для боя. Не проходит много времени, как Отважные Бойцы превращают этих непокорных бакуганов в верных партнёров, и геоганы выходят на сцену, готовые доказать свою ценность и одержать победу на арене бакуганских сражений.",
       "created_at": "2026-09-15 23:38:52",
-      "updated_at": "2026-09-17 08:38:01",
+      "updated_at": "2026-09-23 21:35:07",
       "title_lower": "бакуган: восход геоганов",
       "original_title_lower": "bakugan: geogan rising",
-      "season": "",
-      "related_json": "[]"
+      "season": "7-й сезон",
+      "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
     },
     {
       "id": 5301,
@@ -9870,11 +9662,11 @@
       "genres": "[\"Экшен\",\"Фэнтези\",\"Игры\"]",
       "description": "Второй сезон аниме «Бакуган: Планета сражений».",
       "created_at": "2026-09-15 23:38:52",
-      "updated_at": "2026-09-17 08:38:02",
+      "updated_at": "2026-09-23 21:35:07",
       "title_lower": "бакуган: бронированный альянс",
       "original_title_lower": "bakugan: armored alliance",
-      "season": "",
-      "related_json": "[]"
+      "season": "6-й сезон",
+      "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
     },
     {
       "id": 5302,
@@ -9887,11 +9679,11 @@
       "genres": "[\"Фэнтези\",\"Фантастика\"]",
       "description": "Серия анимационных веб-короткометражек, в которых персонажи из  Бакуган: Планета сражений взаимодействуют в более комедийной манере.",
       "created_at": "2026-09-15 23:38:52",
-      "updated_at": "2026-09-17 08:38:02",
+      "updated_at": "2026-09-23 21:35:07",
       "title_lower": "бакуган: планета сражений — мини-аниме",
       "original_title_lower": "bakugan: battle planet short anime",
-      "season": "",
-      "related_json": "[]"
+      "season": "Спешл",
+      "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5303,\"title\":\"Бакуган: Планета сражений\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39622.jpg?1711943282\",\"year\":\"2018\",\"type\":\"Сериал\",\"relation\":\"5-й сезон\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
     },
     {
       "id": 5303,
@@ -9904,11 +9696,11 @@
       "genres": "[\"Фэнтези\",\"Фантастика\"]",
       "description": "Сериал рассказывает о подростках Дэне Кузо, Шуне Казами, Уинтоне Стайлзе, Лии Венегас и их псе Лайтнинге. Они известны как «Крутая компания» и снимают видео для сайта ViewTube. Однажды ребята случайно натыкаются на расу биомеханических существ-бойцов под названием Бакуган. Вскоре они становятся друзьями с Бакуганами и начинают устраивать с ними battle, при этом защищая свой район от хулиганов, которые используют Бакуганов в дурных целях.",
       "created_at": "2026-09-15 23:38:52",
-      "updated_at": "2026-09-17 08:38:03",
+      "updated_at": "2026-09-23 21:35:07",
       "title_lower": "бакуган: планета сражений",
       "original_title_lower": "bakugan: battle planet",
-      "season": "",
-      "related_json": "[]"
+      "season": "5-й сезон",
+      "related_json": "[{\"id\":5296,\"title\":\"Отчаянные бойцы Бакуган\",\"imageUrl\":\"https://shikimori.one/system/animes/original/2156.jpg?1711943303\",\"year\":\"2007\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":5295,\"title\":\"Отчаянные бойцы Бакуган: Новая Вестроя\",\"imageUrl\":\"https://shikimori.one/system/animes/original/5337.jpg?1711943305\",\"year\":\"2009\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":5294,\"title\":\"Отчаянные бойцы Бакуган: Вторжение гандэлианцев\",\"imageUrl\":\"https://shikimori.one/system/animes/original/7334.jpg?1711943302\",\"year\":\"2010\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"},{\"id\":5297,\"title\":\"Отчаянные бойцы Бакуган: Импульс Мектаниума\",\"imageUrl\":\"https://shikimori.one/system/animes/original/10330.jpg?1711943325\",\"year\":\"2011\",\"type\":\"Сериал\",\"relation\":\"4-й сезон\"},{\"id\":5302,\"title\":\"Бакуган: Планета сражений — Мини-аниме\",\"imageUrl\":\"https://shikimori.one/system/animes/original/40395.jpg?1711943296\",\"year\":\"2019\",\"type\":\"ONA\",\"relation\":\"Спешл\"},{\"id\":5301,\"title\":\"Бакуган: Бронированный альянс\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41405.jpg?1711943321\",\"year\":\"2020\",\"type\":\"Сериал\",\"relation\":\"6-й сезон\"},{\"id\":5300,\"title\":\"Бакуган: Восход геоганов\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48555.jpg?1708717290\",\"year\":\"2021\",\"type\":\"ONA\",\"relation\":\"7-й сезон\"},{\"id\":5298,\"title\":\"Бакуган: Эволюции\",\"imageUrl\":\"https://shikimori.one/system/animes/original/51263.jpg?1708927558\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"8-й сезон\"},{\"id\":5299,\"title\":\"Бакуган: Легенды\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54637.jpg?1712539657\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"9-й сезон\"}]"
     },
     {
       "id": 5320,

@@ -4209,41 +4209,49 @@ app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
             }
             const existingIdx = targetList.findIndex((x) => Number(x.id) === animeId);
             const myRelation = newSeason || 'Связанная часть';
+            const selfEntry = {
+              id: animeId,
+              title: newTitle,
+              originalTitle: newOriginalTitle,
+              year: newYear,
+              type: newType,
+              imageUrl: newImage,
+              relation: myRelation
+            };
             if (existingIdx !== -1) {
-              if (!targetList[existingIdx].relation || targetList[existingIdx].relation === 'Связанная часть') {
-                targetList[existingIdx].relation = myRelation;
-              }
+              targetList[existingIdx] = { ...targetList[existingIdx], ...selfEntry };
             } else {
-              targetList.push({
-                id: animeId,
-                title: newTitle,
-                originalTitle: newOriginalTitle,
-                year: newYear,
-                type: newType,
-                imageUrl: newImage,
-                relation: myRelation
-              });
+              targetList.push(selfEntry);
             }
 
             // Also link any peer franchise anime
             for (const peer of returnLinked) {
               if (!peer || !peer.id || Number(peer.id) === Number(target.id) || Number(peer.id) === animeId) continue;
               const pId = Number(peer.id);
-              if (!targetList.some((x) => Number(x.id) === pId)) {
-                targetList.push({
-                  id: pId,
-                  title: peer.title || 'Аниме',
-                  originalTitle: peer.originalTitle || '',
-                  year: peer.year || '',
-                  type: peer.type || 'Сериал',
-                  imageUrl: peer.imageUrl || '',
-                  relation: peer.relation || 'Связанная часть'
-                });
+              const pIdx = targetList.findIndex((x) => Number(x.id) === pId);
+              const peerEntry = {
+                id: pId,
+                title: peer.title || 'Аниме',
+                originalTitle: peer.originalTitle || '',
+                year: peer.year || '',
+                type: peer.type || 'Сериал',
+                imageUrl: peer.imageUrl || '',
+                relation: peer.relation || 'Связанная часть'
+              };
+              if (pIdx !== -1) {
+                targetList[pIdx] = { ...targetList[pIdx], ...peerEntry };
+              } else {
+                targetList.push(peerEntry);
               }
             }
 
-            db.prepare('UPDATE anime SET related_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-              .run(JSON.stringify(targetList), Number(target.id));
+            // Update target season if a specific season/part is specified for it and target season is empty
+            const targetSeason = (target.relation && target.relation !== 'Связанная часть')
+              ? target.relation
+              : (targetRow.season || '');
+
+            db.prepare('UPDATE anime SET season = ?, related_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+              .run(targetSeason, JSON.stringify(targetList), Number(target.id));
           }
         } catch (e) {}
       }

@@ -1313,10 +1313,15 @@ export default function DevConsolePage({
           }
         }
 
+        const targetSeason = (target.relation && target.relation !== 'Связанная часть')
+          ? target.relation
+          : (targetCustom.season || targetCached.season || '');
+
         const targetPayload = {
           ...targetCached,
           ...targetCustom,
           id: targetId,
+          season: targetSeason,
           linkedAnime: targetLinks,
           related_json: JSON.stringify(targetLinks)
         };
@@ -3304,9 +3309,17 @@ export default function DevConsolePage({
                               <option value="3-й сезон">3-й сезон</option>
                               <option value="4-й сезон">4-й сезон</option>
                               <option value="5-й сезон">5-й сезон</option>
+                              <option value="6-й сезон">6-й сезон</option>
+                              <option value="7-й сезон">7-й сезон</option>
+                              <option value="8-й сезон">8-й сезон</option>
+                              <option value="9-й сезон">9-й сезон</option>
+                              <option value="10-й сезон">10-й сезон</option>
                               <option value="Фильм">Фильм</option>
+                              <option value="Фильм 1">Фильм 1</option>
                               <option value="Фильм 2">Фильм 2</option>
                               <option value="Фильм 3">Фильм 3</option>
+                              <option value="Фильм 4">Фильм 4</option>
+                              <option value="Фильм 5">Фильм 5</option>
                               <option value="OVA">OVA</option>
                               <option value="ONA">ONA</option>
                               <option value="Спешл">Спешл</option>
@@ -3315,7 +3328,7 @@ export default function DevConsolePage({
                               <option value="Спин-офф">Спин-офф</option>
                               <option value="Рекап">Рекап</option>
                               <option value="Связанная часть">Связанная часть</option>
-                              {!['1-й сезон', '2-й сезон', '3-й сезон', '4-й сезон', '5-й сезон', 'Фильм', 'Фильм 2', 'Фильм 3', 'OVA', 'ONA', 'Спешл', 'Приквел', 'Сиквел', 'Спин-офф', 'Рекап', 'Связанная часть'].includes(item.relation) && item.relation && (
+                              {!['1-й сезон', '2-й сезон', '3-й сезон', '4-й сезон', '5-й сезон', '6-й сезон', '7-й сезон', '8-й сезон', '9-й сезон', '10-й сезон', 'Фильм', 'Фильм 1', 'Фильм 2', 'Фильм 3', 'Фильм 4', 'Фильм 5', 'OVA', 'ONA', 'Спешл', 'Приквел', 'Сиквел', 'Спин-офф', 'Рекап', 'Связанная часть'].includes(item.relation) && item.relation && (
                                 <option value={item.relation}>{item.relation}</option>
                               )}
                             </select>
@@ -3384,13 +3397,25 @@ export default function DevConsolePage({
                         <option value="2-й сезон">2-й сезон</option>
                         <option value="3-й сезон">3-й сезон</option>
                         <option value="4-й сезон">4-й сезон</option>
+                        <option value="5-й сезон">5-й сезон</option>
+                        <option value="6-й сезон">6-й сезон</option>
+                        <option value="7-й сезон">7-й сезон</option>
+                        <option value="8-й сезон">8-й сезон</option>
+                        <option value="9-й сезон">9-й сезон</option>
+                        <option value="10-й сезон">10-й сезон</option>
                         <option value="Фильм">Фильм</option>
+                        <option value="Фильм 1">Фильм 1</option>
+                        <option value="Фильм 2">Фильм 2</option>
+                        <option value="Фильм 3">Фильм 3</option>
+                        <option value="Фильм 4">Фильм 4</option>
+                        <option value="Фильм 5">Фильм 5</option>
                         <option value="OVA">OVA</option>
                         <option value="ONA">ONA</option>
                         <option value="Спешл">Спешл</option>
                         <option value="Спин-офф">Спин-офф</option>
                         <option value="Приквел">Приквел</option>
                         <option value="Сиквел">Сиквел</option>
+                        <option value="Рекап">Рекап</option>
                         <option value="Связанная часть">Связанная часть</option>
                       </select>
                     </div>
