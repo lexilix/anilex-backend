@@ -474,42 +474,58 @@ export default function App() {
 
   const handleAcceptFriendNotification = async (notif) => {
     const requestId = notif.data?.requestId;
-    if (!requestId || !token) return;
+    const fromUserId = notif.data?.fromUserId;
+    const fromNickname = notif.data?.fromNickname;
+    if (!token) return;
     try {
-      const res = await fetch(apiUrl(`/api/friends/respond/${requestId}`), {
+      const res = await fetch(apiUrl(`/api/friends/respond/${requestId || 0}`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ action: 'accept' })
+        body: JSON.stringify({
+          action: 'accept',
+          fromUserId,
+          fromNickname,
+          notificationId: notif.id
+        })
       });
-      if (res.ok) {
-        handleMarkNotificationAsRead(notif.id);
-        fetchMetadata();
-      }
+      // Delete notification immediately from UI & server so it vanishes
+      await handleDeleteNotification(notif.id);
+      fetchMetadata();
+      window.dispatchEvent(new CustomEvent('friends-updated'));
     } catch (err) {
       console.error('Error accepting friend request from notification:', err);
+      await handleDeleteNotification(notif.id);
     }
   };
 
   const handleRejectFriendNotification = async (notif) => {
     const requestId = notif.data?.requestId;
-    if (!requestId || !token) return;
+    const fromUserId = notif.data?.fromUserId;
+    const fromNickname = notif.data?.fromNickname;
+    if (!token) return;
     try {
-      const res = await fetch(apiUrl(`/api/friends/respond/${requestId}`), {
+      await fetch(apiUrl(`/api/friends/respond/${requestId || 0}`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ action: 'reject' })
+        body: JSON.stringify({
+          action: 'reject',
+          fromUserId,
+          fromNickname,
+          notificationId: notif.id
+        })
       });
-      if (res.ok) {
-        handleMarkNotificationAsRead(notif.id);
-      }
+      await handleDeleteNotification(notif.id);
+      fetchMetadata();
+      window.dispatchEvent(new CustomEvent('friends-updated'));
     } catch (err) {
       console.error('Error rejecting friend request from notification:', err);
+      await handleDeleteNotification(notif.id);
     }
   };
 

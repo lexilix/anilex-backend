@@ -712,42 +712,139 @@ app.post('/api/friends/request/:targetUserId', authMiddleware, (req, res) => {
 app.post('/api/friends/respond/:requestId', authMiddleware, (req, res) => {
   try {
     const currentUserId = req.user.id;
-    const requestId = parseInt(req.params.requestId, 10);
-    const { action } = req.body; // 'accept' or 'reject'
+    const rawRequestId = parseInt(req.params.requestId, 10);
+    const requestId = isNaN(rawRequestId) ? 0 : rawRequestId;
+    const { action, fromUserId, fromNickname, notificationId } = req.body || {}; // 'accept' or 'reject'
 
     if (action !== 'accept' && action !== 'reject') {
       return res.status(400).json({ error: 'Неверное действие (accept или reject)' });
     }
 
-    const request = db.prepare('SELECT id, from_user_id, to_user_id, status FROM friend_requests WHERE id = ? AND to_user_id = ?').get(requestId, currentUserId);
-    if (!request) {
+    // Try finding request by id + to_user_id
+    let request = null;
+    if (requestId > 0) {
+      request = db.prepare('SELECT id, from_user_id, to_user_id, status FROM friend_requests WHERE id = ? AND to_user_id = ?').get(requestId, currentUserId);
+      if (!request) {
+        request = db.prepare('SELECT id, from_user_id, to_user_id, status FROM friend_requests WHERE id = ?').get(requestId);
+      }
+    }
+
+    // If not found, find target user by fromUserId or fromNickname
+    let otherUserId = request ? (request.from_user_id === currentUserId ? request.to_user_id : request.from_user_id) : null;
+    if (!otherUserId) {
+      if (fromUserId) {
+        const u = db.prepare('SELECT id FROM users WHERE id = ?').get(fromUserId);
+        if (u) otherUserId = u.id;
+      }
+      if (!otherUserId && fromNickname) {
+        const u = db.prepare('SELECT id FROM users WHERE LOWER(nickname) = LOWER(?)').get(fromNickname);
+        if (u) otherUserId = u.id;
+      }
+    }
+
+    // If we have an otherUserId, find or create friend_requests row
+    if (otherUserId && otherUserId !== currentUserId) {
+      if (!request) {
+        request = db.prepare('SELECT id, from_user_id, to_user_id, status FROM friend_requests WHERE (from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?)').get(otherUserId, currentUserId, currentUserId, otherUserId);
+      }
+      if (!request) {
+        const ins = db.prepare("INSERT INTO friend_requests (from_user_id, to_user_id, status) VALUES (?, ?, 'pending')").run(otherUserId, currentUserId);
+        request = { id: ins.lastInsertRowid, from_user_id: otherUserId, to_user_id: currentUserId, status: 'pending' };
+      }
+    }
+
+    if (!request && !otherUserId) {
+      // Clean up orphaned notification if notificationId provided
+      if (notificationId) {
+        db.prepare('DELETE FROM notifications WHERE id = ? AND user_id = ?').run(notificationId, currentUserId);
+      }
       return res.status(404).json({ error: 'Заявка не найдена' });
     }
 
+    const effectiveReqId = request ? request.id : null;
+    const senderId = otherUserId || (request ? request.from_user_id : null);
+
     if (action === 'accept') {
-      db.prepare("UPDATE friend_requests SET status = 'accepted', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(requestId);
+      if (effectiveReqId) {
+        db.prepare("UPDATE friend_requests SET status = 'accepted', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(effectiveReqId);
+      }
+      if (senderId && currentUserId) {
+        // Ensure reverse/mutual relationship is clear and verified
+        const reverse = db.prepare('SELECT id FROM friend_requests WHERE from_user_id = ? AND to_user_id = ?').get(currentUserId, senderId);
+        if (reverse) {
+          db.prepare("UPDATE friend_requests SET status = 'accepted', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(reverse.id);
+        } else {
+          db.prepare("INSERT INTO friend_requests (from_user_id, to_user_id, status) VALUES (?, ?, 'accepted')").run(currentUserId, senderId);
+        }
+      }
+
       if (typeof db.saveAccountsBackup === 'function') {
         db.saveAccountsBackup();
       }
+
       const responder = db.prepare('SELECT id, nickname, avatar_url FROM users WHERE id = ?').get(currentUserId);
-      createNotification(
-        request.from_user_id,
-        'friend_accepted',
-        'Заявка в друзья принята',
-        `${responder ? responder.nickname : 'Пользователь'} принял(а) вашу заявку в друзья!`,
-        {
-          fromUserId: currentUserId,
-          fromNickname: responder ? responder.nickname : '',
-          fromAvatar: responder ? responder.avatar_url : null
-        }
-      );
+      if (senderId) {
+        createNotification(
+          senderId,
+          'friend_accepted',
+          'Заявка в друзья принята',
+          `${responder ? responder.nickname : 'Пользователь'} принял(а) вашу заявку в друзья!`,
+          {
+            fromUserId: currentUserId,
+            fromNickname: responder ? responder.nickname : '',
+            fromAvatar: responder ? responder.avatar_url : null
+          }
+        );
+      }
+
+      // Clean up notification for currentUserId so it disappears completely
+      if (notificationId) {
+        db.prepare('DELETE FROM notifications WHERE id = ? AND user_id = ?').run(notificationId, currentUserId);
+      }
+      if (senderId) {
+        db.prepare(`
+          DELETE FROM notifications 
+          WHERE user_id = ? AND type = 'friend_request' AND (
+            data LIKE ? OR data LIKE ? OR data LIKE ?
+          )
+        `).run(
+          currentUserId,
+          `%"fromUserId":${senderId}%`,
+          `%"requestId":${requestId}%`,
+          `%"requestId":${effectiveReqId}%`
+        );
+      }
+
       return res.json({ success: true, status: 'accepted', message: 'Заявка в друзья принята' });
     } else {
-      // Upon rejection, delete or set to rejected so user can request again in future
-      db.prepare('DELETE FROM friend_requests WHERE id = ?').run(requestId);
+      // Upon rejection, delete friend_request
+      if (effectiveReqId) {
+        db.prepare('DELETE FROM friend_requests WHERE id = ?').run(effectiveReqId);
+      }
+      if (senderId && currentUserId) {
+        db.prepare('DELETE FROM friend_requests WHERE (from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?)').run(senderId, currentUserId, currentUserId, senderId);
+      }
       if (typeof db.saveAccountsBackup === 'function') {
         db.saveAccountsBackup();
       }
+
+      if (notificationId) {
+        db.prepare('DELETE FROM notifications WHERE id = ? AND user_id = ?').run(notificationId, currentUserId);
+      }
+      if (senderId) {
+        db.prepare(`
+          DELETE FROM notifications 
+          WHERE user_id = ? AND type = 'friend_request' AND (
+            data LIKE ? OR data LIKE ? OR data LIKE ?
+          )
+        `).run(
+          currentUserId,
+          `%"fromUserId":${senderId}%`,
+          `%"requestId":${requestId}%`,
+          `%"requestId":${effectiveReqId}%`
+        );
+      }
+
       return res.json({ success: true, status: 'rejected', message: 'Заявка отклонена' });
     }
   } catch (err) {
@@ -3435,32 +3532,47 @@ app.get('/api/notifications', authMiddleware, (req, res) => {
       SELECT COUNT(id) as count FROM notifications WHERE user_id = ? AND is_read = 0
     `).get(userId);
 
-    return res.json({
-      notifications: notifications.map(n => {
-        const data = JSON.parse(n.data || '{}');
-        let isAccepted = false;
-        let isRejected = false;
-        if (n.type === 'friend_request' && data.requestId) {
-          const reqRow = db.prepare('SELECT status FROM friend_requests WHERE id = ?').get(data.requestId);
-          if (reqRow) {
-            if (reqRow.status === 'accepted') isAccepted = true;
-            if (reqRow.status === 'rejected') isRejected = true;
-          } else if (n.is_read) {
-            isAccepted = true;
+    const activeNotifications = [];
+    for (const n of notifications) {
+      let data = {};
+      try {
+        data = JSON.parse(n.data || '{}');
+      } catch (e) {}
+
+      if (n.type === 'friend_request') {
+        let reqRow = null;
+        if (data.requestId) {
+          reqRow = db.prepare('SELECT status FROM friend_requests WHERE id = ?').get(data.requestId);
+        }
+        if (!reqRow && (data.fromUserId || data.fromNickname)) {
+          const sender = db.prepare('SELECT id FROM users WHERE id = ? OR LOWER(nickname) = LOWER(?)').get(data.fromUserId || 0, data.fromNickname || '');
+          if (sender) {
+            reqRow = db.prepare('SELECT status FROM friend_requests WHERE (from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?)').get(sender.id, userId, userId, sender.id);
           }
         }
-        return {
-          id: n.id,
-          type: n.type,
-          title: n.title,
-          message: n.message,
-          data,
-          isRead: Boolean(n.is_read),
-          isAccepted,
-          isRejected,
-          createdAt: n.created_at
-        };
-      }),
+
+        // If request is already accepted, rejected, or missing after having been handled, remove notification!
+        if (reqRow && (reqRow.status === 'accepted' || reqRow.status === 'rejected')) {
+          db.prepare('DELETE FROM notifications WHERE id = ?').run(n.id);
+          continue;
+        }
+      }
+
+      activeNotifications.push({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        data,
+        isRead: Boolean(n.is_read),
+        isAccepted: false,
+        isRejected: false,
+        createdAt: n.created_at
+      });
+    }
+
+    return res.json({
+      notifications: activeNotifications,
       unreadCount: unreadRow ? unreadRow.count : 0
     });
   } catch (err) {

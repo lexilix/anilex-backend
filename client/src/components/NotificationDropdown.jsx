@@ -74,18 +74,24 @@ export default function NotificationDropdown({
 
       {/* Notifications List */}
       <div className="overflow-y-auto divide-y divide-neutral-100 dark:divide-neutral-850 flex-1 overscroll-contain">
-        {notifications.length === 0 ? (
-          <div className="py-12 px-4 text-center">
-            <Bell className="w-8 h-8 mx-auto text-neutral-300 dark:text-neutral-700 mb-2 opacity-60" />
-            <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
-              Нет новых уведомлений
-            </p>
-            <p className="text-[11px] text-neutral-400 dark:text-neutral-500 mt-0.5">
-              Здесь будут заявки в друзья и ответы на ваши комментарии
-            </p>
-          </div>
-        ) : (
-          notifications.map((n) => {
+        {(() => {
+          const visibleNotifications = notifications.filter(
+            (n) => actionStates[n.id] !== 'accepted' && actionStates[n.id] !== 'rejected' && !n.isAccepted && !n.isRejected
+          );
+          if (visibleNotifications.length === 0) {
+            return (
+              <div className="py-12 px-4 text-center">
+                <Bell className="w-8 h-8 mx-auto text-neutral-300 dark:text-neutral-700 mb-2 opacity-60" />
+                <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                  Нет новых уведомлений
+                </p>
+                <p className="text-[11px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                  Здесь будут заявки в друзья и ответы на ваши комментарии
+                </p>
+              </div>
+            );
+          }
+          return visibleNotifications.map((n) => {
             const isFriendReq = n.type === 'friend_request';
             const isComment = n.type === 'comment_reply';
             const state = actionStates[n.id];
@@ -231,8 +237,8 @@ export default function NotificationDropdown({
                 </button>
               </div>
             );
-          })
-        )}
+          });
+        })()}
       </div>
     </div>
   );

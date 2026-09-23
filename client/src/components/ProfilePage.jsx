@@ -656,6 +656,15 @@ export default function ProfilePage({
     }
   }, [activeTab, friendsQuery, searchFriends, fetchFriendRequestsAndMyFriends]);
 
+  useEffect(() => {
+    const handleFriendsUpdated = () => {
+      fetchFriendRequestsAndMyFriends();
+      searchFriends(friendsQuery);
+    };
+    window.addEventListener('friends-updated', handleFriendsUpdated);
+    return () => window.removeEventListener('friends-updated', handleFriendsUpdated);
+  }, [fetchFriendRequestsAndMyFriends, searchFriends, friendsQuery]);
+
   // Send friend request
   const handleSendFriendRequest = async (targetUserId) => {
     setActionLoadingId(targetUserId);

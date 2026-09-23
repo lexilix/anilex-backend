@@ -5,7 +5,8 @@ const users = [
   { id: 5, nickname: 'Just', email: 'just9jeeet@gmail.com' },
   { id: 15, nickname: 'Katsu', email: 'katsudemisek@gmail.com' },
   { id: 20, nickname: 'MrTech', email: 'mrtech@example.com' },
-  { id: 21, nickname: 'Venicek', email: 'venicek@example.com' }
+  { id: 21, nickname: 'Venicek', email: 'venicek@example.com' },
+  { id: 24, nickname: 'haitek', email: 'cik5921@gmail.com' }
 ];
 
 async function syncFriendsOnRender() {
