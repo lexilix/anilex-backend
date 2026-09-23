@@ -39,7 +39,8 @@ import {
   removeCachedAnimeItem,
   upsertCachedAnimeItem,
   searchCachedAnime,
-  searchExternalAnimeFallback
+  searchExternalAnimeFallback,
+  getAllCachedAnime
 } from '../utils/catalogCache';
 import { toggleHiddenAnime } from '../utils/hiddenStorage';
 import { getScoreBadgeClass } from '../utils/scoreColors';
@@ -1140,7 +1141,7 @@ export default function DevConsolePage({
 
       // 1b. Reciprocally link Title A back into each target's linkedAnime (and link all peers in the cluster)
       const allEdits = getCustomAnimeEdits();
-      const allCached = getAllCachedAnime();
+      const allCached = (typeof getAllCachedAnime === 'function' ? getAllCachedAnime() : []) || [];
       const cluster = [
         {
           id: animeId,
@@ -1197,6 +1198,7 @@ export default function DevConsolePage({
 
         saveCustomAnimeEdit(targetId, targetPayload);
         updateCachedAnimeItem(targetId, targetPayload);
+        upsertCachedAnimeItem(targetPayload);
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('anilex:anime-updated', {
@@ -1208,6 +1210,7 @@ export default function DevConsolePage({
 
       // 2. Update catalog cache across all cached pages
       updateCachedAnimeItem(animeId, payload);
+      upsertCachedAnimeItem(updatedItem);
 
       // 3. Update in current dev list
       setAnimeList((prev) =>
@@ -1215,6 +1218,13 @@ export default function DevConsolePage({
       );
 
       // 4. Notify main catalog and app state
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('anilex:anime-updated', {
+            detail: updatedItem
+          })
+        );
+      }
       if (onAnimeUpdated) {
         onAnimeUpdated(updatedItem);
       }

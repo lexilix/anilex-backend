@@ -150,6 +150,30 @@ export default function App() {
     return () => window.removeEventListener('anilex:rating-updated', handleRatingUpdated);
   }, []);
 
+  // Live listener for anime metadata edits & linking (from DevConsole or anywhere)
+  useEffect(() => {
+    const handleAnimeUpdated = (e) => {
+      const updated = e.detail;
+      if (!updated || !updated.id) return;
+      const numId = Number(updated.id);
+
+      setAnimeList((prev) =>
+        prev.map((item) => {
+          const isMatch =
+            Number(item.id) === numId ||
+            (Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId));
+          if (isMatch) {
+            return applyCustomAnimeEdits({ ...item, ...updated });
+          }
+          return item;
+        })
+      );
+    };
+
+    window.addEventListener('anilex:anime-updated', handleAnimeUpdated);
+    return () => window.removeEventListener('anilex:anime-updated', handleAnimeUpdated);
+  }, []);
+
   // Data states (pre-seeded with 15 titles so page is NEVER blank or hanging, with ratings overlaid)
   const [animeList, setAnimeList] = useState(() => {
     let initialItems = [];

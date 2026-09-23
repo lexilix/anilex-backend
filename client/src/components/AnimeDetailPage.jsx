@@ -510,14 +510,22 @@ export default function AnimeDetailPage({
   useEffect(() => {
     const handleUpdated = (e) => {
       const updated = e.detail;
-      if (updated && Number(updated.id) === Number(animeId)) {
+      if (!updated) return;
+      const uId = Number(updated.id);
+      const isCurrentAnime =
+        uId === Number(animeId) ||
+        (anime && Number(anime.id) === uId) ||
+        (anime?.aliasIds && anime.aliasIds.map(Number).includes(uId));
+      if (isCurrentAnime) {
         setAnime((prev) => applyCustomAnimeEdits({ ...(prev || {}), ...updated }));
         setImgSrc(updated.imageUrl || updated.image_url);
       }
+      // Re-fetch related franchise anime so linking changes appear immediately!
+      fetchRelatedAnime();
     };
     window.addEventListener('anilex:anime-updated', handleUpdated);
     return () => window.removeEventListener('anilex:anime-updated', handleUpdated);
-  }, [animeId]);
+  }, [animeId, anime?.aliasIds, anime?.id]);
 
   const handleImageError = () => {
     const raw = anime?.imageUrl || anime?.image_url;
