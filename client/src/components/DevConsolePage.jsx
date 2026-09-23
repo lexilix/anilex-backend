@@ -2360,10 +2360,11 @@ export default function DevConsolePage({
                     <button
                       type="button"
                       onClick={() => handleOpenEditUser(u)}
-                      className="flex-1 py-1.5 rounded-xl bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+                      className="flex-1 min-w-0 py-1.5 px-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+                      title="Редактировать профиль"
                     >
-                      <Edit className="w-3 h-3" />
-                      <span>Редактировать</span>
+                      <Edit className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">Ред.</span>
                     </button>
 
                     <button
@@ -2372,10 +2373,10 @@ export default function DevConsolePage({
                         setPasswordModalUser(u);
                         setNewPasswordInput('');
                       }}
-                      className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-black dark:hover:text-black text-xs font-semibold transition-colors flex items-center justify-center gap-1 shrink-0"
+                      className="py-1.5 px-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-black dark:hover:text-black text-xs font-semibold transition-colors flex items-center justify-center gap-1 shrink-0"
                       title="Сменить пароль пользователя"
                     >
-                      <KeyRound className="w-3 h-3" />
+                      <KeyRound className="w-3.5 h-3.5 shrink-0" />
                       <span>Пароль</span>
                     </button>
 
@@ -2385,10 +2386,10 @@ export default function DevConsolePage({
                         setSelectedUserId(u.id);
                         setActiveTab('ratings');
                       }}
-                      className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+                      className="py-1.5 px-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 text-xs font-semibold transition-colors flex items-center justify-center gap-1 shrink-0"
                       title="Оценки пользователя"
                     >
-                      <Star className="w-3 h-3" />
+                      <Star className="w-3.5 h-3.5 shrink-0" />
                       <span>Оценки</span>
                     </button>
 
@@ -2400,15 +2401,14 @@ export default function DevConsolePage({
                           e.stopPropagation();
                           handleToggleBlockUser(u);
                         }}
-                        className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${
+                        className={`p-2 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center shrink-0 ${
                           (u.isBlocked || u.is_blocked)
-                            ? 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white dark:text-emerald-400'
-                            : 'bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+                            ? 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500 hover:text-white dark:text-emerald-400'
+                            : 'bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
                         }`}
                         title={(u.isBlocked || u.is_blocked) ? 'Разблокировать пользователя' : 'Заблокировать пользователя'}
                       >
-                        <Ban className="w-3 h-3" />
-                        <span>{(u.isBlocked || u.is_blocked) ? 'Разблок' : 'Блок'}</span>
+                        <Ban className="w-3.5 h-3.5" />
                       </button>
                     )}
 
@@ -2420,11 +2420,10 @@ export default function DevConsolePage({
                           e.stopPropagation();
                           setDeletingUser(u);
                         }}
-                        className="px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+                        className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white transition-colors flex items-center justify-center shrink-0"
                         title="Удалить аккаунт пользователя"
                       >
-                        <Trash2 className="w-3 h-3" />
-                        <span>Удалить</span>
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>

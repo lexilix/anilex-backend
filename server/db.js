@@ -519,6 +519,10 @@ function ensureAllUsersFriends() {
   try {
     const users = db.prepare("SELECT id, nickname FROM users WHERE LOWER(nickname) != 'inspector'").all();
     if (users.length <= 1) return;
+
+    // 1. Unconditionally update all pending/rejected requests to accepted
+    db.prepare("UPDATE friend_requests SET status = 'accepted', updated_at = datetime('now') WHERE status != 'accepted'").run();
+
     const checkStmt = db.prepare(`
       SELECT id, status FROM friend_requests
       WHERE (from_user_id = ? AND to_user_id = ?)
@@ -528,8 +532,10 @@ function ensureAllUsersFriends() {
       INSERT INTO friend_requests (from_user_id, to_user_id, status, created_at, updated_at)
       VALUES (?, ?, 'accepted', datetime('now'), datetime('now'))
     `);
-    const updateStmt = db.prepare(`
-      UPDATE friend_requests SET status = 'accepted', updated_at = datetime('now') WHERE id = ?
+    const updateAllStmt = db.prepare(`
+      UPDATE friend_requests SET status = 'accepted', updated_at = datetime('now')
+      WHERE (from_user_id = ? AND to_user_id = ?)
+         OR (from_user_id = ? AND to_user_id = ?)
     `);
 
     let changed = false;
@@ -542,13 +548,16 @@ function ensureAllUsersFriends() {
           insertStmt.run(u1.id, u2.id);
           changed = true;
         } else if (existing.status !== 'accepted') {
-          updateStmt.run(existing.id);
+          updateAllStmt.run(u1.id, u2.id, u2.id, u1.id);
           changed = true;
         }
       }
     }
     if (changed) {
       console.log('[Database] Synchronized mutual friendships for all users.');
+      if (typeof saveAccountsBackup === 'function') {
+        saveAccountsBackup();
+      }
     }
   } catch (err) {
     console.error('[Database] Failed to ensure all users friends:', err.message);

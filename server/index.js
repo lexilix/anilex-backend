@@ -585,7 +585,7 @@ app.get('/api/users/search', optionalAuthMiddleware, (req, res) => {
         const otherId = rel.from_user_id === currentUserId ? rel.to_user_id : rel.from_user_id;
         if (rel.status === 'accepted') {
           friendMap[otherId] = { status: 'accepted', requestId: rel.id };
-        } else if (rel.status === 'pending') {
+        } else if (rel.status === 'pending' && (!friendMap[otherId] || friendMap[otherId].status !== 'accepted')) {
           if (rel.from_user_id === currentUserId) {
             friendMap[otherId] = { status: 'pending_sent', requestId: rel.id };
           } else {
