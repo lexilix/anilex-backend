@@ -1485,19 +1485,20 @@ export default function ProfilePage({
                         <div className="mt-3 flex items-center justify-between text-xs pt-2 border-t border-neutral-100 dark:border-neutral-800/60">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-[11px] text-neutral-400">Оценка:</span>
-                            <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+                            <div className="relative inline-flex items-center" onClick={(e) => e.stopPropagation()}>
                               <select
                                 value={anime.myScore !== null && anime.myScore !== undefined ? Number(anime.myScore) : ''}
                                 onChange={(e) => handleQuickChangeScore(e, anime, e.target.value)}
-                                className={`appearance-none -webkit-appearance-none px-2 py-0.5 rounded-lg font-bold text-xs cursor-pointer border border-transparent hover:border-amber-400 focus:outline-none transition-all text-center leading-tight shadow-xs ${getScoreBadgeClass(anime.myScore)}`}
+                                className={`appearance-none -webkit-appearance-none px-1.5 py-0 h-5 rounded-md font-black text-[10px] sm:text-[11px] cursor-pointer border-0 outline-none text-center leading-none shadow-none transition-all hover:scale-105 ${getScoreBadgeClass(anime.myScore)}`}
+                                style={{ lineHeight: '20px', minHeight: '20px', height: '20px' }}
                                 title="Нажмите, чтобы изменить оценку"
                               >
                                 {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].map((s) => (
-                                  <option key={s} value={s} className="bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white">
+                                  <option key={s} value={s} className="bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white font-bold text-xs py-1">
                                     {s} / 10
                                   </option>
                                 ))}
-                                <option value="delete" className="bg-rose-50 text-rose-600 font-bold">Удалить оценку</option>
+                                <option value="delete" className="bg-rose-50 text-rose-600 font-bold text-xs py-1">✖ Удалить оценку</option>
                               </select>
                             </div>
 

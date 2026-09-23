@@ -74,17 +74,28 @@ export function setCachedUserRatings(userId, ratings) {
 
 export function updateCachedUserRating(userId, animeId, score, animeData = null) {
   try {
-    if (!userId) return;
-    const key = `${RATINGS_PREFIX}${userId}`;
-    let list = getCachedUserRatings(userId);
+    const targetUserId = userId || getCachedUserProfile()?.id;
+    if (!targetUserId) return;
+    const key = `${RATINGS_PREFIX}${targetUserId}`;
+    let list = getCachedUserRatings(targetUserId);
     const numId = Number(animeId);
+    const animeTitle = (animeData?.title || '').trim().toLowerCase();
 
     if (score === null || score === undefined) {
       // Remove rating
-      list = list.filter((it) => Number(it.id) !== numId);
+      list = list.filter((it) => {
+        if (Number(it.id) === numId) return false;
+        if (animeTitle && it.title && it.title.trim().toLowerCase() === animeTitle) return false;
+        return true;
+      });
     } else {
       // Update or insert
-      const existingIdx = list.findIndex((it) => Number(it.id) === numId);
+      const existingIdx = list.findIndex(
+        (it) =>
+          Number(it.id) === numId ||
+          (Array.isArray(it.aliasIds) && it.aliasIds.map(Number).includes(numId)) ||
+          (animeTitle && it.title && it.title.trim().toLowerCase() === animeTitle)
+      );
       if (existingIdx >= 0) {
         list[existingIdx] = {
           ...list[existingIdx],

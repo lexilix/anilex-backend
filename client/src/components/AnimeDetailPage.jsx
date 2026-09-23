@@ -6,6 +6,7 @@ import SimilarAnimeFeed from './SimilarAnimeFeed';
 import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 import { applyCustomAnimeEdits, getCustomAnimeEdits } from '../utils/customEditsStorage';
 import { getAllCachedAnime } from '../utils/catalogCache';
+import { getCachedUserRatings, getCachedUserProfile, updateCachedUserRating } from '../utils/profileCache';
 
 export default function AnimeDetailPage({
   animeId,
@@ -59,6 +60,25 @@ export default function AnimeDetailPage({
     }
   });
   const [top5Toast, setTop5Toast] = useState(null);
+
+  // Live listener for real-time rating updates
+  useEffect(() => {
+    const handleRatingUpdated = (e) => {
+      const { animeId: evAnimeId, score, anime: updatedAnime } = e.detail || {};
+      if (evAnimeId === undefined && !updatedAnime?.id) return;
+      const numId = Number(evAnimeId !== undefined ? evAnimeId : updatedAnime?.id);
+      const isMatch =
+        Number(animeId) === numId ||
+        (anime && Number(anime.id) === numId) ||
+        (anime?.aliasIds && anime.aliasIds.map(Number).includes(numId)) ||
+        (updatedAnime?.title && anime?.title && anime.title.trim().toLowerCase() === updatedAnime.title.trim().toLowerCase());
+      if (isMatch) {
+        setAnime((prev) => (prev ? { ...prev, myScore: score !== null && score !== undefined ? Number(score) : null } : prev));
+      }
+    };
+    window.addEventListener('anilex:rating-updated', handleRatingUpdated);
+    return () => window.removeEventListener('anilex:rating-updated', handleRatingUpdated);
+  }, [animeId, anime?.title, anime?.aliasIds]);
 
   const handleToggleTop5 = async () => {
     if (!user) {
@@ -416,6 +436,23 @@ export default function AnimeDetailPage({
         }
       }
 
+      // Ensure myScore is resolved from cached user ratings if missing
+      if (data.myScore === null || data.myScore === undefined) {
+        const currentUserId = user?.id || getCachedUserProfile()?.id;
+        if (currentUserId) {
+          const cachedRatings = getCachedUserRatings(currentUserId);
+          const match = (cachedRatings || []).find(
+            (r) =>
+              Number(r.id) === Number(data.id) ||
+              (Array.isArray(data.aliasIds) && data.aliasIds.map(Number).includes(Number(r.id))) ||
+              (data.title && r.title && data.title.trim().toLowerCase() === r.title.trim().toLowerCase())
+          );
+          if (match && match.myScore !== null && match.myScore !== undefined) {
+            data.myScore = Number(match.myScore);
+          }
+        }
+      }
+
       setAnime(data);
       setImgSrc(data.imageUrl || data.image_url);
     } catch (err) {
@@ -424,6 +461,16 @@ export default function AnimeDetailPage({
         const edits = getCustomAnimeEdits();
         const custom = edits[Number(animeId)];
         if (custom) {
+          if (custom.myScore === null || custom.myScore === undefined) {
+            const currentUserId = user?.id || getCachedUserProfile()?.id;
+            if (currentUserId) {
+              const cachedRatings = getCachedUserRatings(currentUserId);
+              const match = (cachedRatings || []).find((r) => Number(r.id) === Number(custom.id));
+              if (match && match.myScore !== null && match.myScore !== undefined) {
+                custom.myScore = Number(match.myScore);
+              }
+            }
+          }
           setAnime(custom);
           setImgSrc(custom.imageUrl || custom.image_url);
         }

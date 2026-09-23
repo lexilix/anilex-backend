@@ -33,23 +33,35 @@ import { getCustomAnimeEdits, saveCustomAnimeEdit, applyCustomAnimeEdits } from 
 import initialCatalog from './data/initialCatalog.json';
 
 function overlayUserRatings(items, userId) {
-  if (!userId || !Array.isArray(items) || items.length === 0) return items;
-  const userRatings = getCachedUserRatings(userId);
+  if (!Array.isArray(items) || items.length === 0) return items;
+  const targetUserId = userId || getCachedUserProfile()?.id;
+  if (!targetUserId) return items;
+  const userRatings = getCachedUserRatings(targetUserId);
   if (!userRatings || userRatings.length === 0) return items;
 
   const idMap = new Map();
   const titleMap = new Map();
 
   for (const r of userRatings) {
-    if (r && r.id !== undefined && r.id !== null) {
+    if (!r) continue;
+    if (r.id !== undefined && r.id !== null) {
       idMap.set(Number(r.id), r);
     }
-    if (r && r.title) {
+    if (Array.isArray(r.aliasIds)) {
+      for (const aid of r.aliasIds) {
+        idMap.set(Number(aid), r);
+      }
+    }
+    if (r.title) {
       titleMap.set(r.title.trim().toLowerCase(), r);
+    }
+    if (r.originalTitle) {
+      titleMap.set(r.originalTitle.trim().toLowerCase(), r);
     }
   }
 
   return items.map((item) => {
+    if (!item) return item;
     const numId = Number(item.id);
     let matched = idMap.get(numId);
     if (!matched && Array.isArray(item.aliasIds)) {
@@ -62,6 +74,9 @@ function overlayUserRatings(items, userId) {
     }
     if (!matched && item.title) {
       matched = titleMap.get(item.title.trim().toLowerCase());
+    }
+    if (!matched && (item.originalTitle || item.original_title)) {
+      matched = titleMap.get((item.originalTitle || item.original_title).trim().toLowerCase());
     }
 
     if (matched && matched.myScore !== null && matched.myScore !== undefined) {
@@ -113,17 +128,18 @@ export default function App() {
   useEffect(() => {
     const handleRatingUpdated = (e) => {
       const { animeId, score, anime: updatedAnime } = e.detail || {};
-      if (!animeId && !updatedAnime?.id) return;
-      const numId = Number(animeId || updatedAnime?.id);
+      if (animeId === undefined && !updatedAnime?.id) return;
+      const numId = Number(animeId !== undefined ? animeId : updatedAnime?.id);
 
       setAnimeList((prev) =>
         prev.map((item) => {
           const isMatch =
             Number(item.id) === numId ||
             (Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId)) ||
+            (updatedAnime?.aliasIds && Array.isArray(updatedAnime.aliasIds) && updatedAnime.aliasIds.map(Number).includes(Number(item.id))) ||
             (updatedAnime?.title && item.title && item.title.trim().toLowerCase() === updatedAnime.title.trim().toLowerCase());
           if (isMatch) {
-            return { ...item, myScore: score };
+            return { ...item, myScore: score !== null && score !== undefined ? Number(score) : null };
           }
           return item;
         })
@@ -134,18 +150,19 @@ export default function App() {
     return () => window.removeEventListener('anilex:rating-updated', handleRatingUpdated);
   }, []);
 
-  // Data states (pre-seeded with 15 titles so page is NEVER blank or hanging)
+  // Data states (pre-seeded with 15 titles so page is NEVER blank or hanging, with ratings overlaid)
   const [animeList, setAnimeList] = useState(() => {
+    let initialItems = [];
     try {
       const cached = getCachedPage('snewest_tall_yall_stall_g', 1);
       if (cached && Array.isArray(cached.items) && cached.items.length > 0) {
-        return cached.items.slice(0, 15).map(applyCustomAnimeEdits);
+        initialItems = cached.items.slice(0, 15).map(applyCustomAnimeEdits);
       }
     } catch (e) {}
-    if (Array.isArray(initialCatalog) && initialCatalog.length > 0) {
-      return initialCatalog.slice(0, 15).map(applyCustomAnimeEdits);
+    if (initialItems.length === 0 && Array.isArray(initialCatalog) && initialCatalog.length > 0) {
+      initialItems = initialCatalog.slice(0, 15).map(applyCustomAnimeEdits);
     }
-    return [];
+    return overlayUserRatings(initialItems);
   });
   const [totalCount, setTotalCount] = useState(() => {
     try {
@@ -289,6 +306,25 @@ export default function App() {
       setUser(null);
     }
   }, [token]);
+
+  // Load and cache user's ratings immediately upon login/mount so main page & search have ratings
+  useEffect(() => {
+    if (!token) return;
+    const currentUserId = user?.id || getCachedUserProfile()?.id;
+    fetch(apiUrl('/api/user/rated-anime'), {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.items)) {
+          if (currentUserId) {
+            setCachedUserRatings(currentUserId, data.items);
+          }
+          setAnimeList((prev) => overlayUserRatings(prev, currentUserId));
+        }
+      })
+      .catch((err) => console.warn('Could not sync user ratings on mount:', err));
+  }, [token, user?.id]);
 
   // Fetch metadata (genres, types, friends)
   const fetchMetadata = useCallback(async () => {
@@ -491,6 +527,7 @@ export default function App() {
       const cached = getCachedPage(filterKey, targetPage);
       if (cached && Array.isArray(cached.items) && cached.items.length > 0) {
         let items = cached.items.map((it) => applyCustomAnimeEdits(it));
+        items = overlayUserRatings(items, user?.id);
         if (activeSort === 'unrated') {
           items = items.filter((it) => it.myScore === null || it.myScore === undefined);
         }
@@ -512,7 +549,7 @@ export default function App() {
         const startIdx = (targetPage - 1) * 15;
         const slice15 = initialCatalog.slice(startIdx, startIdx + 15);
         if (slice15.length > 0) {
-          const page15 = slice15.map(applyCustomAnimeEdits);
+          const page15 = overlayUserRatings(slice15.map(applyCustomAnimeEdits), user?.id);
           setAnimeList(page15);
           setTotalCount(3406);
           setTotalPages(Math.ceil(3406 / 15));
@@ -524,7 +561,7 @@ export default function App() {
         // Instant fallback to any cached catalog items so the screen is NEVER blank
         const anyCached = getAnyCachedCatalog();
         if (anyCached && Array.isArray(anyCached.items) && anyCached.items.length > 0) {
-          const page15 = anyCached.items.slice(0, 15).map(applyCustomAnimeEdits);
+          const page15 = overlayUserRatings(anyCached.items.slice(0, 15).map(applyCustomAnimeEdits), user?.id);
           setAnimeList(page15);
           setTotalCount(anyCached.total || page15.length);
           setTotalPages(anyCached.totalPages || Math.max(1, Math.ceil((anyCached.total || page15.length) / 15)));
@@ -546,7 +583,10 @@ export default function App() {
         }).map(applyCustomAnimeEdits);
 
         const cachedMatches = searchCachedAnime(searchLower).map(applyCustomAnimeEdits);
-        const quickResults = deduplicateAnimeList([...matchingCustoms, ...cachedMatches]);
+        const quickResults = overlayUserRatings(
+          deduplicateAnimeList([...matchingCustoms, ...cachedMatches]),
+          user?.id
+        );
         if (quickResults.length > 0) {
           setAnimeList(quickResults);
           setTotalCount(quickResults.length);

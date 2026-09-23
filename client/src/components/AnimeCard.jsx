@@ -3,6 +3,7 @@ import { Star, MessageSquare, ChevronDown, ChevronUp, Calendar, Film, Lock, Book
 import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
 import { getImageUrl } from '../api';
 import { isAnimeHiddenLocally } from '../utils/hiddenStorage';
+import { getCachedUserRatings, getCachedUserProfile, updateCachedUserRating } from '../utils/profileCache';
 
 export default function AnimeCard({
   anime,
@@ -39,15 +40,55 @@ export default function AnimeCard({
     setLocalHidden(Boolean(anime.isHidden) || isAnimeHiddenLocally(anime.id, user?.id));
   }, [anime.isHidden, anime.id, user?.id]);
 
-  // Optimistic local rating state synced with anime prop
-  const [localScore, setLocalScore] = useState(anime.myScore);
+  // Resolve current score with fallback to local cached ratings
+  const resolveCurrentScore = () => {
+    if (anime.myScore !== null && anime.myScore !== undefined) {
+      return Number(anime.myScore);
+    }
+    const currentUserId = user?.id || getCachedUserProfile()?.id;
+    if (!currentUserId) return null;
+    const cachedRatings = getCachedUserRatings(currentUserId);
+    if (!Array.isArray(cachedRatings) || cachedRatings.length === 0) return null;
+    const numId = Number(anime.id);
+    const match = cachedRatings.find(
+      (r) =>
+        Number(r.id) === numId ||
+        (Array.isArray(anime.aliasIds) && anime.aliasIds.map(Number).includes(Number(r.id))) ||
+        (Array.isArray(r.aliasIds) && r.aliasIds.map(Number).includes(numId)) ||
+        (anime.title && r.title && anime.title.trim().toLowerCase() === r.title.trim().toLowerCase()) ||
+        ((anime.originalTitle || anime.original_title) && (r.originalTitle || r.original_title) && (anime.originalTitle || anime.original_title).trim().toLowerCase() === (r.originalTitle || r.original_title).trim().toLowerCase())
+    );
+    return match && match.myScore !== null && match.myScore !== undefined ? Number(match.myScore) : null;
+  };
+
+  // Optimistic local rating state synced with anime prop and profile cache
+  const [localScore, setLocalScore] = useState(resolveCurrentScore);
 
   useEffect(() => {
-    setLocalScore(anime.myScore);
-  }, [anime.myScore]);
+    setLocalScore(resolveCurrentScore());
+  }, [anime.myScore, anime.id, anime.title, user?.id]);
+
+  // Live listener for real-time rating sync across main page, search, and profile
+  useEffect(() => {
+    const handleRatingUpdated = (e) => {
+      const { animeId, score, anime: updatedAnime } = e.detail || {};
+      if (animeId === undefined && !updatedAnime?.id) return;
+      const numId = Number(animeId !== undefined ? animeId : updatedAnime?.id);
+      const isMatch =
+        Number(anime.id) === numId ||
+        (Array.isArray(anime.aliasIds) && anime.aliasIds.map(Number).includes(numId)) ||
+        (updatedAnime?.aliasIds && Array.isArray(updatedAnime.aliasIds) && updatedAnime.aliasIds.map(Number).includes(Number(anime.id))) ||
+        (updatedAnime?.title && anime.title && anime.title.trim().toLowerCase() === updatedAnime.title.trim().toLowerCase());
+      if (isMatch) {
+        setLocalScore(score !== null && score !== undefined ? Number(score) : null);
+      }
+    };
+    window.addEventListener('anilex:rating-updated', handleRatingUpdated);
+    return () => window.removeEventListener('anilex:rating-updated', handleRatingUpdated);
+  }, [anime.id, anime.aliasIds, anime.title]);
 
   // User's rating and community stats
-  const myScore = localScore !== undefined ? localScore : anime.myScore;
+  const myScore = localScore !== undefined && localScore !== null ? localScore : (anime.myScore !== undefined && anime.myScore !== null ? anime.myScore : null);
   const isFavorite = anime.isFavorite;
   const isHidden = localHidden;
   const averageScore = anime.averageScore;
@@ -108,11 +149,28 @@ export default function AnimeCard({
       return;
     }
 
+    const currentUserId = user?.id || getCachedUserProfile()?.id;
     const newScore = myScore === score ? null : score;
     setLocalScore(newScore);
+
+    // Optimistically update localStorage cache immediately
+    if (currentUserId) {
+      updateCachedUserRating(currentUserId, anime.id, newScore, anime);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('anilex:rating-updated', {
+          detail: { animeId: Number(anime.id), score: newScore, anime }
+        })
+      );
+    }
+
     setRatingLoading(true);
     try {
-      await onRate(anime.id, newScore, anime);
+      if (onRate) {
+        await onRate(anime.id, newScore, anime);
+      }
     } catch (err) {
       console.warn('Rating error:', err);
     } finally {
@@ -313,7 +371,7 @@ export default function AnimeCard({
                 Ваша оценка (0–10):
               </span>
               {user ? (
-                myScore !== null ? (
+                myScore !== null && myScore !== undefined ? (
                   <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${getScoreBadgeClass(myScore)}`}>
                     {myScore} / 10
                   </span>
