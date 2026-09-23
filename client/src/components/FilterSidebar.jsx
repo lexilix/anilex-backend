@@ -301,7 +301,6 @@ export default function FilterSidebar({
                 onClick={() => setIsAddingGenre(true)}
                 className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline font-semibold flex items-center gap-1"
               >
-                <Plus className="w-3 h-3" />
                 <span>+ Пополнить жанры</span>
               </button>
             )}

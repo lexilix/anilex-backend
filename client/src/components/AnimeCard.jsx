@@ -48,7 +48,10 @@ export default function AnimeCard({
       try {
         setScoresFetchLoading(true);
         const token = localStorage.getItem('anime_auth_token');
-        const res = await fetch(apiUrl(`/api/anime/${anime.id}/ratings`), {
+        const aliasQuery = Array.isArray(anime.aliasIds) && anime.aliasIds.length > 0
+          ? `?aliasIds=${anime.aliasIds.join(',')}`
+          : '';
+        const res = await fetch(apiUrl(`/api/anime/${anime.id}/ratings${aliasQuery}`), {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         if (res.ok) {

@@ -153,46 +153,159 @@ function parseRawTextRatings(text) {
 }
 
 
-const POPULAR_GENRES = [
-  'Экшен',
-  'Приключения',
-  'Комедия',
-  'Драма',
-  'Фэнтези',
-  'Сёнен',
-  'Романтика',
-  'Детектив',
-  'Триллер',
-  'Мистика',
-  'Фантастика',
-  'Повседневность',
-  'Сверхъестественное',
-  'Психология',
-  'Этти',
-  'Гарем',
-  'Меха',
-  'Военное',
-  'Исторический',
-  'Спорт',
-  'Музыка',
-  'Вампиры',
-  'Киберпанк',
-  'Хоррор',
-  'Сёдзё',
-  'Магия',
-  'Школа',
-  'Демоны',
-  'Игры',
-  'Самураи',
-  'Суперсила',
-  'Космос',
+export const ALL_SITE_GENRES = [
+  'CGDCT',
+  'Авангард',
+  'Антропоморфизм',
+  'Артхаус',
+  'Безумие',
   'Боевые искусства',
-  'Сэйнэн'
+  'Вампиры',
+  'Взрослые персонажи',
+  'Видеоигры',
+  'Военное',
+  'Выживание',
+  'Гарем',
+  'Гонки',
+  'Городское фэнтези',
+  'Гурман',
+  'Гэг-юмор',
+  'Демоны',
+  'Детектив',
+  'Детское',
+  'Дзёсей',
+  'Драма',
+  'Жестокость',
+  'Забота о детях',
+  'Злодейка',
+  'Игра с высокими ставками',
+  'Игры',
+  'Идолы (Жен.)',
+  'Идолы (Муж.)',
+  'Изобразительное искусство',
+  'Исекай',
+  'Исполнительское искусство',
+  'Исторический',
+  'Исэкай',
+  'Иясикэй',
+  'Командный спорт',
+  'Комедия',
+  'Космос',
+  'Кроссдрессинг',
+  'Культура отаку',
+  'Любовный многоугольник',
+  'Магия',
+  'Махо-сёдзё',
+  'Медицина',
+  'Меха',
+  'Мистика',
+  'Мифология',
+  'Музыка',
+  'Образовательное',
+  'Организованная преступность',
+  'Пародия',
+  'Питомцы',
+  'Повседневность',
+  'Полиция',
+  'Постапокалипсис',
+  'Приключения',
+  'Психологическое',
+  'Психология',
+  'Путешествие во времени',
+  'Работа',
+  'Реверс-гарем',
+  'Реинкарнация',
+  'Романтика',
+  'Романтический подтекст',
+  'Самураи',
+  'Сверхъестественное',
+  'Спорт',
+  'Спортивные единоборства',
+  'Стратегические игры',
+  'Супер сила',
+  'Суперсила',
+  'Сэйнэн',
+  'Сёдзё',
+  'Сёдзё-ай',
+  'Сёнен',
+  'Сёнен-ай',
+  'Тайна',
+  'Триллер',
+  'Ужасы',
+  'Фантастика',
+  'Фэнтези',
+  'Хентай',
+  'Хоррор',
+  'Хулиганы',
+  'Школа',
+  'Шоу-бизнес',
+  'Экшен',
+  'Эротика',
+  'Этти'
 ];
+
+export function detectAnimeSeason(title, originalTitle, type, linkedAnime = []) {
+  const fullText = `${title || ''} ${originalTitle || ''}`.trim();
+  if (!fullText) return '';
+
+  // Check for season patterns: "2 сезон", "2-й сезон", "Сезон 2", "2nd season", "Season 2"
+  const seasonMatch = fullText.match(/(?:(?:(\d+)[- ]*(?:й|ой|ий|ый)?\s*сезон)|(?:сезон\s*(\d+))|(?:(\d+)(?:st|nd|rd|th)\s*season)|(?:season\s*(\d+)))/i);
+  if (seasonMatch) {
+    const num = seasonMatch[1] || seasonMatch[2] || seasonMatch[3] || seasonMatch[4];
+    return `${num}-й сезон`;
+  }
+
+  // Trailing standalone digit like "Фрирен 2", "Адский рай 2", "Баки 2"
+  const trailingNumMatch = (title || '').trim().match(/\s+(\d+)$/);
+  if (trailingNumMatch) {
+    return `${trailingNumMatch[1]}-й сезон`;
+  }
+
+  // Check for Part patterns: "Часть 2", "Part 2"
+  const partMatch = fullText.match(/(?:часть\s*(\d+)|part\s*(\d+))/i);
+  if (partMatch) {
+    const pNum = partMatch[1] || partMatch[2];
+    return `Часть ${pNum}`;
+  }
+
+  // Film / Movie
+  if (/фильм|movie/i.test(fullText) || type === 'Фильм') {
+    const movieNum = fullText.match(/(?:фильм|movie)\s*(\d+)/i);
+    return movieNum ? `Фильм ${movieNum[1]}` : 'Фильм';
+  }
+  if (/ova|ова/i.test(fullText) || type === 'OVA') return 'OVA';
+  if (/ona|она/i.test(fullText) || type === 'ONA') return 'ONA';
+  if (/спешл|special/i.test(fullText) || type === 'Спешл') return 'Спешл';
+
+  // If this title has linked anime with season 2, then this is likely 1-й сезон
+  if (Array.isArray(linkedAnime) && linkedAnime.length > 0) {
+    const hasS2 = linkedAnime.some((l) => l.relation && (l.relation.includes('2') || l.relation.includes('Сиквел')));
+    if (hasS2) return '1-й сезон';
+  }
+
+  if (type === 'Сериал') {
+    return '1-й сезон';
+  }
+
+  return '';
+}
 
 function GenreEditor({ selectedGenres, onChange }) {
   const [customInput, setCustomInput] = useState('');
   const [customGenresList, setCustomGenresList] = useState(getCustomGenres());
+  const [serverGenres, setServerGenres] = useState([]);
+
+  useEffect(() => {
+    fetch(apiUrl('/api/genres'))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.genres)) {
+          const names = data.genres.map((g) => (typeof g === 'string' ? g : g.name)).filter(Boolean);
+          setServerGenres(names);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handleUpdate = () => {
@@ -235,12 +348,9 @@ function GenreEditor({ selectedGenres, onChange }) {
   };
 
   const allAvailable = useMemo(() => {
-    const set = new Set(POPULAR_GENRES);
-    for (const cg of customGenresList) {
-      if (cg && typeof cg === 'string') set.add(cg.trim());
-    }
-    return Array.from(set);
-  }, [customGenresList]);
+    const set = new Set([...ALL_SITE_GENRES, ...serverGenres, ...customGenresList]);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ru'));
+  }, [serverGenres, customGenresList]);
 
   return (
     <div className="space-y-2.5">
@@ -303,7 +413,7 @@ function GenreEditor({ selectedGenres, onChange }) {
         <div className="max-h-36 overflow-y-auto p-2 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/60 dark:border-neutral-800 flex flex-wrap gap-1.5 custom-scrollbar">
           {allAvailable.map((genre) => {
             const isSelected = selectedGenres.includes(genre);
-            const isCustom = !POPULAR_GENRES.includes(genre);
+            const isCustom = !ALL_SITE_GENRES.includes(genre);
             return (
               <button
                 key={genre}
@@ -876,7 +986,6 @@ export default function DevConsolePage({
     // Custom edits and season/relations
     const customEdits = getCustomAnimeEdits();
     const custom = customEdits[Number(anime.id)] || {};
-    setEditSeason(custom.season || anime.season || '');
 
     let existingLinked = [];
     if (Array.isArray(custom.linkedAnime)) {
@@ -888,10 +997,19 @@ export default function DevConsolePage({
         existingLinked = JSON.parse(anime.related_json);
       } catch (e) {}
     }
+
+    const detectedSeason = detectAnimeSeason(
+      anime.title,
+      anime.originalTitle || anime.original_title,
+      anime.type,
+      existingLinked
+    );
+    setEditSeason(custom.season || anime.season || detectedSeason || '');
+
     setEditLinkedAnime(existingLinked);
     setLinkSearchQuery('');
     setLinkSearchResults([]);
-    setSelectedLinkRelation('2-й сезон');
+    setSelectedLinkRelation(detectedSeason && detectedSeason.includes('1') ? '2-й сезон' : '1-й сезон');
 
     // Asynchronously fetch relations to discover links registered from other anime
     fetch(apiUrl(`/api/anime/${anime.id}/related`))
@@ -2130,7 +2248,6 @@ export default function DevConsolePage({
               {animeList.map((anime) => {
                 const customEdits = getCustomAnimeEdits();
                 const custom = customEdits[Number(anime.id)] || {};
-                const currentSeason = custom.season !== undefined ? custom.season : (anime.season || '');
                 let currentLinked = [];
                 if (Array.isArray(custom.linkedAnime)) {
                   currentLinked = custom.linkedAnime;
@@ -2143,6 +2260,9 @@ export default function DevConsolePage({
                     currentLinked = [];
                   }
                 }
+                const currentSeason = (custom.season !== undefined && custom.season !== '')
+                  ? custom.season
+                  : (anime.season || detectAnimeSeason(anime.title, anime.originalTitle, anime.type, currentLinked) || (anime.type === 'Сериал' ? '1-й сезон' : ''));
 
                 return (
                   <div
@@ -2180,7 +2300,7 @@ export default function DevConsolePage({
                               </span>
                             ) : (
                               <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-400">
-                                Без сезона
+                                1-й сезон
                               </span>
                             )}
                           </div>
@@ -2216,7 +2336,7 @@ export default function DevConsolePage({
 
                           {currentLinked.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
-                              {currentLinked.slice(0, 2).map((item) => (
+                              {currentLinked.slice(0, 3).map((item) => (
                                 <span
                                   key={item.id}
                                   className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-800/50 text-[9px] font-medium max-w-[170px] truncate"
@@ -2226,9 +2346,9 @@ export default function DevConsolePage({
                                   <span className="truncate">{item.title}</span>
                                 </span>
                               ))}
-                              {currentLinked.length > 2 && (
+                              {currentLinked.length > 3 && (
                                 <span className="text-[9px] text-neutral-400 self-center">
-                                  +{currentLinked.length - 2}
+                                  +{currentLinked.length - 3}
                                 </span>
                               )}
                             </div>

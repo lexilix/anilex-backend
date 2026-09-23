@@ -1409,15 +1409,15 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         }
       }
 
-      // Add WHERE condition: meaningful words or their stems must match in title_lower or original_title_lower!
+      // Add WHERE condition: meaningful words or their stems must match in title_lower, original_title_lower, or season!
       for (const w of meaningfulWords) {
         const stem = stemRussianWord(w);
         if (stem && stem.length >= 3 && stem !== w) {
-          whereClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ? OR a.title_lower LIKE ? OR a.original_title_lower LIKE ?)');
-          params.push(`%${w}%`, `%${w}%`, `%${stem}%`, `%${stem}%`);
+          whereClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ? OR a.title_lower LIKE ? OR a.original_title_lower LIKE ? OR a.season LIKE ? OR a.season LIKE ?)');
+          params.push(`%${w}%`, `%${w}%`, `%${stem}%`, `%${stem}%`, `%${w}%`, `%${stem}%`);
         } else {
-          whereClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ?)');
-          params.push(`%${w}%`, `%${w}%`);
+          whereClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ? OR a.season LIKE ?)');
+          params.push(`%${w}%`, `%${w}%`, `%${w}%`);
         }
       }
 
@@ -1987,8 +1987,16 @@ app.get('/api/anime/:id/ratings', optionalAuthMiddleware, (req, res) => {
     const currentUserId = req.user ? req.user.id : null;
 
     // Find anime and possible aliases
-    const targetAnime = db.prepare('SELECT id, title, original_title FROM anime WHERE id = ?').get(animeId);
+    const targetAnime = db.prepare('SELECT id, title, original_title, related_json FROM anime WHERE id = ?').get(animeId);
     let allAnimeIds = [animeId];
+
+    if (req.query.aliasIds) {
+      const extraIds = String(req.query.aliasIds).split(',').map((x) => parseInt(x.trim(), 10)).filter(Boolean);
+      for (const eid of extraIds) {
+        if (!allAnimeIds.includes(eid)) allAnimeIds.push(eid);
+      }
+    }
+
     if (targetAnime) {
       const aliasRows = db.prepare(`
         SELECT id FROM anime
@@ -1999,7 +2007,34 @@ app.get('/api/anime/:id/ratings', optionalAuthMiddleware, (req, res) => {
         animeId
       );
       for (const a of aliasRows) {
-        allAnimeIds.push(a.id);
+        if (!allAnimeIds.includes(a.id)) allAnimeIds.push(a.id);
+      }
+
+      // Also check if title has a prefix before colon (e.g. "Судьба/Странная подделка: Шёпот рассвета" -> "Судьба/Странная подделка")
+      const titleParts = (targetAnime.title || '').split(/[:—–]/);
+      if (titleParts.length > 1 && titleParts[0].trim().length > 4) {
+        const prefix = titleParts[0].trim().toLowerCase();
+        const prefixRows = db.prepare(`
+          SELECT id FROM anime
+          WHERE title_lower = ? OR title_lower LIKE ?
+        `).all(prefix, prefix + '%');
+        for (const pr of prefixRows) {
+          if (!allAnimeIds.includes(pr.id)) allAnimeIds.push(pr.id);
+        }
+      }
+
+      if (targetAnime.related_json) {
+        try {
+          const related = JSON.parse(targetAnime.related_json);
+          if (Array.isArray(related)) {
+            for (const rel of related) {
+              const rId = Number(rel.id);
+              if (rId && !allAnimeIds.includes(rId)) {
+                allAnimeIds.push(rId);
+              }
+            }
+          }
+        } catch (e) {}
       }
     }
 
@@ -2012,7 +2047,16 @@ app.get('/api/anime/:id/ratings', optionalAuthMiddleware, (req, res) => {
       ORDER BY r.updated_at DESC
     `).all(...allAnimeIds);
 
-    const ratings = rows.map(r => ({
+    // Deduplicate ratings by user_id, keeping the latest one
+    const userRatingsMap = new Map();
+    for (const r of rows) {
+      if (!userRatingsMap.has(r.user_id)) {
+        userRatingsMap.set(r.user_id, r);
+      }
+    }
+    const dedupedRows = Array.from(userRatingsMap.values());
+
+    const ratings = dedupedRows.map(r => ({
       userId: r.user_id,
       nickname: r.nickname,
       avatarUrl: r.avatar_url,

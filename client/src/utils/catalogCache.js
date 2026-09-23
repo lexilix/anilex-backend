@@ -227,6 +227,7 @@ export function searchCachedAnime(query) {
     if (!item || !item.id) continue;
     const t = (item.title || '').toLowerCase().replace(/ё/g, 'е');
     const ot = (item.originalTitle || item.original_title || '').toLowerCase().replace(/ё/g, 'е');
+    const season = (item.season || '').toLowerCase().replace(/ё/g, 'е');
     const desc = (item.description || '').toLowerCase().replace(/ё/g, 'е');
 
     // 1. Direct phrase matching
@@ -235,6 +236,7 @@ export function searchCachedAnime(query) {
     else if (t.startsWith(q)) matchScore += 70;
     else if (t.includes(q)) matchScore += 50;
     else if (ot.includes(q)) matchScore += 35;
+    else if (season.includes(q)) matchScore += 30;
     else if (desc.includes(q)) matchScore += 10;
 
     // 2. Multi-word / stem matching
@@ -242,10 +244,12 @@ export function searchCachedAnime(query) {
     for (const ws of wordStems) {
       const inTitle = t.includes(ws.raw) || (ws.stem && ws.stem.length >= 3 && t.includes(ws.stem));
       const inOrig = ot.includes(ws.raw) || (ws.stem && ws.stem.length >= 3 && ot.includes(ws.stem));
+      const inSeason = season.includes(ws.raw) || (ws.stem && ws.stem.length >= 3 && season.includes(ws.stem));
       const inDesc = desc.includes(ws.raw) || (ws.stem && ws.stem.length >= 3 && desc.includes(ws.stem));
 
       if (inTitle) matchScore += 20;
       else if (inOrig) matchScore += 12;
+      else if (inSeason) matchScore += 15;
       else if (inDesc) matchScore += 5;
       else {
         allWordsMatched = false;
