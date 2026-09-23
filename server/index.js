@@ -2032,25 +2032,33 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
       } catch (e) {}
     }
 
-    // 3. Add any anime that has linked this target
+    // 3. Add any anime that has linked this target, plus peer franchise anime
     try {
-      const referencingAnime = db.prepare(`
+      const allLinkedAnime = db.prepare(`
         SELECT id, slug, title, original_title, year, type, image_url, season, related_json
         FROM anime
-        WHERE related_json LIKE ?
-      `).all(`%"id":${animeId}%`);
+        WHERE related_json IS NOT NULL AND related_json != '' AND related_json != '[]'
+      `).all();
 
-      for (const ref of referencingAnime) {
+      for (const ref of allLinkedAnime) {
+        let parsed = [];
+        try {
+          parsed = JSON.parse(ref.related_json || '[]');
+        } catch (e) {
+          parsed = [];
+        }
+        if (!Array.isArray(parsed)) continue;
+
+        const hasLinkToTarget = parsed.some((x) => Number(x.id) === animeId);
+        if (!hasLinkToTarget) continue;
+
+        // Add referencing anime itself
         if (ref.id !== target.id && !resultsMap.has(ref.id)) {
           let relationTag = ref.season || 'Связанная часть';
-          try {
-            const parsed = JSON.parse(ref.related_json || '[]');
-            const linkEntry = parsed.find((x) => Number(x.id) === animeId);
-            if (linkEntry && linkEntry.relation) {
-              // If referencing anime says this target is X, referencing anime might be its counterpart
-              relationTag = ref.season || relationTag;
-            }
-          } catch (e) {}
+          const linkEntry = parsed.find((x) => Number(x.id) === animeId);
+          if (linkEntry && linkEntry.relation) {
+            relationTag = ref.season || relationTag;
+          }
           resultsMap.set(ref.id, {
             id: ref.id,
             slug: ref.slug,
@@ -2066,8 +2074,33 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
             ratingCount: 0
           });
         }
+
+        // Also add peer items from referencing anime's related_json
+        for (const peer of parsed) {
+          if (!peer || !peer.id) continue;
+          const pId = Number(peer.id);
+          if (pId !== target.id && !resultsMap.has(pId)) {
+            const peerFull = db.prepare('SELECT id, slug, title, original_title, year, type, image_url, season FROM anime WHERE id = ?').get(pId);
+            resultsMap.set(pId, {
+              id: pId,
+              slug: peerFull ? peerFull.slug : `anime-${pId}`,
+              title: peerFull ? peerFull.title : (peer.title || ''),
+              originalTitle: peerFull ? peerFull.original_title : (peer.originalTitle || ''),
+              year: peerFull ? peerFull.year : (peer.year || ''),
+              type: peerFull ? peerFull.type : (peer.type || 'Сериал'),
+              imageUrl: peerFull ? peerFull.image_url : (peer.imageUrl || ''),
+              relation: peer.relation || (peerFull && peerFull.season) || 'Связанная часть',
+              isCurrent: false,
+              myScore: null,
+              averageScore: null,
+              ratingCount: 0
+            });
+          }
+        }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('Reciprocal related anime warning:', e);
+    }
 
     const base = extractFranchiseBase(target.title);
 
@@ -4024,6 +4057,24 @@ app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
                 relation: myRelation
               });
             }
+
+            // Also link any peer franchise anime
+            for (const peer of returnLinked) {
+              if (!peer || !peer.id || Number(peer.id) === Number(target.id) || Number(peer.id) === animeId) continue;
+              const pId = Number(peer.id);
+              if (!targetList.some((x) => Number(x.id) === pId)) {
+                targetList.push({
+                  id: pId,
+                  title: peer.title || 'Аниме',
+                  originalTitle: peer.originalTitle || '',
+                  year: peer.year || '',
+                  type: peer.type || 'Сериал',
+                  imageUrl: peer.imageUrl || '',
+                  relation: peer.relation || 'Связанная часть'
+                });
+              }
+            }
+
             db.prepare('UPDATE anime SET related_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
               .run(JSON.stringify(targetList), Number(target.id));
           }

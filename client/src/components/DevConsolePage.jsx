@@ -1138,6 +1138,74 @@ export default function DevConsolePage({
       // 1. Immediately persist to localStorage custom edits so changes are NEVER lost
       saveCustomAnimeEdit(animeId, payload);
 
+      // 1b. Reciprocally link Title A back into each target's linkedAnime (and link all peers in the cluster)
+      const allEdits = getCustomAnimeEdits();
+      const allCached = getAllCachedAnime();
+      const cluster = [
+        {
+          id: animeId,
+          title: editTitle.trim(),
+          originalTitle: editOriginalTitle.trim(),
+          imageUrl: finalImg,
+          year: editYear.trim(),
+          type: editType,
+          relation: editSeason.trim() || 'Связанная часть'
+        },
+        ...editLinkedAnime
+      ];
+
+      for (const target of editLinkedAnime) {
+        const targetId = Number(target.id);
+        if (!targetId || targetId === animeId) continue;
+
+        const targetCustom = allEdits[targetId] || {};
+        const targetCached = allCached.find((c) => Number(c.id) === targetId) || {};
+        let targetLinks = Array.isArray(targetCustom.linkedAnime) ? [...targetCustom.linkedAnime] : [];
+
+        // Add all other members of the cluster (including Title A) to target's links
+        for (const member of cluster) {
+          const mId = Number(member.id);
+          if (mId === targetId) continue;
+          const existingIdx = targetLinks.findIndex((x) => Number(x.id) === mId);
+          const memberObj = {
+            id: mId,
+            title: member.title || 'Аниме',
+            originalTitle: member.originalTitle || '',
+            imageUrl: member.imageUrl || '',
+            year: member.year || '',
+            type: member.type || 'Сериал',
+            relation: member.relation || 'Связанная часть'
+          };
+          if (existingIdx !== -1) {
+            targetLinks[existingIdx] = {
+              ...targetLinks[existingIdx],
+              ...memberObj,
+              relation: member.relation || targetLinks[existingIdx].relation || 'Связанная часть'
+            };
+          } else {
+            targetLinks.push(memberObj);
+          }
+        }
+
+        const targetPayload = {
+          ...targetCached,
+          ...targetCustom,
+          id: targetId,
+          linkedAnime: targetLinks,
+          related_json: JSON.stringify(targetLinks)
+        };
+
+        saveCustomAnimeEdit(targetId, targetPayload);
+        updateCachedAnimeItem(targetId, targetPayload);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('anilex:anime-updated', {
+              detail: targetPayload
+            })
+          );
+        }
+      }
+
       // 2. Update catalog cache across all cached pages
       updateCachedAnimeItem(animeId, payload);
 

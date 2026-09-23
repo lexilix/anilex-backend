@@ -70,7 +70,7 @@ export default function Header({
             value={searchQuery}
             onChange={(e) => {
               onSearchChange(e.target.value);
-              if (onNavigate && e.target.value.trim()) {
+              if (onNavigate && e.target.value.trim() && window.location.hash !== '#/' && window.location.hash !== '') {
                 onNavigate('catalog');
               }
             }}

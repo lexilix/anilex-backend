@@ -318,7 +318,7 @@ export default function ProfilePage({
               allMap.set(cId, cached);
             } else {
               const existing = allMap.get(cId);
-              if ((existing.myScore === null || existing.myScore === undefined) && cached.myScore !== null && cached.myScore !== undefined) {
+              if (cached.myScore !== null && cached.myScore !== undefined) {
                 existing.myScore = cached.myScore;
               }
             }
@@ -374,6 +374,45 @@ export default function ProfilePage({
     if (activeTab === 'ratings') {
       fetchRated();
     }
+  }, [activeTab, fetchRated]);
+
+  // Live listener for ratings updated anywhere in the app (detail page, search, or dev console)
+  useEffect(() => {
+    const handleRatingUpdated = (e) => {
+      const { animeId, score, anime: updatedAnime } = e.detail || {};
+      if (!animeId) return;
+      const numId = Number(animeId);
+
+      setRatedAnime((prev) => {
+        if (score === null || score === undefined) {
+          return prev.filter((it) => Number(it.id) !== numId);
+        }
+        const exists = prev.some((it) => Number(it.id) === numId);
+        if (exists) {
+          return prev.map((it) => (Number(it.id) === numId ? { ...it, myScore: score } : it));
+        } else if (updatedAnime) {
+          return [{ ...updatedAnime, myScore: score }, ...prev];
+        }
+        return prev;
+      });
+
+      // Align with server/cache in background
+      fetchRated();
+    };
+
+    window.addEventListener('anilex:rating-updated', handleRatingUpdated);
+    return () => window.removeEventListener('anilex:rating-updated', handleRatingUpdated);
+  }, [fetchRated]);
+
+  // Re-sync ratings when returning to the tab/window
+  useEffect(() => {
+    const handleFocus = () => {
+      if (activeTab === 'ratings') {
+        fetchRated();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [activeTab, fetchRated]);
 
   // Fetch favorites
@@ -478,20 +517,78 @@ export default function ProfilePage({
     }
   };
 
+  // Quick change rating directly from profile card
+  const handleQuickChangeScore = async (e, anime, newScoreVal) => {
+    e.stopPropagation();
+    if (newScoreVal === 'delete') {
+      handleDeleteRating(e, anime.id);
+      return;
+    }
+    const scoreNum = Number(newScoreVal);
+    if (isNaN(scoreNum) || scoreNum < 1 || scoreNum > 10) return;
+
+    const token = localStorage.getItem('anime_auth_token');
+    const updatedAnime = { ...anime, myScore: scoreNum };
+
+    // 1. Optimistically update local ratedAnime state
+    setRatedAnime((prev) =>
+      prev.map((it) => (Number(it.id) === Number(anime.id) ? { ...it, myScore: scoreNum } : it))
+    );
+
+    // 2. Update client cache
+    updateCachedUserRating(user?.id, anime.id, scoreNum, updatedAnime);
+
+    // 3. Notify parent app and other components
+    if (onRateAnime) {
+      onRateAnime(anime.id, scoreNum, updatedAnime);
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('anilex:rating-updated', {
+          detail: { animeId: Number(anime.id), score: scoreNum, anime: updatedAnime }
+        })
+      );
+    }
+
+    // 4. Send to server
+    if (token) {
+      try {
+        await fetch(apiUrl(`/api/anime/${anime.id}/rate`), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ score: scoreNum, anime: updatedAnime })
+        });
+      } catch (err) {
+        console.warn('Quick change score backend notice:', err);
+      }
+    }
+  };
+
   // Quick delete rating directly from profile card (Photo 2)
   const handleDeleteRating = async (e, animeId) => {
     e.stopPropagation();
     try {
       const token = localStorage.getItem('anime_auth_token');
-      if (!token) return;
 
       // Optimistically remove from state and update cache
-      setRatedAnime((prev) => prev.filter((it) => it.id !== animeId));
+      setRatedAnime((prev) => prev.filter((it) => Number(it.id) !== Number(animeId)));
       updateCachedUserRating(user?.id, animeId, null);
 
       if (onRateAnime) {
         onRateAnime(animeId, null);
-      } else {
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('anilex:rating-updated', {
+            detail: { animeId: Number(animeId), score: null }
+          })
+        );
+      }
+
+      if (token) {
         await fetch(apiUrl(`/api/anime/${animeId}/rate`), {
           method: 'POST',
           headers: {
@@ -1388,9 +1485,21 @@ export default function ProfilePage({
                         <div className="mt-3 flex items-center justify-between text-xs pt-2 border-t border-neutral-100 dark:border-neutral-800/60">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-[11px] text-neutral-400">Оценка:</span>
-                            <span className={`px-2 py-0.5 rounded-lg font-bold text-xs ${getScoreBadgeClass(anime.myScore)}`}>
-                              {anime.myScore} / 10
-                            </span>
+                            <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+                              <select
+                                value={anime.myScore ?? ''}
+                                onChange={(e) => handleQuickChangeScore(e, anime, e.target.value)}
+                                className={`px-2 py-0.5 rounded-lg font-bold text-xs cursor-pointer border border-transparent hover:border-amber-400 focus:outline-none transition-all ${getScoreBadgeClass(anime.myScore)}`}
+                                title="Нажмите, чтобы изменить оценку"
+                              >
+                                {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((s) => (
+                                  <option key={s} value={s} className="bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white">
+                                    {s} / 10
+                                  </option>
+                                ))}
+                                <option value="delete" className="bg-rose-50 text-rose-600 font-bold">Удалить оценку</option>
+                              </select>
+                            </div>
 
                             {/* Reorder Arrows for Top-5 (Photo 1) */}
                             {top5Idx !== -1 && !isMrTechPermanent && (

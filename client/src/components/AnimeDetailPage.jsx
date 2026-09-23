@@ -5,6 +5,7 @@ import { apiUrl, getImageUrl } from '../api';
 import SimilarAnimeFeed from './SimilarAnimeFeed';
 import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 import { applyCustomAnimeEdits, getCustomAnimeEdits } from '../utils/customEditsStorage';
+import { getAllCachedAnime } from '../utils/catalogCache';
 
 export default function AnimeDetailPage({
   animeId,
@@ -12,7 +13,8 @@ export default function AnimeDetailPage({
   onBack,
   onGenreClick,
   onRequireAuth,
-  onSelectAnime
+  onSelectAnime,
+  onRateAnime
 }) {
   const [anime, setAnime] = useState(() => {
     try {
@@ -248,30 +250,69 @@ export default function AnimeDetailPage({
           }
         }
 
-        // Also check if any other custom anime links to this anime
-        Object.values(allCustomEdits).forEach((c) => {
-          if (c && c.id && Number(c.id) !== animeId && Array.isArray(c.linkedAnime)) {
-            const hasLink = c.linkedAnime.some((l) => Number(l.id) === animeId);
-            if (hasLink) {
-              const existingIdx = items.findIndex((it) => Number(it.id) === Number(c.id));
-              if (existingIdx === -1) {
-                items.push({
-                  id: Number(c.id),
-                  title: c.title || 'Аниме',
-                  originalTitle: c.originalTitle || '',
-                  year: c.year || '',
-                  type: c.type || 'Сериал',
-                  imageUrl: c.imageUrl || '',
-                  relation: c.season || 'Связанная часть',
-                  isCurrent: false,
-                  myScore: null,
-                  averageScore: null,
-                  ratingCount: 0
-                });
-              }
+        // 5. Also check if any other anime links to this anime (from custom edits or catalog cache)
+        const checkLinkContainer = (c) => {
+          if (!c || (!Array.isArray(c.linkedAnime) && !c.related_json)) return;
+          let linkedArr = Array.isArray(c.linkedAnime) ? c.linkedAnime : [];
+          if (linkedArr.length === 0 && c.related_json) {
+            try {
+              const parsed = JSON.parse(c.related_json);
+              if (Array.isArray(parsed)) linkedArr = parsed;
+            } catch (e) {}
+          }
+          const hasLink = linkedArr.some((l) => Number(l.id) === animeId);
+          if (!hasLink) return;
+
+          // Add referencing anime itself
+          if (Number(c.id) !== animeId) {
+            const existingIdx = items.findIndex((it) => Number(it.id) === Number(c.id));
+            if (existingIdx === -1) {
+              items.push({
+                id: Number(c.id),
+                title: c.title || 'Аниме',
+                originalTitle: c.originalTitle || c.original_title || '',
+                year: c.year || '',
+                type: c.type || 'Сериал',
+                imageUrl: c.imageUrl || c.image_url || '',
+                relation: c.season || 'Связанная часть',
+                isCurrent: false,
+                myScore: null,
+                averageScore: null,
+                ratingCount: 0
+              });
             }
           }
-        });
+
+          // Add peer franchise anime linked in the same container
+          for (const peer of linkedArr) {
+            if (!peer || !peer.id) continue;
+            const pId = Number(peer.id);
+            const existingIdx = items.findIndex((it) => Number(it.id) === pId);
+            if (existingIdx === -1) {
+              items.push({
+                id: pId,
+                title: peer.title || 'Аниме',
+                originalTitle: peer.originalTitle || '',
+                year: peer.year || '',
+                type: peer.type || 'Сериал',
+                imageUrl: peer.imageUrl || '',
+                relation: peer.relation || 'Связанная часть',
+                isCurrent: pId === animeId,
+                myScore: null,
+                averageScore: null,
+                ratingCount: 0
+              });
+            } else if (!items[existingIdx].relation || items[existingIdx].relation === 'Связанная часть') {
+              items[existingIdx].relation = peer.relation || items[existingIdx].relation;
+            }
+          }
+        };
+
+        Object.values(allCustomEdits).forEach(checkLinkContainer);
+        try {
+          const cachedAll = getAllCachedAnime();
+          cachedAll.forEach(checkLinkContainer);
+        } catch (e) {}
 
         // Sort chronologically by year
         items.sort((a, b) => {
@@ -450,13 +491,25 @@ export default function AnimeDetailPage({
     try {
       const token = localStorage.getItem('anime_auth_token');
       const newScore = anime.myScore === score ? null : score;
+      const targetAnime = { ...anime, myScore: newScore };
       // Optimistically update UI and client cache
       setAnime((prev) => ({
         ...prev,
         myScore: newScore
       }));
-      updateCachedUserRating(user.id, animeId, newScore);
+      updateCachedUserRating(user.id, animeId, newScore, targetAnime);
       updateCachedAnimeItem(animeId, { myScore: newScore });
+
+      if (onRateAnime) {
+        onRateAnime(animeId, newScore, targetAnime);
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('anilex:rating-updated', {
+            detail: { animeId: Number(animeId), score: newScore, anime: targetAnime }
+          })
+        );
+      }
 
       const res = await fetch(apiUrl(`/api/anime/${animeId}/rate`), {
         method: 'POST',
@@ -464,7 +517,7 @@ export default function AnimeDetailPage({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ score: newScore, anime })
+        body: JSON.stringify({ score: newScore, anime: targetAnime })
       });
 
       if (res.ok) {

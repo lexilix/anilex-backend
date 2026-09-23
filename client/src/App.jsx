@@ -511,7 +511,7 @@ export default function App() {
         }
 
         const controller = new AbortController();
-        const searchTimeoutMs = isSearching ? 10000 : 20000; // 10s timeout for search
+        const searchTimeoutMs = isSearching ? 5000 : 20000; // strictly 5s timeout for search
         const timeoutId = setTimeout(() => controller.abort(), searchTimeoutMs);
 
         const res = await fetch(apiUrl(`/api/anime?${params.toString()}`), {
@@ -1148,6 +1148,7 @@ export default function App() {
             onGenreClick={handleGenreClick}
             onRequireAuth={() => setAuthModalOpen(true)}
             onSelectAnime={(id) => navigateTo('anime-detail', id)}
+            onRateAnime={handleRate}
           />
         )}
 

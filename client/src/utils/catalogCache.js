@@ -59,6 +59,7 @@ export function setCachedCatalog(key, payload) {
       recommendationGenresCount: payload.recommendationGenresCount || 0
     };
     localStorage.setItem(`${CACHE_KEY_PREFIX}${key}`, JSON.stringify(cacheData));
+    invalidateAllCachedAnime();
   } catch (e) {
     // LocalStorage may be full or disabled, silently ignore
   }
@@ -119,15 +120,27 @@ export function setCachedPage(filterKey, page, payload) {
       recommendationGenresCount: payload.recommendationGenresCount || 0
     };
     localStorage.setItem(`${PAGE_CACHE_PREFIX}${filterKey}_p${page}`, JSON.stringify(cacheData));
+    invalidateAllCachedAnime();
   } catch (e) {
     // Silently ignore storage quota
   }
 }
 
+let memoizedAllAnime = null;
+
+export function invalidateAllCachedAnime() {
+  memoizedAllAnime = null;
+}
+
 /**
  * Collects all unique anime cached across all pages and searches.
+ * Cached in-memory to prevent thread-blocking JSON parsing on every keystroke.
  */
 export function getAllCachedAnime() {
+  if (memoizedAllAnime && memoizedAllAnime.length > 0) {
+    return memoizedAllAnime;
+  }
+
   const map = new Map();
   // 1. Pre-seed with bundled initial catalog
   if (Array.isArray(initialCatalog)) {
@@ -158,7 +171,8 @@ export function getAllCachedAnime() {
       }
     }
   } catch (e) {}
-  return Array.from(map.values());
+  memoizedAllAnime = Array.from(map.values());
+  return memoizedAllAnime;
 }
 
 /**
@@ -354,6 +368,7 @@ export function updateCachedAnimeItem(animeIdOrItem, updates = null) {
         }
       }
     }
+    invalidateAllCachedAnime();
   } catch (e) {
     // ignore
   }
@@ -398,6 +413,7 @@ export function upsertCachedAnimeItem(item) {
         } catch (err) {}
       }
     }
+    invalidateAllCachedAnime();
   } catch (e) {}
 }
 
@@ -459,6 +475,7 @@ export function appendCachedAnimeItem(item) {
         } catch (err) {}
       }
     }
+    invalidateAllCachedAnime();
   } catch (e) {}
 }
 
@@ -486,5 +503,6 @@ export function removeCachedAnimeItem(animeId) {
         } catch (err) {}
       }
     }
+    invalidateAllCachedAnime();
   } catch (e) {}
 }
