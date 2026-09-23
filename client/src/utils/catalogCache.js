@@ -367,7 +367,7 @@ export function updateCachedAnimeItem(animeIdOrItem, updates = null) {
 
     for (let i = 0; i < localStorage.length; i++) {
       const storageKey = localStorage.key(i);
-      if (storageKey && storageKey.startsWith(CACHE_KEY_PREFIX)) {
+      if (storageKey && (storageKey.startsWith(CACHE_KEY_PREFIX) || storageKey.startsWith(PAGE_CACHE_PREFIX))) {
         try {
           const raw = localStorage.getItem(storageKey);
           if (!raw) continue;
@@ -375,7 +375,8 @@ export function updateCachedAnimeItem(animeIdOrItem, updates = null) {
           if (data && Array.isArray(data.items)) {
             let modified = false;
             data.items = data.items.map((item) => {
-              if (Number(item.id) === numId) {
+              const matchesId = Number(item.id) === numId || (Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId));
+              if (matchesId) {
                 modified = true;
                 return { ...item, ...patch };
               }

@@ -437,11 +437,11 @@ function restoreAccountsFromBackup() {
             } catch (e) {}
           }
           if (animeExists) {
-            // Only insert missing ratings if this user has no ratings in DB yet (initial seed)
+            // Only insert ratings if this user has NO ratings in DB yet (initial seed on empty DB)
+            // Once a user has rated items, never resurrect deleted ratings from backups
             if (!existingUserIdsWithRatings.has(r.user_id)) {
               insertOrIgnoreRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
             }
-            insertRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
           }
         } catch (e) {}
       }

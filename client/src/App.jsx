@@ -808,21 +808,30 @@ export default function App() {
           sanitized = deduplicateAnimeList(sanitized);
         }
 
-        // If searching and 0 results found from server, first check embedded cache (all 3445 titles)
-        if (isSearching && sanitized.length === 0) {
-          const cachedMatches = searchCachedAnime(debouncedSearch.trim());
+        // If searching, always check embedded catalog titles (all 3445+ titles) and merge so no season or title is missed
+        if (isSearching) {
+          const cachedMatches = searchCachedAnime(debouncedSearch.trim()).map(applyCustomAnimeEdits);
           if (cachedMatches.length > 0) {
-            sanitized = cachedMatches;
-            // Register discovered titles to server in background so server sqlite DB gets them too
-            cachedMatches.forEach((item) => {
-              fetch(apiUrl('/api/anime/register'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ anime: item })
-              }).catch(() => {});
-            });
-          } else {
-            // Only if truly 0 matches across all 3445 titles, query Shikimori external fallback
+            const existingIds = new Set(sanitized.map((it) => Number(it.id)));
+            const existingTitles = new Set(sanitized.map((it) => (it.title || '').trim().toLowerCase()));
+            for (const c of cachedMatches) {
+              const cTitle = (c.title || '').trim().toLowerCase();
+              if (!existingIds.has(Number(c.id)) && !existingTitles.has(cTitle)) {
+                sanitized.push(c);
+                existingIds.add(Number(c.id));
+                existingTitles.add(cTitle);
+                // Register discovered catalog titles to server so they exist in DB and can be rated
+                fetch(apiUrl('/api/anime/register'), {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ anime: c })
+                }).catch(() => {});
+              }
+            }
+          }
+
+          if (sanitized.length === 0) {
+            // Only if truly 0 matches across server and catalog, query Shikimori external fallback
             try {
               const externalFound = await searchExternalAnimeFallback(debouncedSearch.trim());
               if (externalFound.length > 0) {
