@@ -982,8 +982,7 @@ export default function ProfilePage({
 
         setFriendRatings(ratings);
         setFriendTop5Ids(friendTop5);
-        const pinnedList = ratings.filter((r) => r.isPinned);
-        setFriendScoreFilter(pinnedList.length > 0 ? 'top5' : 'all');
+        setFriendScoreFilter('all');
         setFriendGenreFilter('all');
       }
     } catch (err) {
@@ -1090,7 +1089,7 @@ export default function ProfilePage({
                   Оценено
                 </span>
                 <span className="text-base font-bold text-neutral-900 dark:text-white">
-                  {user.ratedCount || ratedAnime.length}
+                  {Math.max(user?.ratedCount || 0, totalRatedCount || 0, ratedAnime.length)}
                 </span>
               </div>
 
@@ -1117,7 +1116,7 @@ export default function ProfilePage({
 
           {/* Otaku Level & Progression Card */}
           {(() => {
-            const ratedCount = user ? (user.ratedCount ?? ratedAnime.length) : 0;
+            const ratedCount = Math.max(user?.ratedCount || 0, totalRatedCount || 0, ratedAnime.length);
             const userLevelData = getUserLevel(ratedCount);
 
             return (
@@ -1201,7 +1200,7 @@ export default function ProfilePage({
                   : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
               }`}
             >
-              Мои оценки ({totalRatedCount || ratedAnime.length})
+              Мои оценки ({Math.max(user?.ratedCount || 0, totalRatedCount || 0, ratedAnime.length)})
             </button>
             <button
               onClick={() => setActiveTab('favorites')}
@@ -2218,7 +2217,8 @@ export default function ProfilePage({
                           {selectedFriend.nickname}
                         </h3>
                         {(() => {
-                          const fl = getUserLevel(selectedFriend.ratedCount || 0);
+                          const effectiveFriendCount = Math.max(selectedFriend.ratedCount || 0, friendRatings.length);
+                          const fl = getUserLevel(effectiveFriendCount);
                           return (
                             <div className="flex items-center gap-2.5 text-xs text-neutral-400 mt-1 flex-wrap">
                               <span className={`px-2 py-0.5 rounded-lg text-[11px] font-bold border ${fl.currentLevel.bgBadge} flex items-center gap-1.5`}>
@@ -2226,7 +2226,7 @@ export default function ProfilePage({
                                 <span>{fl.currentLevel.title}</span>
                                 <span className="opacity-75">· Ур. {fl.currentLevel.level}</span>
                               </span>
-                              <span>{selectedFriend.ratedCount || 0} оценок</span>
+                              <span>{effectiveFriendCount} оценок</span>
                               {selectedFriend.isFriend && selectedFriend.avgScore !== null && (
                                 <span className="flex items-center gap-1 font-semibold text-neutral-700 dark:text-neutral-300">
                                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
@@ -2248,7 +2248,8 @@ export default function ProfilePage({
 
                 {/* Friend Otaku Level Card */}
                 {(() => {
-                  const fl = getUserLevel(selectedFriend.ratedCount || 0);
+                  const effectiveFriendCount = Math.max(selectedFriend.ratedCount || 0, friendRatings.length);
+                  const fl = getUserLevel(effectiveFriendCount);
                   return (
                     <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/70 border border-neutral-200/70 dark:border-neutral-800">
                       <div className="flex items-center gap-4">
@@ -2266,7 +2267,7 @@ export default function ProfilePage({
                               </span>
                             )}
                             <span className="text-[11px] px-2 py-0.5 rounded-lg bg-neutral-200/40 dark:bg-neutral-800/60 text-neutral-500 font-medium">
-                              {selectedFriend.ratedCount || 0} {(selectedFriend.ratedCount || 0) === 1 ? 'оценка' : (selectedFriend.ratedCount || 0) < 5 ? 'оценки' : 'оценок'}
+                              {effectiveFriendCount} {effectiveFriendCount === 1 ? 'оценка' : effectiveFriendCount < 5 ? 'оценки' : 'оценок'}
                             </span>
                           </div>
                           <h4 className="text-base font-bold text-neutral-900 dark:text-white">
@@ -2688,7 +2689,7 @@ export default function ProfilePage({
 
             {/* Current User Level Banner */}
             {(() => {
-              const ratedCount = user ? (user.ratedCount ?? ratedAnime.length) : 0;
+              const ratedCount = Math.max(user?.ratedCount || 0, totalRatedCount || 0, ratedAnime.length);
               const userLevelData = getUserLevel(ratedCount);
 
               return (
@@ -2748,7 +2749,7 @@ export default function ProfilePage({
 
               <div className="space-y-3">
                 {(() => {
-                  const ratedCount = user ? (user.ratedCount ?? ratedAnime.length) : 0;
+                  const ratedCount = Math.max(user?.ratedCount || 0, totalRatedCount || 0, ratedAnime.length);
                   const userLevelData = getUserLevel(ratedCount);
 
                   return LEVELS_CONFIG.map((tier) => {
