@@ -557,27 +557,36 @@ export default function DevConsolePage({
           .filter((it) => !deletedAnimeIds.has(Number(it.id)))
           .map((it) => applyCustomAnimeEdits(it));
 
-        // If search returned 0 items from server, query external Shikimori/AnimeGO fallback and cache
-        if (searchQuery.trim() && filtered.length === 0) {
-          try {
-            const external = await searchExternalAnimeFallback(searchQuery.trim());
-            if (external && external.length > 0) {
-              filtered = external.filter((it) => !deletedAnimeIds.has(Number(it.id)));
-              // Register discovered titles to the server so they are persisted in SQLite DB
-              external.forEach((it) => {
-                fetch(apiUrl('/api/anime/register'), {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ anime: it })
-                }).catch(() => {});
-              });
-            } else {
-              const cached = searchCachedAnime(searchQuery.trim());
-              if (cached && cached.length > 0) {
-                filtered = cached.filter((it) => !deletedAnimeIds.has(Number(it.id))).map((it) => applyCustomAnimeEdits(it));
+        // If searching, always check cached database titles (all 3445 titles) and merge so nothing is missed
+        if (searchQuery.trim()) {
+          const cached = searchCachedAnime(searchQuery.trim())
+            .filter((it) => !deletedAnimeIds.has(Number(it.id)))
+            .map((it) => applyCustomAnimeEdits(it));
+
+          if (cached.length > 0) {
+            const existingIds = new Set(filtered.map((it) => Number(it.id)));
+            for (const c of cached) {
+              if (!existingIds.has(Number(c.id))) {
+                filtered.push(c);
+                existingIds.add(Number(c.id));
               }
             }
-          } catch (fallbackErr) {}
+          } else if (filtered.length === 0) {
+            try {
+              const external = await searchExternalAnimeFallback(searchQuery.trim());
+              if (external && external.length > 0) {
+                filtered = external.filter((it) => !deletedAnimeIds.has(Number(it.id)));
+                // Register discovered titles to the server so they are persisted in SQLite DB
+                external.forEach((it) => {
+                  fetch(apiUrl('/api/anime/register'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ anime: it })
+                  }).catch(() => {});
+                });
+              }
+            } catch (fallbackErr) {}
+          }
         }
 
         setAnimeList(filtered);

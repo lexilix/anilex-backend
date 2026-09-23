@@ -2808,21 +2808,21 @@ app.get('/api/user/rated-anime', authMiddleware, (req, res) => {
 
     const items = db.prepare(`
       SELECT
-        a.id,
-        a.slug,
-        a.title,
+        COALESCE(a.id, r.anime_id) as id,
+        COALESCE(a.slug, 'anime-' || r.anime_id) as slug,
+        COALESCE(a.title, 'Аниме #' || r.anime_id) as title,
         a.original_title,
         a.image_url,
-        a.type,
+        COALESCE(a.type, 'Сериал') as type,
         a.year,
         a.genres,
         a.description,
         r.score as my_score,
         r.updated_at as rated_at,
-        ROUND((SELECT AVG(score) FROM ratings WHERE anime_id = a.id), 1) as avg_score,
-        (SELECT COUNT(id) FROM ratings WHERE anime_id = a.id) as rating_count
+        ROUND((SELECT AVG(score) FROM ratings WHERE anime_id = COALESCE(a.id, r.anime_id)), 1) as avg_score,
+        (SELECT COUNT(id) FROM ratings WHERE anime_id = COALESCE(a.id, r.anime_id)) as rating_count
       FROM ratings r
-      JOIN anime a ON r.anime_id = a.id
+      LEFT JOIN anime a ON r.anime_id = a.id
       WHERE ${whereClauses.join(' AND ')}
       ${orderBySql}
     `).all(...params);
@@ -2831,12 +2831,12 @@ app.get('/api/user/rated-anime', authMiddleware, (req, res) => {
       id: item.id,
       slug: item.slug,
       title: item.title,
-      originalTitle: item.original_title,
-      imageUrl: item.image_url,
+      originalTitle: item.original_title || '',
+      imageUrl: item.image_url || '',
       type: item.type,
-      year: item.year,
+      year: item.year || '',
       genres: JSON.parse(item.genres || '[]'),
-      description: item.description,
+      description: item.description || '',
       myScore: item.my_score,
       ratedAt: item.rated_at,
       averageScore: item.rating_count > 0 && item.avg_score !== null ? Number(item.avg_score) : null,
@@ -2986,74 +2986,6 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
   } catch (err) {
     console.error('Rate anime error:', err.message);
     return res.status(500).json({ error: 'Ошибка сохранения оценки' });
-  }
-});
-
-// Register anime discovered from external search (Shikimori/AnimeGO) directly to DB
-app.post('/api/anime/register', (req, res) => {
-  try {
-    const { anime: animeData } = req.body;
-    if (!animeData || !animeData.title) {
-      return res.status(400).json({ error: 'Требуются данные аниме' });
-    }
-
-    const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
-    const tLower = normalize(animeData.title);
-    const oLower = normalize(animeData.originalTitle || animeData.original_title || '');
-    let slug = animeData.slug;
-
-    let existing = null;
-    if (slug) {
-      existing = db.prepare('SELECT id, slug, title FROM anime WHERE slug = ?').get(slug);
-    }
-    if (!existing && tLower) {
-      existing = db.prepare('SELECT id, slug, title FROM anime WHERE title_lower = ?').get(tLower);
-    }
-
-    if (existing) {
-      return res.json({ success: true, anime: existing, created: false });
-    }
-
-    if (!slug) {
-      slug = `anime-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    }
-    const slugCheck = db.prepare('SELECT id FROM anime WHERE slug = ?').get(slug);
-    if (slugCheck) {
-      slug = `${slug}-${Date.now()}`;
-    }
-
-    const genresStr = JSON.stringify(animeData.genres || []);
-    const info = db.prepare(`
-      INSERT INTO anime (slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      slug,
-      animeData.title,
-      tLower,
-      animeData.originalTitle || animeData.original_title || '',
-      oLower,
-      animeData.imageUrl || animeData.image_url || '',
-      animeData.type || 'Сериал',
-      animeData.year || '',
-      genresStr,
-      animeData.description || '',
-      animeData.season || '',
-      JSON.stringify(animeData.linkedAnime || [])
-    );
-
-    const insertedId = Number(info.lastInsertRowid);
-    if (typeof db.saveAccountsBackup === 'function') {
-      db.saveAccountsBackup();
-    }
-
-    return res.json({
-      success: true,
-      anime: { id: insertedId, slug, title: animeData.title },
-      created: true
-    });
-  } catch (err) {
-    console.error('Register anime error:', err.message);
-    return res.status(500).json({ error: 'Ошибка регистрации аниме' });
   }
 });
 

@@ -306,8 +306,28 @@ export default function ProfilePage({
       if (res.ok) {
         const data = await res.json();
         let allItems = deduplicateAnimeList(data.items || []);
+
+        // Merge with locally cached user ratings so fresh ratings (or cold starts) are never lost
+        const cachedRatings = getCachedUserRatings(user?.id) || [];
+        if (cachedRatings.length > 0) {
+          const allMap = new Map();
+          allItems.forEach((it) => allMap.set(Number(it.id), it));
+          cachedRatings.forEach((cached) => {
+            const cId = Number(cached.id);
+            if (!allMap.has(cId)) {
+              allMap.set(cId, cached);
+            } else {
+              const existing = allMap.get(cId);
+              if ((existing.myScore === null || existing.myScore === undefined) && cached.myScore !== null && cached.myScore !== undefined) {
+                existing.myScore = cached.myScore;
+              }
+            }
+          });
+          allItems = deduplicateAnimeList(Array.from(allMap.values()));
+        }
+
         if (data.total !== undefined) {
-          setTotalRatedCount(data.total);
+          setTotalRatedCount(Math.max(data.total, allItems.length));
         } else if (!searchQuery.trim() && selectedType === 'all' && activeRatedGenres.length === 0 && selectedScore === 'all') {
           setTotalRatedCount(allItems.length);
         }
@@ -335,11 +355,12 @@ export default function ProfilePage({
             }
           }
         } else if (selectedScore !== 'all') {
-          items = allItems.filter((it) => it.myScore === parseInt(selectedScore, 10));
+          const targetScore = parseInt(selectedScore, 10);
+          items = allItems.filter((it) => Number(it.myScore) === targetScore);
         }
         setRatedAnime(items);
         if (!searchQuery.trim() && selectedType === 'all' && activeRatedGenres.length === 0 && selectedScore === 'all') {
-          setCachedUserRatings(user?.id, items);
+          setCachedUserRatings(user?.id, allItems);
         }
       }
     } catch (err) {
@@ -647,10 +668,13 @@ export default function ProfilePage({
       return;
     }
 
-    const isAlreadyIn = myTop5Ids.map(Number).includes(Number(animeId));
+    const activeTop5List = myTop5Ids.filter((id) =>
+      ratedAnime.some((it) => Number(it.id) === Number(id))
+    );
+    const isAlreadyIn = activeTop5List.map(Number).includes(Number(animeId));
     let updated;
     if (isAlreadyIn) {
-      updated = myTop5Ids.filter((id) => Number(id) !== Number(animeId));
+      updated = activeTop5List.filter((id) => Number(id) !== Number(animeId));
       setMyTop5Ids(updated);
       localStorage.setItem('anilex_top5_' + user?.id, JSON.stringify(updated));
       if (user?.nickname) {
@@ -659,12 +683,12 @@ export default function ProfilePage({
       setTop5Toast(`«${anime.title}» убран из Топ-5`);
       setTimeout(() => setTop5Toast(null), 2500);
     } else {
-      if (myTop5Ids.length >= 5) {
+      if (activeTop5List.length >= 5) {
         setTop5Toast('В Топ-5 можно добавить только 5 аниме, больше нельзя!');
         setTimeout(() => setTop5Toast(null), 3000);
         return;
       }
-      updated = [...myTop5Ids, Number(animeId)];
+      updated = [...activeTop5List, Number(animeId)].slice(0, 5);
       setMyTop5Ids(updated);
       localStorage.setItem('anilex_top5_' + user?.id, JSON.stringify(updated));
       if (user?.nickname) {

@@ -302,140 +302,7 @@ function restoreAccountsFromBackup() {
     const raw = fs.readFileSync(backupFile, 'utf8');
     const data = JSON.parse(raw);
 
-    // Restore users with strict protection of existing avatar, banner, and nickname
-    if (Array.isArray(data.users)) {
-      const insertUserStmt = db.prepare(`
-        INSERT INTO users (id, email, nickname, password_hash, salt, avatar_url, banner_url, allow_password_set, is_blocked, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          avatar_url = COALESCE(users.avatar_url, excluded.avatar_url),
-          banner_url = COALESCE(users.banner_url, excluded.banner_url),
-          nickname = COALESCE(users.nickname, excluded.nickname),
-          email = COALESCE(users.email, excluded.email),
-          is_blocked = COALESCE(excluded.is_blocked, users.is_blocked, 0)
-      `);
-      for (const u of data.users) {
-        try {
-          insertUserStmt.run(
-            u.id,
-            u.email,
-            u.nickname,
-            u.password_hash || 'RESTORED_ACCOUNT',
-            u.salt || 'RESTORED_SALT',
-            u.avatar_url || null,
-            u.banner_url || null,
-            u.allow_password_set !== undefined ? u.allow_password_set : 0,
-            u.is_blocked !== undefined ? u.is_blocked : 0,
-            u.created_at || new Date().toISOString()
-          );
-        } catch (e) {}
-      }
-    }
-
-    // Restore friend requests
-    if (Array.isArray(data.friendRequests)) {
-      const insertFriendStmt = db.prepare(`
-        INSERT INTO friend_requests (id, from_user_id, to_user_id, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(from_user_id, to_user_id) DO UPDATE SET
-          status = excluded.status,
-          updated_at = excluded.updated_at
-      `);
-      for (const f of data.friendRequests) {
-        try {
-          insertFriendStmt.run(f.id, f.from_user_id, f.to_user_id, f.status, f.created_at, f.updated_at);
-        } catch (e) {}
-      }
-    }
-
-    // Restore ratings
-    if (Array.isArray(data.ratings)) {
-      const insertRatingStmt = db.prepare(`
-        INSERT INTO ratings (id, user_id, anime_id, score, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(user_id, anime_id) DO UPDATE SET
-          score = excluded.score,
-          updated_at = excluded.updated_at
-      `);
-      for (const r of data.ratings) {
-        try {
-          const animeExists = db.prepare('SELECT id FROM anime WHERE id = ?').get(r.anime_id);
-          if (animeExists) {
-            insertRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
-          }
-        } catch (e) {}
-      }
-    }
-
-    // Restore favorites
-    if (Array.isArray(data.favorites)) {
-      const insertFavStmt = db.prepare(`
-        INSERT OR IGNORE INTO favorites (id, user_id, anime_id, created_at)
-        VALUES (?, ?, ?, ?)
-      `);
-      for (const fav of data.favorites) {
-        try {
-          insertFavStmt.run(fav.id, fav.user_id, fav.anime_id, fav.created_at || new Date().toISOString());
-        } catch (e) {}
-      }
-    }
-
-    // Restore comment reactions
-    if (Array.isArray(data.commentReactions)) {
-      const insertReactStmt = db.prepare(`
-        INSERT INTO comment_reactions (id, comment_id, user_id, type, created_at)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(comment_id, user_id) DO UPDATE SET
-          type = excluded.type,
-          created_at = excluded.created_at
-      `);
-      for (const cr of data.commentReactions) {
-        try {
-          insertReactStmt.run(cr.id, cr.comment_id, cr.user_id, cr.type, cr.created_at || new Date().toISOString());
-        } catch (e) {}
-      }
-    }
-
-    // Restore comments
-    if (Array.isArray(data.comments)) {
-      const insertCommentStmt = db.prepare(`
-        INSERT OR IGNORE INTO comments (id, anime_id, user_id, content, parent_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-      for (const c of data.comments) {
-        try {
-          insertCommentStmt.run(c.id, c.anime_id, c.user_id, c.content, c.parent_id || null, c.created_at);
-        } catch (e) {}
-      }
-    }
-
-    // Restore hidden anime preferences
-    if (Array.isArray(data.hiddenAnime)) {
-      const insertHiddenStmt = db.prepare(`
-        INSERT OR IGNORE INTO user_hidden_anime (id, user_id, anime_id, created_at)
-        VALUES (?, ?, ?, ?)
-      `);
-      for (const h of data.hiddenAnime) {
-        try {
-          insertHiddenStmt.run(h.id, h.user_id, h.anime_id, h.created_at || new Date().toISOString());
-        } catch (e) {}
-      }
-    }
-
-    // Restore user_top5
-    if (Array.isArray(data.userTop5)) {
-      const insertTop5Stmt = db.prepare(`
-        INSERT OR REPLACE INTO user_top5 (user_id, anime_id, created_at, position)
-        VALUES (?, ?, ?, ?)
-      `);
-      for (const t of data.userTop5) {
-        try {
-          insertTop5Stmt.run(t.user_id, t.anime_id, t.created_at || new Date().toISOString(), t.position ?? 0);
-        } catch (e) {}
-      }
-    }
-
-    // Restore customAnime
+    // 1. Restore customAnime FIRST so anime records exist for ratings, favorites, top5
     if (Array.isArray(data.customAnime)) {
       const insertAnimeStmt = db.prepare(`
         INSERT INTO anime (id, slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json, created_at, updated_at)
@@ -479,7 +346,7 @@ function restoreAccountsFromBackup() {
       }
     }
 
-    // Restore customGenres
+    // 2. Restore customGenres
     if (Array.isArray(data.customGenres)) {
       const insertGenreStmt = db.prepare('INSERT OR IGNORE INTO custom_genres (name) VALUES (?)');
       for (const g of data.customGenres) {
@@ -491,7 +358,146 @@ function restoreAccountsFromBackup() {
       }
     }
 
-    console.log('[Database] Auto-restored accounts, friendships, ratings, top5, custom anime, and custom genres from accounts_backup.json.');
+    // 3. Restore users with strict protection of existing avatar, banner, and nickname
+    if (Array.isArray(data.users)) {
+      const insertUserStmt = db.prepare(`
+        INSERT INTO users (id, email, nickname, password_hash, salt, avatar_url, banner_url, allow_password_set, is_blocked, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          avatar_url = COALESCE(users.avatar_url, excluded.avatar_url),
+          banner_url = COALESCE(users.banner_url, excluded.banner_url),
+          nickname = COALESCE(users.nickname, excluded.nickname),
+          email = COALESCE(users.email, excluded.email),
+          is_blocked = COALESCE(excluded.is_blocked, users.is_blocked, 0)
+      `);
+      for (const u of data.users) {
+        try {
+          insertUserStmt.run(
+            u.id,
+            u.email,
+            u.nickname,
+            u.password_hash || 'RESTORED_ACCOUNT',
+            u.salt || 'RESTORED_SALT',
+            u.avatar_url || null,
+            u.banner_url || null,
+            u.allow_password_set !== undefined ? u.allow_password_set : 0,
+            u.is_blocked !== undefined ? u.is_blocked : 0,
+            u.created_at || new Date().toISOString()
+          );
+        } catch (e) {}
+      }
+    }
+
+    // 4. Restore friend requests
+    if (Array.isArray(data.friendRequests)) {
+      const insertFriendStmt = db.prepare(`
+        INSERT INTO friend_requests (id, from_user_id, to_user_id, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(from_user_id, to_user_id) DO UPDATE SET
+          status = excluded.status,
+          updated_at = excluded.updated_at
+      `);
+      for (const f of data.friendRequests) {
+        try {
+          insertFriendStmt.run(f.id, f.from_user_id, f.to_user_id, f.status, f.created_at, f.updated_at);
+        } catch (e) {}
+      }
+    }
+
+    // 5. Restore ratings - IMPORTANT: DO NOT OVERWRITE existing ratings if DB already has them!
+    if (Array.isArray(data.ratings)) {
+      const insertRatingStmt = db.prepare(`
+        INSERT INTO ratings (id, user_id, anime_id, score, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, anime_id) DO UPDATE SET
+          score = excluded.score,
+          updated_at = excluded.updated_at
+        WHERE excluded.updated_at > ratings.updated_at
+      `);
+      const insertOrIgnoreRatingStmt = db.prepare(`
+        INSERT OR IGNORE INTO ratings (id, user_id, anime_id, score, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      for (const r of data.ratings) {
+        try {
+          const animeExists = db.prepare('SELECT id FROM anime WHERE id = ?').get(r.anime_id);
+          if (animeExists) {
+            insertOrIgnoreRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
+            insertRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 6. Restore favorites
+    if (Array.isArray(data.favorites)) {
+      const insertFavStmt = db.prepare(`
+        INSERT OR IGNORE INTO favorites (id, user_id, anime_id, created_at)
+        VALUES (?, ?, ?, ?)
+      `);
+      for (const fav of data.favorites) {
+        try {
+          insertFavStmt.run(fav.id, fav.user_id, fav.anime_id, fav.created_at || new Date().toISOString());
+        } catch (e) {}
+      }
+    }
+
+    // 7. Restore comment reactions
+    if (Array.isArray(data.commentReactions)) {
+      const insertReactStmt = db.prepare(`
+        INSERT INTO comment_reactions (id, comment_id, user_id, type, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(comment_id, user_id) DO UPDATE SET
+          type = excluded.type,
+          created_at = excluded.created_at
+      `);
+      for (const cr of data.commentReactions) {
+        try {
+          insertReactStmt.run(cr.id, cr.comment_id, cr.user_id, cr.type, cr.created_at || new Date().toISOString());
+        } catch (e) {}
+      }
+    }
+
+    // 8. Restore comments
+    if (Array.isArray(data.comments)) {
+      const insertCommentStmt = db.prepare(`
+        INSERT OR IGNORE INTO comments (id, anime_id, user_id, content, parent_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      for (const c of data.comments) {
+        try {
+          insertCommentStmt.run(c.id, c.anime_id, c.user_id, c.content, c.parent_id || null, c.created_at);
+        } catch (e) {}
+      }
+    }
+
+    // 9. Restore hidden anime preferences
+    if (Array.isArray(data.hiddenAnime)) {
+      const insertHiddenStmt = db.prepare(`
+        INSERT OR IGNORE INTO user_hidden_anime (id, user_id, anime_id, created_at)
+        VALUES (?, ?, ?, ?)
+      `);
+      for (const h of data.hiddenAnime) {
+        try {
+          insertHiddenStmt.run(h.id, h.user_id, h.anime_id, h.created_at || new Date().toISOString());
+        } catch (e) {}
+      }
+    }
+
+    // 10. Restore user_top5
+    if (Array.isArray(data.userTop5)) {
+      const insertTop5Stmt = db.prepare(`
+        INSERT OR REPLACE INTO user_top5 (user_id, anime_id, created_at, position)
+        VALUES (?, ?, ?, ?)
+      `);
+      for (const t of data.userTop5) {
+        try {
+          insertTop5Stmt.run(t.user_id, t.anime_id, t.created_at || new Date().toISOString(), t.position ?? 0);
+        } catch (e) {}
+      }
+    }
+
+    console.log('[Database] Auto-restored custom anime, accounts, friendships, ratings, top5, and custom genres from accounts_backup.json.');
   } catch (err) {
     console.error('[Database] Failed to restore from accounts_backup.json:', err.message);
   }
@@ -503,13 +509,27 @@ restoreAccountsFromBackup();
 function saveAccountsBackup() {
   try {
     const backupFile = path.join(dataDir, 'accounts_backup.json');
+    const permFile = path.join(dataDir, 'accounts_backup_permanent.json');
     const users = db.prepare('SELECT * FROM users').all();
     const ratings = db.prepare('SELECT * FROM ratings').all();
     const friendRequests = db.prepare('SELECT * FROM friend_requests').all();
     const comments = db.prepare('SELECT * FROM comments').all();
     const hiddenAnime = db.prepare('SELECT * FROM user_hidden_anime').all();
     const userTop5 = db.prepare('SELECT * FROM user_top5').all();
-    const customAnime = db.prepare("SELECT * FROM anime WHERE id > 3400 OR slug LIKE 'shiki-%' OR slug LIKE 'animego-%' OR id IN (6573, 6584, 6585, 6586, 7195)").all();
+
+    // Include ALL non-default anime, or anime that have ratings/favorites/top5/comments, or explicit IDs
+    const customAnime = db.prepare(`
+      SELECT * FROM anime
+      WHERE id > 3400
+         OR slug LIKE 'shiki-%'
+         OR slug LIKE 'animego-%'
+         OR id IN (SELECT anime_id FROM ratings)
+         OR id IN (SELECT anime_id FROM user_top5)
+         OR id IN (SELECT anime_id FROM favorites)
+         OR id IN (SELECT anime_id FROM comments)
+         OR id IN (6573, 6584, 6585, 6586, 7195)
+    `).all();
+
     let customGenres = [];
     try {
       customGenres = db.prepare('SELECT name FROM custom_genres').all().map((r) => r.name);
@@ -538,11 +558,19 @@ function saveAccountsBackup() {
       commentReactions
     };
 
-    fs.writeFileSync(backupFile, JSON.stringify(snapshot, null, 2), 'utf8');
+    const payload = JSON.stringify(snapshot, null, 2);
+
+    // Atomically overwrite old saves
+    if (fs.existsSync(backupFile)) {
+      try { fs.unlinkSync(backupFile); } catch (e) {}
+    }
+    fs.writeFileSync(backupFile, payload, 'utf8');
 
     // Also update permanent redundant archive
-    const permFile = path.join(dataDir, 'accounts_backup_permanent.json');
-    fs.writeFileSync(permFile, JSON.stringify(snapshot, null, 2), 'utf8');
+    if (fs.existsSync(permFile)) {
+      try { fs.unlinkSync(permFile); } catch (e) {}
+    }
+    fs.writeFileSync(permFile, payload, 'utf8');
   } catch (err) {
     console.error('[Database] Failed to snapshot accounts_backup.json:', err.message);
   }
@@ -683,47 +711,50 @@ function deduplicateAnimeDatabase() {
       `).run(JSON.stringify(keeperGenres), keeperOrig, normalizeSearchText(keeperOrig), keeperDesc, keeper.id);
     }
 
-    // 2. Number-word and canonical original_title duplicates (Photo 2)
+    // 2. Number-word and canonical original_title duplicates (Bucketed Map for instant startup)
     const all = db.prepare('SELECT id, slug, title, original_title, year, type, image_url, genres, description FROM anime').all();
+    const buckets = new Map();
+
+    for (const a of all) {
+      const aWordKey = getWordKey(a.title);
+      if (aWordKey && aWordKey.length >= 8) {
+        if (!buckets.has(aWordKey)) buckets.set(aWordKey, []);
+        buckets.get(aWordKey).push(a);
+      }
+      const aOrigs = getOriginalTitles(a.original_title);
+      for (const ao of aOrigs) {
+        if (ao && ao.length >= 8) {
+          const origKey = 'orig_' + ao;
+          if (!buckets.has(origKey)) buckets.set(origKey, []);
+          buckets.get(origKey).push(a);
+        }
+      }
+    }
+
     const checkedPairs = new Set();
 
-    for (let i = 0; i < all.length; i++) {
-      const a = all[i];
-      const aWordKey = getWordKey(a.title);
-      const aOrigs = getOriginalTitles(a.original_title);
-      const aSeason = extractSeasonNumber(a.title);
-      const aIsOva = /ova|спешл|спецвыпуск/i.test(a.title) || a.type === 'OVA' || a.type === 'Спешл';
+    for (const group of buckets.values()) {
+      if (group.length < 2) continue;
+      for (let i = 0; i < group.length; i++) {
+        const a = group[i];
+        const aSeason = extractSeasonNumber(a.title);
+        const aIsOva = /ova|спешл|спецвыпуск/i.test(a.title) || a.type === 'OVA' || a.type === 'Спешл';
 
-      for (let j = i + 1; j < all.length; j++) {
-        const b = all[j];
-        const pairKey = [a.id, b.id].sort().join('-');
-        if (checkedPairs.has(pairKey)) continue;
-
-        const yearMatch = !a.year || !b.year || a.year === b.year;
-        if (!yearMatch) continue;
-
-        const bIsOva = /ova|спешл|спецвыпуск/i.test(b.title) || b.type === 'OVA' || b.type === 'Спешл';
-        if (aIsOva !== bIsOva) continue;
-
-        const bSeason = extractSeasonNumber(b.title);
-        if (aSeason !== bSeason) continue;
-
-        let isDup = false;
-        if (aWordKey && aWordKey.length >= 8 && aWordKey === getWordKey(b.title)) {
-          isDup = true;
-        }
-        if (!isDup && aOrigs.length > 0) {
-          const bOrigs = getOriginalTitles(b.original_title);
-          for (const ao of aOrigs) {
-            if (ao.length >= 8 && bOrigs.includes(ao)) {
-              isDup = true;
-              break;
-            }
-          }
-        }
-
-        if (isDup) {
+        for (let j = i + 1; j < group.length; j++) {
+          const b = group[j];
+          if (a.id === b.id) continue;
+          const pairKey = [a.id, b.id].sort().join('-');
+          if (checkedPairs.has(pairKey)) continue;
           checkedPairs.add(pairKey);
+
+          const yearMatch = !a.year || !b.year || a.year === b.year;
+          if (!yearMatch) continue;
+
+          const bIsOva = /ova|спешл|спецвыпуск/i.test(b.title) || b.type === 'OVA' || b.type === 'Спешл';
+          if (aIsOva !== bIsOva) continue;
+
+          const bSeason = extractSeasonNumber(b.title);
+          if (aSeason !== bSeason) continue;
 
           const rA = db.prepare('SELECT count(*) as c FROM ratings WHERE anime_id = ?').get(a.id).c;
           const rB = db.prepare('SELECT count(*) as c FROM ratings WHERE anime_id = ?').get(b.id).c;
