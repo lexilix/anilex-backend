@@ -1489,8 +1489,8 @@ export default function ProfilePage({
                               <select
                                 value={anime.myScore !== null && anime.myScore !== undefined ? Number(anime.myScore) : ''}
                                 onChange={(e) => handleQuickChangeScore(e, anime, e.target.value)}
-                                className={`appearance-none -webkit-appearance-none px-1.5 py-0 h-5 rounded-md font-black text-[10px] sm:text-[11px] cursor-pointer border-0 outline-none text-center leading-none shadow-none transition-all hover:scale-105 ${getScoreBadgeClass(anime.myScore)}`}
-                                style={{ lineHeight: '20px', minHeight: '20px', height: '20px' }}
+                                className={`appearance-none -webkit-appearance-none px-1 py-0 h-5 w-[48px] sm:w-[50px] rounded-md font-black text-[10px] sm:text-[11px] cursor-pointer border-0 outline-none text-center leading-none shadow-none transition-all hover:scale-105 ${getScoreBadgeClass(anime.myScore)}`}
+                                style={{ lineHeight: '20px', minHeight: '20px', height: '20px', width: '50px', textAlign: 'center', textAlignLast: 'center' }}
                                 title="Нажмите, чтобы изменить оценку"
                               >
                                 {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].map((s) => (
