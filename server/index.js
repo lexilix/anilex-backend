@@ -4337,9 +4337,12 @@ app.delete('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    // Strictly disallow deleting Just (id: 5 or nickname Just)
-    if (targetUser.id === 5 || targetUser.nickname === 'Just' || targetUser.email === 'just9jeeet@gmail.com') {
-      return res.status(403).json({ error: 'Нельзя удалить аккаунт главного разработчика Just' });
+    // Strictly disallow deleting Just (id: 5) and haitek (id: 22)
+    const isProtected = targetUser.id === 5 || targetUser.id === 22 ||
+      ['just', 'haitek'].includes((targetUser.nickname || '').toLowerCase()) ||
+      ['just9jeeet@gmail.com', 'cik5921@gmail.com'].includes((targetUser.email || '').toLowerCase());
+    if (isProtected) {
+      return res.status(403).json({ error: `Нельзя удалить защищённый аккаунт ${targetUser.nickname}` });
     }
 
     // 1. Delete user comment reactions

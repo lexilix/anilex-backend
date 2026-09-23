@@ -1138,8 +1138,8 @@ export default function DevConsolePage({
   const handleImageFileChange = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      showToast('Файл превышает 8 МБ', 'error');
+    if (file.size > 15 * 1024 * 1024) {
+      showToast('Файл превышает 15 МБ', 'error');
       return;
     }
     const reader = new FileReader();
@@ -1163,8 +1163,8 @@ export default function DevConsolePage({
   const handleCreateImageFileChange = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      showToast('Файл превышает 8 МБ', 'error');
+    if (file.size > 15 * 1024 * 1024) {
+      showToast('Файл превышает 15 МБ', 'error');
       return;
     }
     const reader = new FileReader();
@@ -1513,8 +1513,8 @@ export default function DevConsolePage({
     const file = e.target.files && e.target.files[0];
     if (!file) return;
 
-    if (file.size > 8 * 1024 * 1024) {
-      showToast('Файл слишком большой. Выберите изображение до 8 МБ.', 'error');
+    if (file.size > 15 * 1024 * 1024) {
+      showToast('Файл слишком большой. Выберите изображение до 15 МБ.', 'error');
       return;
     }
 
@@ -2568,7 +2568,7 @@ export default function DevConsolePage({
                       </button>
                     )}
 
-                    {u.nickname !== 'Just' && u.id !== 5 && (
+                    {u.nickname !== 'Just' && u.id !== 5 && u.nickname?.toLowerCase() !== 'haitek' && u.email?.toLowerCase() !== 'cik5921@gmail.com' && (
                       <button
                         type="button"
                         onClick={(e) => {

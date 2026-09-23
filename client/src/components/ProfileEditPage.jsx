@@ -41,8 +41,8 @@ export default function ProfileEditPage({
     const file = e.target.files && e.target.files[0];
     if (!file) return;
 
-    if (file.size > 8 * 1024 * 1024) {
-      setError('Файл слишком большой. Выберите изображение до 8 МБ.');
+    if (file.size > 15 * 1024 * 1024) {
+      setError('Файл слишком большой. Выберите изображение до 15 МБ.');
       return;
     }
 
@@ -258,7 +258,7 @@ export default function ProfileEditPage({
                 )}
               </div>
               <p className="text-[11px] text-neutral-400">
-                Поддерживаются форматы PNG, JPG, WebP до 8 МБ
+                Поддерживаются форматы PNG, JPG, WebP до 15 МБ
               </p>
             </div>
 
