@@ -988,14 +988,26 @@ export default function DevConsolePage({
     const custom = customEdits[Number(anime.id)] || {};
 
     let existingLinked = [];
-    if (Array.isArray(custom.linkedAnime)) {
+    if (Array.isArray(custom.linkedAnime) && custom.linkedAnime.length > 0) {
       existingLinked = custom.linkedAnime;
-    } else if (Array.isArray(anime.linkedAnime)) {
+    } else if (Array.isArray(anime.linkedAnime) && anime.linkedAnime.length > 0) {
       existingLinked = anime.linkedAnime;
-    } else if (anime.related_json) {
+    } else if (anime.related_json && anime.related_json !== '[]') {
       try {
         existingLinked = JSON.parse(anime.related_json);
       } catch (e) {}
+    }
+
+    const allCached = (typeof getAllCachedAnime === 'function' ? getAllCachedAnime() : []) || [];
+    const cachedItem = allCached.find((c) => Number(c.id) === Number(anime.id));
+    if (existingLinked.length === 0 && cachedItem) {
+      if (Array.isArray(cachedItem.linkedAnime) && cachedItem.linkedAnime.length > 0) {
+        existingLinked = cachedItem.linkedAnime;
+      } else if (cachedItem.related_json && cachedItem.related_json !== '[]') {
+        try {
+          existingLinked = JSON.parse(cachedItem.related_json);
+        } catch (e) {}
+      }
     }
 
     const detectedSeason = detectAnimeSeason(
@@ -1004,7 +1016,7 @@ export default function DevConsolePage({
       anime.type,
       existingLinked
     );
-    setEditSeason(custom.season || anime.season || detectedSeason || '');
+    setEditSeason(custom.season || anime.season || (cachedItem && cachedItem.season) || detectedSeason || '');
 
     setEditLinkedAnime(existingLinked);
     setLinkSearchQuery('');
@@ -2254,20 +2266,39 @@ export default function DevConsolePage({
                 const customEdits = getCustomAnimeEdits();
                 const custom = customEdits[Number(anime.id)] || {};
                 let currentLinked = [];
-                if (Array.isArray(custom.linkedAnime)) {
+                if (Array.isArray(custom.linkedAnime) && custom.linkedAnime.length > 0) {
                   currentLinked = custom.linkedAnime;
-                } else if (Array.isArray(anime.linkedAnime)) {
+                } else if (Array.isArray(anime.linkedAnime) && anime.linkedAnime.length > 0) {
                   currentLinked = anime.linkedAnime;
-                } else if (anime.related_json) {
+                } else if (anime.related_json && anime.related_json !== '[]') {
                   try {
                     currentLinked = JSON.parse(anime.related_json);
                   } catch (e) {
                     currentLinked = [];
                   }
                 }
+
+                if (currentLinked.length === 0 && typeof getAllCachedAnime === 'function') {
+                  const allCached = getAllCachedAnime() || [];
+                  const cachedItem = allCached.find((c) => Number(c.id) === Number(anime.id));
+                  if (cachedItem) {
+                    if (Array.isArray(cachedItem.linkedAnime) && cachedItem.linkedAnime.length > 0) {
+                      currentLinked = cachedItem.linkedAnime;
+                    } else if (cachedItem.related_json && cachedItem.related_json !== '[]') {
+                      try {
+                        currentLinked = JSON.parse(cachedItem.related_json);
+                      } catch (e) {}
+                    }
+                  }
+                }
+
+                const cachedFallback = typeof getAllCachedAnime === 'function'
+                  ? (getAllCachedAnime() || []).find((c) => Number(c.id) === Number(anime.id))
+                  : null;
+
                 const currentSeason = (custom.season !== undefined && custom.season !== '')
                   ? custom.season
-                  : (anime.season || detectAnimeSeason(anime.title, anime.originalTitle, anime.type, currentLinked) || (anime.type === 'Сериал' ? '1-й сезон' : ''));
+                  : (anime.season || (cachedFallback && cachedFallback.season) || detectAnimeSeason(anime.title, anime.originalTitle, anime.type, currentLinked) || (anime.type === 'Сериал' ? '1-й сезон' : ''));
 
                 return (
                   <div

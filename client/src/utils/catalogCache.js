@@ -163,7 +163,25 @@ export function getAllCachedAnime() {
           if (data && Array.isArray(data.items)) {
             for (const item of data.items) {
               if (item && item.id) {
-                map.set(Number(item.id), item);
+                const existing = map.get(Number(item.id));
+                if (existing) {
+                  const mergedLinked = (Array.isArray(item.linkedAnime) && item.linkedAnime.length > 0)
+                    ? item.linkedAnime
+                    : (existing.linkedAnime || []);
+                  const mergedSeason = item.season || existing.season || '';
+                  const mergedRelated = (item.related_json && item.related_json !== '[]')
+                    ? item.related_json
+                    : (existing.related_json || '[]');
+                  map.set(Number(item.id), {
+                    ...existing,
+                    ...item,
+                    linkedAnime: mergedLinked,
+                    season: mergedSeason,
+                    related_json: mergedRelated
+                  });
+                } else {
+                  map.set(Number(item.id), item);
+                }
               }
             }
           }
