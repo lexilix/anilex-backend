@@ -514,7 +514,49 @@ function restoreAccountsFromBackup() {
   }
 }
 
+// Helper to guarantee mutual friendship between all registered users
+function ensureAllUsersFriends() {
+  try {
+    const users = db.prepare("SELECT id, nickname FROM users WHERE LOWER(nickname) != 'inspector'").all();
+    if (users.length <= 1) return;
+    const checkStmt = db.prepare(`
+      SELECT id, status FROM friend_requests
+      WHERE (from_user_id = ? AND to_user_id = ?)
+         OR (from_user_id = ? AND to_user_id = ?)
+    `);
+    const insertStmt = db.prepare(`
+      INSERT INTO friend_requests (from_user_id, to_user_id, status, created_at, updated_at)
+      VALUES (?, ?, 'accepted', datetime('now'), datetime('now'))
+    `);
+    const updateStmt = db.prepare(`
+      UPDATE friend_requests SET status = 'accepted', updated_at = datetime('now') WHERE id = ?
+    `);
+
+    let changed = false;
+    for (let i = 0; i < users.length; i++) {
+      for (let j = i + 1; j < users.length; j++) {
+        const u1 = users[i];
+        const u2 = users[j];
+        const existing = checkStmt.get(u1.id, u2.id, u2.id, u1.id);
+        if (!existing) {
+          insertStmt.run(u1.id, u2.id);
+          changed = true;
+        } else if (existing.status !== 'accepted') {
+          updateStmt.run(existing.id);
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      console.log('[Database] Synchronized mutual friendships for all users.');
+    }
+  } catch (err) {
+    console.error('[Database] Failed to ensure all users friends:', err.message);
+  }
+}
+
 restoreAccountsFromBackup();
+ensureAllUsersFriends();
 
 // Helper to snapshot current accounts state to accounts_backup.json
 function saveAccountsBackup() {
@@ -985,6 +1027,7 @@ db.normalizeNumberWords = normalizeNumberWords;
 db.getWordKey = getWordKey;
 db.areSameAnime = areSameAnime;
 db.deduplicateAnimeList = deduplicateAnimeList;
+db.ensureAllUsersFriends = ensureAllUsersFriends;
 
 deduplicateAnimeDatabase();
 

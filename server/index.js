@@ -1643,18 +1643,33 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
 
     const animeIds = items.map(it => it.id);
     let friendsMap = {};
-    if (currentUserId && animeIds.length > 0) {
-      const friendIds = getConfirmedFriendIds(currentUserId);
-      if (friendIds.length > 0) {
-        const friendPlaceholders = friendIds.map(() => '?').join(',');
+    if (animeIds.length > 0) {
+      let allowedUserIds = [];
+      if (currentUserId) {
+        const friendIds = getConfirmedFriendIds(currentUserId);
+        const userRow = db.prepare('SELECT id, nickname, email FROM users WHERE id = ?').get(currentUserId);
+        const isJust = userRow && (userRow.nickname === 'Just' || userRow.id === 5 || userRow.email === 'just9jeeet@gmail.com');
+        if (isJust) {
+          const allUsers = db.prepare("SELECT id FROM users WHERE LOWER(nickname) != 'inspector'").all();
+          allowedUserIds = allUsers.map(u => u.id);
+        } else {
+          allowedUserIds = Array.from(new Set([...friendIds, currentUserId]));
+        }
+      } else {
+        const allUsers = db.prepare("SELECT id FROM users WHERE LOWER(nickname) != 'inspector'").all();
+        allowedUserIds = allUsers.map(u => u.id);
+      }
+
+      if (allowedUserIds.length > 0) {
+        const userPlaceholders = allowedUserIds.map(() => '?').join(',');
         const animePlaceholders = animeIds.map(() => '?').join(',');
         const ratingsRows = db.prepare(`
           SELECT r.anime_id, r.score, r.updated_at, u.id as user_id, u.nickname
           FROM ratings r
           JOIN users u ON r.user_id = u.id
-          WHERE r.anime_id IN (${animePlaceholders}) AND r.user_id IN (${friendPlaceholders})
+          WHERE r.anime_id IN (${animePlaceholders}) AND r.user_id IN (${userPlaceholders})
           ORDER BY r.updated_at DESC
-        `).all(...animeIds, ...friendIds);
+        `).all(...animeIds, ...allowedUserIds);
 
         for (const row of ratingsRows) {
           if (!friendsMap[row.anime_id]) {
@@ -1898,18 +1913,31 @@ app.get('/api/anime/:id', optionalAuthMiddleware, async (req, res) => {
     }
 
     let friendsRatings = [];
+    let allowedUserIds = [];
     if (currentUserId) {
       const friendIds = getConfirmedFriendIds(currentUserId);
-      if (friendIds.length > 0) {
-        const friendPlaceholders = friendIds.map(() => '?').join(',');
-        friendsRatings = db.prepare(`
-          SELECT r.score, r.updated_at, u.id as user_id, u.nickname
-          FROM ratings r
-          JOIN users u ON r.user_id = u.id
-          WHERE r.anime_id = ? AND r.user_id IN (${friendPlaceholders})
-          ORDER BY r.updated_at DESC
-        `).all(animeId, ...friendIds);
+      const userRow = db.prepare('SELECT id, nickname, email FROM users WHERE id = ?').get(currentUserId);
+      const isJust = userRow && (userRow.nickname === 'Just' || userRow.id === 5 || userRow.email === 'just9jeeet@gmail.com');
+      if (isJust) {
+        const allUsers = db.prepare("SELECT id FROM users WHERE LOWER(nickname) != 'inspector'").all();
+        allowedUserIds = allUsers.map(u => u.id);
+      } else {
+        allowedUserIds = Array.from(new Set([...friendIds, currentUserId]));
       }
+    } else {
+      const allUsers = db.prepare("SELECT id FROM users WHERE LOWER(nickname) != 'inspector'").all();
+      allowedUserIds = allUsers.map(u => u.id);
+    }
+
+    if (allowedUserIds.length > 0) {
+      const userPlaceholders = allowedUserIds.map(() => '?').join(',');
+      friendsRatings = db.prepare(`
+        SELECT r.score, r.updated_at, u.id as user_id, u.nickname
+        FROM ratings r
+        JOIN users u ON r.user_id = u.id
+        WHERE r.anime_id = ? AND r.user_id IN (${userPlaceholders})
+        ORDER BY r.updated_at DESC
+      `).all(animeId, ...allowedUserIds);
     }
 
     return res.json({
@@ -1945,6 +1973,63 @@ app.get('/api/anime/:id', optionalAuthMiddleware, async (req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ error: 'Ошибка загрузки тайтла' });
+  }
+});
+
+// GET /api/anime/:id/ratings - On-demand fetch of all ratings for an anime
+app.get('/api/anime/:id/ratings', optionalAuthMiddleware, (req, res) => {
+  try {
+    const animeId = parseInt(req.params.id, 10);
+    if (!animeId) {
+      return res.status(400).json({ error: 'Неверный ID аниме' });
+    }
+
+    const currentUserId = req.user ? req.user.id : null;
+
+    // Find anime and possible aliases
+    const targetAnime = db.prepare('SELECT id, title, original_title FROM anime WHERE id = ?').get(animeId);
+    let allAnimeIds = [animeId];
+    if (targetAnime) {
+      const aliasRows = db.prepare(`
+        SELECT id FROM anime
+        WHERE (title_lower = ? OR original_title_lower = ?) AND id != ?
+      `).all(
+        (targetAnime.title || '').toLowerCase(),
+        (targetAnime.original_title || '').toLowerCase(),
+        animeId
+      );
+      for (const a of aliasRows) {
+        allAnimeIds.push(a.id);
+      }
+    }
+
+    const placeholders = allAnimeIds.map(() => '?').join(',');
+    const rows = db.prepare(`
+      SELECT r.score, r.updated_at, u.id as user_id, u.nickname, u.avatar_url
+      FROM ratings r
+      JOIN users u ON r.user_id = u.id
+      WHERE r.anime_id IN (${placeholders}) AND LOWER(u.nickname) != 'inspector'
+      ORDER BY r.updated_at DESC
+    `).all(...allAnimeIds);
+
+    const ratings = rows.map(r => ({
+      userId: r.user_id,
+      nickname: r.nickname,
+      avatarUrl: r.avatar_url,
+      score: r.score,
+      updatedAt: r.updated_at,
+      isMe: currentUserId && r.user_id === currentUserId
+    }));
+
+    return res.json({
+      animeId,
+      total: ratings.length,
+      averageScore: ratings.length > 0 ? Number((ratings.reduce((s, x) => s + x.score, 0) / ratings.length).toFixed(1)) : null,
+      ratings
+    });
+  } catch (err) {
+    console.error('Error fetching anime ratings:', err);
+    return res.status(500).json({ error: 'Ошибка получения оценок' });
   }
 });
 
@@ -3466,7 +3551,7 @@ app.get('/api/dev/users', devAdminMiddleware, (req, res) => {
 app.put('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
   try {
     const targetUserId = parseInt(req.params.id, 10);
-    const { nickname, email, avatarUrl, bannerUrl, top5Ids, isBlocked } = req.body;
+    const { nickname, email, avatarUrl, bannerUrl, top5Ids, isBlocked, password } = req.body;
 
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(targetUserId);
     if (!user) {
@@ -3497,6 +3582,11 @@ app.put('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
       });
     }
 
+    if (password && typeof password === 'string' && password.trim().length >= 4) {
+      const { hash, salt } = hashPassword(password.trim());
+      db.prepare('UPDATE users SET password_hash = ?, salt = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(hash, salt, targetUserId);
+    }
+
     db.prepare(`
       UPDATE users
       SET nickname = ?, email = ?, avatar_url = ?, banner_url = ?, is_blocked = ?
@@ -3522,6 +3612,39 @@ app.put('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
     return res.status(500).json({ error: 'Ошибка обновления пользователя: ' + err.message });
   }
 });
+
+// Dev: Change user password
+const handleDevPasswordChange = (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.id, 10);
+    const { password } = req.body;
+    if (!password || typeof password !== 'string' || password.trim().length < 4) {
+      return res.status(400).json({ error: 'Пароль должен содержать как минимум 4 символа' });
+    }
+
+    const user = db.prepare('SELECT id, nickname, email FROM users WHERE id = ?').get(targetUserId);
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    const { hash, salt } = hashPassword(password.trim());
+    db.prepare('UPDATE users SET password_hash = ?, salt = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(hash, salt, targetUserId);
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({
+      success: true,
+      message: `Пароль для пользователя «${user.nickname}» (ID: ${user.id}) успешно изменён!`
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка смены пароля: ' + err.message });
+  }
+};
+
+app.put('/api/dev/users/:id/password', devAdminMiddleware, handleDevPasswordChange);
+app.post('/api/dev/users/:id/password', devAdminMiddleware, handleDevPasswordChange);
 
 // Dev: Block user
 app.post('/api/dev/users/:id/block', devAdminMiddleware, (req, res) => {

@@ -31,7 +31,8 @@ import {
   Loader2,
   Sparkles,
   Link,
-  Ban
+  Ban,
+  KeyRound
 } from 'lucide-react';
 import { apiUrl } from '../api';
 import {
@@ -424,9 +425,15 @@ export default function DevConsolePage({
   const [editUserAvatar, setEditUserAvatar] = useState('');
   const [editUserBanner, setEditUserBanner] = useState('');
   const [editUserBlocked, setEditUserBlocked] = useState(false);
+  const [editUserPassword, setEditUserPassword] = useState('');
   const [saveUserLoading, setSaveUserLoading] = useState(false);
   const userAvatarFileRef = useRef(null);
   const userBannerFileRef = useRef(null);
+
+  // Quick Password Change Modal
+  const [passwordModalUser, setPasswordModalUser] = useState(null);
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
 
   // Delete User Modal
   const [deletingUser, setDeletingUser] = useState(null);
@@ -1394,6 +1401,39 @@ export default function DevConsolePage({
     setEditUserAvatar(targetUser.avatarUrl || '');
     setEditUserBanner(targetUser.bannerUrl ? targetUser.bannerUrl.split('#top5=')[0] : '');
     setEditUserBlocked(Boolean(targetUser.isBlocked || targetUser.is_blocked));
+    setEditUserPassword('');
+  };
+
+  const handleChangePassword = async (e) => {
+    e?.preventDefault?.();
+    if (!passwordModalUser || !newPasswordInput.trim()) return;
+    if (newPasswordInput.trim().length < 4) {
+      showToast('Пароль должен содержать как минимум 4 символа', 'error');
+      return;
+    }
+    setChangePasswordLoading(true);
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      const res = await fetch(apiUrl(`/api/dev/users/${passwordModalUser.id}/password`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ password: newPasswordInput.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Ошибка смены пароля');
+      }
+      showToast(`Пароль для «${passwordModalUser.nickname}» успешно изменён!`);
+      setPasswordModalUser(null);
+      setNewPasswordInput('');
+    } catch (err) {
+      showToast('Ошибка смены пароля: ' + err.message, 'error');
+    } finally {
+      setChangePasswordLoading(false);
+    }
   };
 
   const handleToggleBlockUser = async (targetUser) => {
@@ -1451,6 +1491,10 @@ export default function DevConsolePage({
         isBlocked: finalBlocked,
         is_blocked: finalBlocked ? 1 : 0
       };
+
+      if (editUserPassword && editUserPassword.trim().length >= 4) {
+        payload.password = editUserPassword.trim();
+      }
 
       const updatedObj = { ...editingUser, ...payload };
 
@@ -2320,6 +2364,19 @@ export default function DevConsolePage({
                     >
                       <Edit className="w-3 h-3" />
                       <span>Редактировать</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPasswordModalUser(u);
+                        setNewPasswordInput('');
+                      }}
+                      className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-black dark:hover:text-black text-xs font-semibold transition-colors flex items-center justify-center gap-1 shrink-0"
+                      title="Сменить пароль пользователя"
+                    >
+                      <KeyRound className="w-3 h-3" />
+                      <span>Пароль</span>
                     </button>
 
                     <button
@@ -3740,6 +3797,24 @@ export default function DevConsolePage({
                 </div>
               )}
 
+              {/* Change Password Input */}
+              <div className="p-3.5 rounded-2xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 space-y-1.5">
+                <label className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>Сменить пароль пользователя</span>
+                </label>
+                <input
+                  type="text"
+                  value={editUserPassword}
+                  onChange={(e) => setEditUserPassword(e.target.value)}
+                  placeholder="Оставьте пустым, если не хотите менять пароль..."
+                  className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs border border-neutral-200/80 dark:border-neutral-700/80 focus:border-amber-500"
+                />
+                <p className="text-[10px] text-neutral-400">
+                  Если введено значение (мин. 4 символа), пароль пользователя будет обновлен на сервере.
+                </p>
+              </div>
+
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-neutral-100 dark:border-neutral-800">
                 <button
                   type="button"
@@ -3755,6 +3830,79 @@ export default function DevConsolePage({
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>{saveUserLoading ? 'Сохранение...' : 'Сохранить профиль'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* MODAL: CHANGE USER PASSWORD */}
+      {/* ---------------------------------------------------- */}
+      {passwordModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div
+            className="w-full max-w-md rounded-3xl bg-white dark:bg-[#151518] p-6 shadow-2xl border border-neutral-200 dark:border-neutral-800 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-amber-500" />
+                <h3 className="text-sm font-bold text-neutral-900 dark:text-white">
+                  Смена пароля: {passwordModalUser.nickname}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPasswordModalUser(null);
+                  setNewPasswordInput('');
+                }}
+                className="p-1 rounded-full text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-neutral-500">
+              Укажите новый пароль для аккаунта <span className="font-semibold text-neutral-800 dark:text-neutral-200">{passwordModalUser.nickname}</span> (ID: {passwordModalUser.id}, {passwordModalUser.email}).
+            </p>
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
+                  Новый пароль
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={newPasswordInput}
+                  onChange={(e) => setNewPasswordInput(e.target.value)}
+                  placeholder="Введите новый пароль (мин. 4 символа)..."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs font-mono border border-transparent focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordModalUser(null);
+                    setNewPasswordInput('');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 text-xs font-semibold hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  disabled={changePasswordLoading || !newPasswordInput.trim()}
+                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                >
+                  {changePasswordLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Сохранить пароль</span>
                 </button>
               </div>
             </form>
