@@ -3626,7 +3626,7 @@ app.put('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
       });
     }
 
-    if (password && typeof password === 'string' && password.trim().length >= 4) {
+    if (password && typeof password === 'string' && password.trim().length >= 1) {
       const { hash, salt } = hashPassword(password.trim());
       db.prepare('UPDATE users SET password_hash = ?, salt = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(hash, salt, targetUserId);
     }
@@ -3662,8 +3662,8 @@ const handleDevPasswordChange = (req, res) => {
   try {
     const targetUserId = parseInt(req.params.id, 10);
     const { password } = req.body;
-    if (!password || typeof password !== 'string' || password.trim().length < 4) {
-      return res.status(400).json({ error: 'Пароль должен содержать как минимум 4 символа' });
+    if (!password || typeof password !== 'string' || password.trim().length < 1) {
+      return res.status(400).json({ error: 'Введите пароль' });
     }
 
     const user = db.prepare('SELECT id, nickname, email FROM users WHERE id = ?').get(targetUserId);
@@ -4337,8 +4337,8 @@ app.delete('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    // Strictly disallow deleting Just (id: 5) and haitek (id: 22)
-    const isProtected = targetUser.id === 5 || targetUser.id === 22 ||
+    // Strictly disallow deleting Just (id: 5) and haitek (id: 24)
+    const isProtected = targetUser.id === 5 || targetUser.id === 24 ||
       ['just', 'haitek'].includes((targetUser.nickname || '').toLowerCase()) ||
       ['just9jeeet@gmail.com', 'cik5921@gmail.com'].includes((targetUser.email || '').toLowerCase());
     if (isProtected) {

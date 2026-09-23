@@ -1542,8 +1542,8 @@ export default function DevConsolePage({
   const handleChangePassword = async (e) => {
     e?.preventDefault?.();
     if (!passwordModalUser || !newPasswordInput.trim()) return;
-    if (newPasswordInput.trim().length < 4) {
-      showToast('Пароль должен содержать как минимум 4 символа', 'error');
+    if (newPasswordInput.trim().length < 1) {
+      showToast('Введите новый пароль', 'error');
       return;
     }
     setChangePasswordLoading(true);
@@ -3986,7 +3986,7 @@ export default function DevConsolePage({
                   className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white text-xs border border-neutral-200/80 dark:border-neutral-700/80 focus:border-amber-500"
                 />
                 <p className="text-[10px] text-neutral-400">
-                  Если введено значение (мин. 4 символа), пароль пользователя будет обновлен на сервере.
+                  Если введено значение, пароль пользователя будет обновлен на сервере.
                 </p>
               </div>
 
