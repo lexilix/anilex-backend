@@ -398,6 +398,32 @@ function restoreAccountsFromBackup() {
           }
         } catch (e) {}
       }
+      // Guarantee haitek user exists
+      const haitekUser = db.prepare("SELECT id FROM users WHERE LOWER(nickname) = 'haitek' OR LOWER(email) = 'cik5921@gmail.com'").get();
+      if (!haitekUser && Array.isArray(data.users)) {
+        const hData = data.users.find(u => u.nickname?.toLowerCase() === 'haitek');
+        if (hData) {
+          try {
+            db.prepare(`
+              INSERT INTO users (id, email, nickname, password_hash, salt, avatar_url, banner_url, allow_password_set, is_blocked, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+              hData.id || 24,
+              hData.email || 'cik5921@gmail.com',
+              hData.nickname || 'haitek',
+              hData.password_hash || 'RESTORED_ACCOUNT',
+              hData.salt || 'RESTORED_SALT',
+              hData.avatar_url || null,
+              hData.banner_url || null,
+              0,
+              0,
+              hData.created_at || new Date().toISOString()
+            );
+          } catch (e) {
+            console.error('[Database] Failed to insert haitek user explicitly:', e.message);
+          }
+        }
+      }
     }
 
     // 4. Restore friend requests
@@ -442,8 +468,11 @@ function restoreAccountsFromBackup() {
           }
           if (animeExists) {
             // Strictly insert ratings ONLY if this user has NO ratings in DB yet (fresh/empty DB cold start)
-            // If the user already has ratings in the live DB, their active ratings are preserved and never overwritten or re-seeded
-            if (!existingUserIdsWithRatings.has(r.user_id)) {
+            // For user 5 (Just): preserve active ratings and never resurrect deleted/altered ratings
+            // For club members (MrTech, haitek): insert missing ratings so their full lists are preserved
+            if (r.user_id !== 5) {
+              insertOrIgnoreRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
+            } else if (!existingUserIdsWithRatings.has(5)) {
               insertOrIgnoreRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
             }
           }
@@ -531,45 +560,54 @@ function ensureAllUsersFriends() {
     const users = db.prepare("SELECT id, nickname FROM users WHERE LOWER(nickname) != 'inspector'").all();
     if (users.length <= 1) return;
 
-    // 1. Unconditionally update all pending/rejected requests to accepted
-    db.prepare("UPDATE friend_requests SET status = 'accepted', updated_at = datetime('now') WHERE status != 'accepted'").run();
-
-    const checkStmt = db.prepare(`
-      SELECT id, status FROM friend_requests
-      WHERE (from_user_id = ? AND to_user_id = ?)
-         OR (from_user_id = ? AND to_user_id = ?)
-    `);
-    const insertStmt = db.prepare(`
+    const insertOrReplaceStmt = db.prepare(`
       INSERT INTO friend_requests (from_user_id, to_user_id, status, created_at, updated_at)
       VALUES (?, ?, 'accepted', datetime('now'), datetime('now'))
-    `);
-    const updateAllStmt = db.prepare(`
-      UPDATE friend_requests SET status = 'accepted', updated_at = datetime('now')
-      WHERE (from_user_id = ? AND to_user_id = ?)
-         OR (from_user_id = ? AND to_user_id = ?)
+      ON CONFLICT(from_user_id, to_user_id) DO UPDATE SET
+        status = 'accepted',
+        updated_at = datetime('now')
     `);
 
-    let changed = false;
     for (let i = 0; i < users.length; i++) {
-      for (let j = i + 1; j < users.length; j++) {
-        const u1 = users[i];
-        const u2 = users[j];
-        const existing = checkStmt.get(u1.id, u2.id, u2.id, u1.id);
-        if (!existing) {
-          insertStmt.run(u1.id, u2.id);
-          changed = true;
-        } else if (existing.status !== 'accepted') {
-          updateAllStmt.run(u1.id, u2.id, u2.id, u1.id);
-          changed = true;
+      for (let j = 0; j < users.length; j++) {
+        if (i !== j) {
+          insertOrReplaceStmt.run(users[i].id, users[j].id);
         }
       }
     }
-    if (changed) {
-      console.log('[Database] Synchronized mutual friendships for all users.');
-      if (typeof saveAccountsBackup === 'function') {
-        saveAccountsBackup();
+
+    // Seed and permanently preserve Just's top-5: [2646, 6080, 2346, 1807, 5779]
+    const justUser = db.prepare("SELECT id FROM users WHERE nickname = 'Just' OR email = 'just9jeeet@gmail.com' OR id = 5").get();
+    if (justUser) {
+      const justTop5Ids = [2646, 6080, 2346, 1807, 5779];
+      const currentJustTop5 = db.prepare('SELECT anime_id FROM user_top5 WHERE user_id = ? ORDER BY position ASC').all(justUser.id).map(r => r.anime_id);
+      if (currentJustTop5.length < 5 || JSON.stringify(currentJustTop5) !== JSON.stringify(justTop5Ids)) {
+        db.prepare('DELETE FROM user_top5 WHERE user_id = ?').run(justUser.id);
+        const insTop5 = db.prepare('INSERT INTO user_top5 (user_id, anime_id, position, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)');
+        justTop5Ids.forEach((id, idx) => {
+          insTop5.run(justUser.id, id, idx + 1);
+        });
       }
+
+      // Ensure Just rating for 6970 is 7, and 5655 has NO rating
+      db.prepare('DELETE FROM ratings WHERE user_id = ? AND anime_id = 5655').run(justUser.id);
+      db.prepare(`
+        INSERT INTO ratings (user_id, anime_id, score, updated_at)
+        VALUES (?, 6970, 7, CURRENT_TIMESTAMP)
+        ON CONFLICT(user_id, anime_id) DO UPDATE SET score = 7, updated_at = CURRENT_TIMESTAMP
+      `).run(justUser.id);
     }
+
+    // Clean description of Башня Бога (2346)
+    try {
+      const towerAnime = db.prepare('SELECT description FROM anime WHERE id = 2346').get();
+      if (towerAnime && towerAnime.description && towerAnime.description.includes('data-read-more')) {
+        const cleanDesc = towerAnime.description.replace(/^data-read-more[^>]*>\s*/i, '').replace(/<[^>]+>/g, '').trim();
+        db.prepare('UPDATE anime SET description = ? WHERE id = 2346').run(cleanDesc);
+      }
+    } catch (e) {}
+
+    console.log('[Database] Synchronized mutual friendships for all users.');
   } catch (err) {
     console.error('[Database] Failed to ensure all users friends:', err.message);
   }

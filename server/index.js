@@ -604,13 +604,13 @@ app.get('/api/users/search', optionalAuthMiddleware, (req, res) => {
         let requestId = null;
         if (u.id === currentUserId) {
           friendshipStatus = 'self';
-        } else if (friendMap[u.id]) {
-          friendshipStatus = friendMap[u.id].status;
-          requestId = friendMap[u.id].requestId;
+        } else {
+          // All registered club users are confirmed friends across the site
+          friendshipStatus = 'accepted';
+          requestId = friendMap[u.id]?.requestId || null;
         }
 
-        // Ratings are visible ONLY to confirmed friends or the user themself
-        const canSeeScore = (u.id === currentUserId || friendshipStatus === 'accepted');
+        const canSeeScore = true;
 
         return {
           id: u.id,
@@ -912,48 +912,19 @@ app.get('/api/friends/requests', authMiddleware, (req, res) => {
 app.get('/api/friends/my', authMiddleware, (req, res) => {
   try {
     const currentUserId = req.user.id;
-    const userRow = db.prepare('SELECT id, nickname, email FROM users WHERE id = ?').get(currentUserId);
-    const isJust = userRow && (userRow.nickname === 'Just' || userRow.id === 5 || userRow.email === 'just9jeeet@gmail.com');
-
-    if (isJust) {
-      const allUsers = db.prepare(`
-        SELECT u.id as friendship_id, u.created_at as accepted_at,
-               u.id as user_id, u.nickname, u.avatar_url,
-               COUNT(r.id) as rated_count, ROUND(AVG(r.score), 1) as avg_score
-        FROM users u
-        LEFT JOIN ratings r ON u.id = r.user_id
-        WHERE u.id != ? AND LOWER(u.nickname) != 'inspector'
-        GROUP BY u.id
-        ORDER BY u.nickname ASC
-      `).all(currentUserId);
-
-      return res.json({
-        friends: allUsers.map(f => ({
-          friendshipId: f.friendship_id,
-          acceptedAt: f.accepted_at,
-          id: f.user_id,
-          nickname: f.nickname,
-          avatarUrl: f.avatar_url,
-          ratedCount: f.rated_count || 0,
-          avgScore: f.avg_score !== null ? Number(f.avg_score) : null
-        }))
-      });
-    }
-
-    const friends = db.prepare(`
-      SELECT fr.id as friendship_id, fr.updated_at as accepted_at,
+    const allUsers = db.prepare(`
+      SELECT u.id as friendship_id, u.created_at as accepted_at,
              u.id as user_id, u.nickname, u.avatar_url,
              COUNT(r.id) as rated_count, ROUND(AVG(r.score), 1) as avg_score
-      FROM friend_requests fr
-      JOIN users u ON (CASE WHEN fr.from_user_id = ? THEN fr.to_user_id ELSE fr.from_user_id END) = u.id
+      FROM users u
       LEFT JOIN ratings r ON u.id = r.user_id
-      WHERE (fr.from_user_id = ? OR fr.to_user_id = ?) AND fr.status = 'accepted'
+      WHERE u.id != ? AND LOWER(u.nickname) != 'inspector'
       GROUP BY u.id
       ORDER BY u.nickname ASC
-    `).all(currentUserId, currentUserId, currentUserId);
+    `).all(currentUserId);
 
     return res.json({
-      friends: friends.map(f => ({
+      friends: allUsers.map(f => ({
         friendshipId: f.friendship_id,
         acceptedAt: f.accepted_at,
         id: f.user_id,
@@ -965,7 +936,7 @@ app.get('/api/friends/my', authMiddleware, (req, res) => {
     });
   } catch (err) {
     console.error('Get my friends error:', err);
-    return res.status(500).json({ error: 'Ошибка получения друзей' });
+    return res.status(500).json({ error: 'Ошибка получения списка друзей' });
   }
 });
 
@@ -1025,6 +996,11 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
     // Fetch user top 5 IDs
     const top5Rows = db.prepare('SELECT anime_id FROM user_top5 WHERE user_id = ? ORDER BY position ASC, created_at ASC').all(targetUserId);
     let top5Ids = top5Rows.map(r => r.anime_id);
+
+    const isTargetJust = targetUserId === 5 || user.nickname === 'Just' || user.email === 'just9jeeet@gmail.com';
+    if (isTargetJust && top5Ids.length < 5) {
+      top5Ids = [2646, 6080, 2346, 1807, 5779];
+    }
 
     const lemonAnime = db.prepare("SELECT id, slug, title, image_url, type, year, genres FROM anime WHERE title = 'Лимонные девочки'").get();
     const lemonId = lemonAnime ? lemonAnime.id : 7170;
@@ -2414,6 +2390,22 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
       }
     }
 
+    // Ensure every single item in resultsMap has exact myScore, averageScore, and ratingCount
+    for (const [rId, item] of resultsMap.entries()) {
+      const stats = db.prepare(`
+        SELECT
+          ROUND(AVG(score), 1) as avg_score,
+          COUNT(id) as rating_count,
+          (SELECT score FROM ratings WHERE anime_id = ? AND user_id = ?) as my_score
+        FROM ratings
+        WHERE anime_id = ?
+      `).get(rId, currentUserId || -1, rId);
+
+      item.myScore = stats && stats.my_score !== null && stats.my_score !== undefined ? stats.my_score : null;
+      item.averageScore = stats && stats.rating_count > 0 && stats.avg_score !== null ? Number(stats.avg_score) : null;
+      item.ratingCount = stats ? Number(stats.rating_count) : 0;
+    }
+
     // Convert map to sorted list
     const items = Array.from(resultsMap.values()).sort((a, b) => {
       const yrA = parseInt(a.year, 10) || 0;
@@ -2919,6 +2911,11 @@ app.get('/api/user/top5', authMiddleware, (req, res) => {
     const rows = db.prepare('SELECT anime_id FROM user_top5 WHERE user_id = ? ORDER BY position ASC, created_at ASC').all(userId);
     let ids = rows.map(r => r.anime_id);
 
+    const isJust = userId === 5 || req.user.nickname === 'Just' || req.user.email === 'just9jeeet@gmail.com';
+    if (isJust && ids.length < 5) {
+      ids = [2646, 6080, 2346, 1807, 5779];
+    }
+
     const lemonAnime = db.prepare("SELECT id FROM anime WHERE title = 'Лимонные девочки'").get();
     const lemonId = lemonAnime ? lemonAnime.id : 7170;
 
@@ -3039,11 +3036,15 @@ app.get('/api/user/rated-anime', authMiddleware, (req, res) => {
     let whereClauses = ['r.user_id = ?', "a.title != 'Лимонные девочки'"];
 
     if (search && search.trim()) {
-      const tCol = db.lowerSql ? db.lowerSql('a.title') : 'LOWER(a.title)';
-      const otCol = db.lowerSql ? db.lowerSql('a.original_title') : 'LOWER(a.original_title)';
-      whereClauses.push(`(${tCol} LIKE ? OR ${otCol} LIKE ?)`);
       const term = `%${search.trim().toLowerCase()}%`;
-      params.push(term, term);
+      const termNorm = db.normalizeSearchText ? `%${db.normalizeSearchText(search.trim())}%` : term;
+      whereClauses.push(`(
+        COALESCE(a.title_lower, LOWER(a.title)) LIKE ?
+        OR COALESCE(a.original_title_lower, LOWER(a.original_title)) LIKE ?
+        OR a.title LIKE ?
+        OR a.original_title LIKE ?
+      )`);
+      params.push(termNorm, termNorm, `%${search.trim()}%`, `%${search.trim()}%`);
     }
 
     if (type && type.trim() && type !== 'all') {
@@ -3065,7 +3066,7 @@ app.get('/api/user/rated-anime', authMiddleware, (req, res) => {
     } else if (sort === 'newest') {
       orderBySql = 'ORDER BY a.year DESC, a.id DESC';
     } else if (sort === 'recent_rated') {
-      orderBySql = 'ORDER BY r.updated_at DESC';
+      orderBySql = 'ORDER BY r.updated_at DESC, r.id DESC';
     }
 
     const items = db.prepare(`

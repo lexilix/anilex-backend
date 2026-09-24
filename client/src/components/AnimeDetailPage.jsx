@@ -552,6 +552,12 @@ export default function AnimeDetailPage({
         ...prev,
         myScore: newScore
       }));
+      setRelatedAnime((prev) => prev.map((it) => {
+        if (Number(it.id) === Number(animeId) || it.isCurrent) {
+          return { ...it, myScore: newScore };
+        }
+        return it;
+      }));
       updateCachedUserRating(user.id, animeId, newScore, targetAnime);
       updateCachedAnimeItem(animeId, { myScore: newScore });
 
@@ -583,6 +589,17 @@ export default function AnimeDetailPage({
           averageScore: data.averageScore,
           ratingCount: data.ratingCount,
           friendsRatings: data.friendsRatings
+        }));
+        setRelatedAnime((prev) => prev.map((it) => {
+          if (Number(it.id) === Number(animeId) || it.isCurrent) {
+            return {
+              ...it,
+              myScore: data.myScore,
+              averageScore: data.averageScore,
+              ratingCount: data.ratingCount
+            };
+          }
+          return it;
         }));
       }
     } finally {
@@ -1055,7 +1072,9 @@ export default function AnimeDetailPage({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
             {relatedAnime.map((item) => {
-              const isCurrent = item.id === anime.id;
+              const isCurrent = Number(item.id) === Number(anime?.id);
+              const displayAvgScore = isCurrent ? (anime?.averageScore ?? item.averageScore) : item.averageScore;
+              const displayMyScore = isCurrent ? (anime?.myScore ?? item.myScore) : item.myScore;
 
               return (
                 <div
@@ -1103,17 +1122,17 @@ export default function AnimeDetailPage({
                     </h4>
 
                     <div className="flex items-center gap-2 text-[11px] text-neutral-400 mt-0.5">
-                      {item.averageScore !== null ? (
+                      {displayAvgScore !== null && displayAvgScore !== undefined ? (
                         <span className="flex items-center gap-0.5 font-semibold text-neutral-700 dark:text-neutral-300">
                           <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          {item.averageScore}
+                          {displayAvgScore}
                         </span>
                       ) : (
                         <span>Без оценок</span>
                       )}
-                      {item.myScore !== null && (
+                      {displayMyScore !== null && displayMyScore !== undefined && (
                         <span className="text-emerald-500 font-medium">
-                          • Ваша: {item.myScore}
+                          • Ваша: {displayMyScore}
                         </span>
                       )}
                     </div>

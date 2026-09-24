@@ -207,6 +207,9 @@ export default function ProfilePage({
     try {
       const saved = localStorage.getItem('anilex_top5_' + user?.id);
       let list = saved ? JSON.parse(saved) : [];
+      if (user?.nickname === 'Just' || user?.id === 5) {
+        if (!Array.isArray(list) || list.length < 5) list = [2646, 6080, 2346, 1807, 5779];
+      }
       if (user?.nickname === 'MrTech' || user?.id === 20) {
         if (!list.includes(7170)) list.unshift(7170);
       }
@@ -215,6 +218,7 @@ export default function ProfilePage({
       }
       return list.slice(0, 5);
     } catch (e) {
+      if (user?.nickname === 'Just' || user?.id === 5) return [2646, 6080, 2346, 1807, 5779];
       return (user?.nickname === 'MrTech' || user?.id === 20) ? [7170] : [];
     }
   });
@@ -340,23 +344,48 @@ export default function ProfilePage({
             if (found) ordered.push(found);
           });
           items = ordered.slice(0, 5);
-
-          // If myTop5Ids contains phantom/unrated items, auto-prune to user's real rated top 5
-          const validIds = ordered.map((it) => Number(it.id));
-          if (validIds.length !== myTop5Ids.length) {
-            setMyTop5Ids(validIds);
-            localStorage.setItem('anilex_top5_' + user?.id, JSON.stringify(validIds));
-            if (token) {
-              fetch(apiUrl('/api/user/top5/set'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ animeIds: validIds })
-              }).catch(() => {});
-            }
-          }
         } else if (selectedScore !== 'all') {
           const targetScore = parseInt(selectedScore, 10);
           items = allItems.filter((it) => Number(it.myScore) === targetScore);
+        }
+
+        // Apply strict sorting for rated titles:
+        // - my_score_desc: 10 -> 0
+        // - my_score_asc: 0 -> 10 (0 first!)
+        // - recent_rated: by user rating timestamp from newest to oldest
+        // - newest: by anime release year from newest to oldest
+        if (selectedScore !== 'top5') {
+          items.sort((a, b) => {
+            if (sortOption === 'my_score_desc') {
+              const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : -1;
+              const sb = (b.myScore !== null && b.myScore !== undefined) ? Number(b.myScore) : -1;
+              if (sb !== sa) return sb - sa;
+              const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
+              const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
+              return dateB - dateA;
+            }
+            if (sortOption === 'my_score_asc') {
+              const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : 999;
+              const sb = (b.myScore !== null && b.myScore !== undefined) ? Number(b.myScore) : 999;
+              if (sa !== sb) return sa - sb;
+              const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
+              const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
+              return dateB - dateA;
+            }
+            if (sortOption === 'recent_rated') {
+              const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
+              const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
+              if (dateB !== dateA) return dateB - dateA;
+              return (b.id || 0) - (a.id || 0);
+            }
+            if (sortOption === 'newest') {
+              const ya = parseInt(a.year, 10) || 0;
+              const yb = parseInt(b.year, 10) || 0;
+              if (yb !== ya) return yb - ya;
+              return (b.id || 0) - (a.id || 0);
+            }
+            return 0;
+          });
         }
         setRatedAnime(items);
         if (!searchQuery.trim() && selectedType === 'all' && activeRatedGenres.length === 0 && selectedScore === 'all') {
@@ -744,6 +773,9 @@ export default function ProfilePage({
             ids = localSaved;
           }
 
+          if (user?.nickname === 'Just' || user?.id === 5) {
+            if (!Array.isArray(ids) || ids.length < 5) ids = [2646, 6080, 2346, 1807, 5779];
+          }
           if (user?.nickname === 'MrTech' || user?.id === 20) {
             if (!ids.includes(7170)) ids.unshift(7170);
           }
