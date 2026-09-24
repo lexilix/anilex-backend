@@ -16,28 +16,22 @@
   {
     "id": 7195,
     "slug": "shiki-60303",
-    "title": "Мой подарок с уровнем 9999: Бесконечная гача",
-    "originalTitle": "Shinjiteita Nakama-tachi ni Dungeon Okuchi de Korosarekaketa ga Gift \"Mugen Gacha\" de Level 9999 no Nakama-tachi wo Te ni Irete Moto Party Member to Sekai ni Fukushuu & \"Zamaa!\" Shimasu! / My Gift Lvl 9999 Unlimited Gacha: Backstabbed in a Backwater Dungeon, I am Out for Revenge! / Бесконечная гача",
-    "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
+    "title": "Бесконечная гача",
+    "originalTitle": "Shinjiteita Nakama-tachi ni Dungeon Okuchi de Korosarekaketa ga Gift \"Mugen Gacha\" de Level 9999 no Nakama-tachi wo Te ni Irete Moto Party Member to Sekai ni Fukushuu & \"Zamaa!\" Shimasu!",
+    "imageUrl": "/mugen_gacha_poster.jpg",
     "type": "Сериал",
     "year": "2025",
     "genres": [
       "Экшен",
-      "Приключения",
       "Фэнтези"
     ],
-    "description": "В мире, населённом девятью расами, люди занимают самое низкое положение и постоянно сталкиваются с презрением со стороны остальных. Лайт покидает родной дом, мечтая стать великим искателем приключений, однако его навык «Бесконечная гача», способный материализовывать случайные предметы, кажется окружающим совершенно бесполезным.\n\nВскоре Лайт становится представителем человечества в Союзе племён — отряде, объединившем представителей разных рас. Во время исследования Бездны, опаснейшего подземелья в мире, товарищи внезапно предают его и оставляют умирать среди чудовищ.\n\nОказавшись на грани гибели, Лайт вновь использует свой дар и неожиданно призывает Мэй — могущественную горничную 9999-го уровня, поклявшуюся ему в абсолютной верности. Открыв истинные возможности «Бесконечной гачи» и собрав вокруг себя невероятно сильных союзников, Лайт начинает готовить возмездие тем, кто обрёк его на смерть.",
+    "description": "История о парне по имени Лайт, которого предали товарищи по подземелью и бросили умирать на самом глубоком уровне. Но благодаря своему дару «Бесконечная гача» уровня 9999 он призывает сильнейших спутниц и начинает жестокую месть бывшим союзникам и всему миру.",
     "myScore": null,
     "averageScore": null,
     "ratingCount": 0,
-    "season": "",
+    "season": "Осень 2025",
     "linkedAnime": [],
-    "related_json": "[{\"id\":7191,\"title\":\"О моём перерождении в слизь\",\"imageUrl\":\"https://shikimori.one/system/animes/original/37430.jpg?1711977107\",\"type\":\"Сериал\",\"year\":\"2018\",\"relation\":\"1-й сезон\"},{\"id\":7192,\"title\":\"О моём перерождении в слизь 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39551.jpg?1711977070\",\"type\":\"Сериал\",\"year\":\"2021\",\"relation\":\"2-й сезон\"},{\"id\":7193,\"title\":\"О моём перерождении в слизь 2. Часть 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41487.jpg?1711977051\",\"type\":\"Сериал\",\"year\":\"2021\",\"relation\":\"2-й сезон часть 2\"},{\"id\":7194,\"title\":\"О моём перерождении в слизь: Алые узы\",\"imageUrl\":\"https://shikimori.one/system/animes/original/49877.jpg?1709524281\",\"type\":\"Фильм\",\"year\":\"2022\",\"relation\":\"Фильм 1\"},{\"id\":1446,\"title\":\"О моём перерождении в слизь 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/66/66732cd781462452350534\",\"type\":\"Сериал\",\"year\":\"2024\",\"relation\":\"3-й сезон\"},{\"id\":650,\"title\":\"О моём перерождении в слизь: Слёзы синего моря\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168\",\"type\":\"Фильм\",\"year\":\"2026\",\"relation\":\"Фильм 2\"},{\"id\":914,\"title\":\"О моём перерождении в слизь 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569\",\"type\":\"Сериал\",\"year\":\"2026\",\"relation\":\"4-й сезон\"}]",
-    "aliasIds": [
-      7195,
-      7184,
-      60303
-    ]
+    "related_json": "[]"
   },
   {
     "id": 7194,
@@ -28009,7 +28003,7 @@
     "id": 3293,
     "slug": "drakon-gornichnaya-kobayashi-406",
     "title": "Дракон-горничная госпожи Кобаяси",
-    "originalTitle": "Kobayashi-san Chi no Maid Dragon",
+    "originalTitle": "Kobayashi-san Chi no Maid Dragon / Кобояши / Кобаяши / Дракон-горничная Кобаяши",
     "imageUrl": "https://img.cdngos.com/v/250x350/anime/5a/5a9b68cbba10c200065662",
     "type": "Сериал",
     "year": "2017",
@@ -28021,7 +28015,7 @@
     "myScore": null,
     "averageScore": null,
     "ratingCount": 0,
-    "season": "3-й сезон",
+    "season": "1-й сезон",
     "linkedAnime": [
       {
         "id": 3291,
@@ -145839,5 +145833,26 @@
     "ratingCount": 0,
     "isFavorite": false,
     "isHidden": false
+  },
+  {
+    "id": 7234,
+    "slug": "moi-podarok-s-urovnem-9999-beskonechnaya-gacha-7234",
+    "title": "Мой подарок с уровнем 9999: Бесконечная гача",
+    "originalTitle": "My Gift Lvl 9999 Unlimited Gacha: Backstabbed in a Backwater Dungeon, I am Out for Revenge!",
+    "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
+    "type": "Сериал",
+    "year": "2025",
+    "season": "2025",
+    "genres": [
+      "Экшен",
+      "Приключения",
+      "Фэнтези"
+    ],
+    "description": "В мире, где люди занимают самое низкое положение, Лайт обладает навыком «Бесконечная гача». После предательства в Бездне он открывает истинную силу своего дара и собирает непобедимую армию союзниц 9999-го уровня.",
+    "myScore": null,
+    "averageScore": null,
+    "ratingCount": 0,
+    "linkedAnime": [],
+    "related_json": "[]"
   }
 ]

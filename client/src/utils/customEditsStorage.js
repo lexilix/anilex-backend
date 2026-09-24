@@ -112,11 +112,35 @@ export function applyCustomUserEdits(userObj) {
   if (!userObj || !userObj.id) return userObj;
   try {
     const edits = getCustomUserEdits();
+    // Auto-purge stale haitek collision on ID 23
+    if (edits[23] && edits[23].nickname === 'haitek') {
+      delete edits[23];
+      try {
+        localStorage.setItem(USER_EDITS_KEY, JSON.stringify(edits));
+      } catch (e) {}
+    }
     const custom = edits[Number(userObj.id)];
     if (custom) {
+      // Mismatched email check
+      if (custom.email && userObj.email && custom.email.toLowerCase() !== userObj.email.toLowerCase()) {
+        return userObj;
+      }
+      // Prevent haitek override on lonely4ka
+      if (Number(userObj.id) === 23 && custom.nickname && custom.nickname.toLowerCase() === 'haitek') {
+        return userObj;
+      }
+      const finalNickname = (custom.nickname && (!userObj.nickname || (custom.email && custom.email === userObj.email)))
+        ? custom.nickname
+        : (userObj.nickname || custom.nickname);
+      const finalAvatar = custom.avatarUrl || userObj.avatarUrl;
+      const finalBanner = custom.bannerUrl || userObj.bannerUrl;
+
       return {
         ...userObj,
-        ...custom
+        ...custom,
+        nickname: finalNickname,
+        avatarUrl: finalAvatar,
+        bannerUrl: finalBanner
       };
     }
   } catch (e) {}

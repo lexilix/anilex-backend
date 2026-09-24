@@ -202,6 +202,29 @@ export default function ProfilePage({
   const [friendGenreFilter, setFriendGenreFilter] = useState('all');
   const [showLevelsModal, setShowLevelsModal] = useState(false);
 
+  // One-time cleanup for stale cache collisions
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('anilex_custom_user_edits');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed[23] && (parsed[23].nickname === 'haitek' || !parsed[23].nickname)) {
+          delete parsed[23];
+          localStorage.setItem('anilex_custom_user_edits', JSON.stringify(parsed));
+        }
+      }
+      // Purge erroneously cached rating on 5655 for Just (user 5)
+      const cached5 = localStorage.getItem('anilex_ratings_cache_5');
+      if (cached5) {
+        const list5 = JSON.parse(cached5);
+        if (Array.isArray(list5)) {
+          const filtered = list5.filter((it) => Number(it.id) !== 5655);
+          localStorage.setItem('anilex_ratings_cache_5', JSON.stringify(filtered));
+        }
+      }
+    } catch (e) {}
+  }, []);
+
   // Custom User Top-5 State (max 5 items, Photo 1 & Photo 2)
   const [myTop5Ids, setMyTop5Ids] = useState(() => {
     try {
@@ -314,19 +337,25 @@ export default function ProfilePage({
         const isJust = Number(user?.id) === 5 || user?.nickname === 'Just';
 
         // Purge unwanted zero ratings for Just, but preserve 7195 / 7184 (Бесконечная гача)
-        const isGachaItem = (it) => {
-          const numId = Number(it.id);
-          return numId === 7195 || numId === 7184 || String(it.title || '').toLowerCase().includes('гача');
+        const isGachaZeroAllowed = (it) => {
+          return Number(it.id) === 7195;
         };
 
         if (isJust) {
-          allItems = allItems.filter(it => !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)) && (Number(it.myScore) !== 0 || isGachaItem(it)));
+          allItems = allItems.filter(it => {
+            const numId = Number(it.id);
+            if (numId === 5655 || numId === 7234) return false;
+            if (UNWANTED_JUST_ZERO_IDS.has(numId)) return false;
+            return Number(it.myScore) !== 0 || isGachaZeroAllowed(it);
+          });
         }
 
         // Merge with locally cached user ratings (excluding any unwanted blacklist items)
         const cachedRatings = (getCachedUserRatings(user?.id) || []).filter(it => {
           if (isJust) {
-            return !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)) && (Number(it.myScore) !== 0 || isGachaItem(it));
+            const numId = Number(it.id);
+            if (numId === 5655 || numId === 7234) return false;
+            return !UNWANTED_JUST_ZERO_IDS.has(numId) && (Number(it.myScore) !== 0 || isGachaZeroAllowed(it));
           }
           return true;
         });
@@ -351,9 +380,9 @@ export default function ProfilePage({
         if (isJust) {
           allItems = allItems.filter(it => {
             const numId = Number(it.id);
+            if (numId === 5655 || numId === 7234) return false;
             if (UNWANTED_JUST_ZERO_IDS.has(numId)) return false;
-            const isGacha = numId === 7195 || numId === 7184 || String(it.title || '').toLowerCase().includes('гача');
-            return Number(it.myScore) !== 0 || isGacha;
+            return Number(it.myScore) !== 0 || isGachaZeroAllowed(it);
           });
         }
 
@@ -961,7 +990,7 @@ export default function ProfilePage({
   };
 
   // Load friend public profile
-  const handleOpenFriend = async (friendId) => {
+  const handleOpenFriend = async (friendId, fallbackUser = null) => {
     try {
       const token = localStorage.getItem('anime_auth_token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -969,7 +998,16 @@ export default function ProfilePage({
       if (res.ok) {
         const data = await res.json();
         const isJustViewer = user?.nickname === 'Just' || user?.id === 5 || user?.email === 'just9jeeet@gmail.com';
-        const userObj = applyCustomUserEdits(data.user);
+        let userObj = applyCustomUserEdits(data.user);
+        if (!userObj || !userObj.nickname) {
+          userObj = { ...(data.user || fallbackUser || {}) };
+        }
+        // Strict guard: NEVER let ID 23 be renamed to haitek or lose avatar
+        if ((data.user?.id === 23 || friendId === 23) && data.user?.nickname) {
+          userObj.nickname = data.user.nickname;
+          userObj.avatarUrl = data.user.avatarUrl || userObj.avatarUrl;
+          userObj.bannerUrl = data.user.bannerUrl || userObj.bannerUrl;
+        }
         if (isJustViewer) {
           userObj.isFriend = true;
           userObj.friendshipStatus = 'accepted';
@@ -2074,7 +2112,7 @@ export default function ProfilePage({
                 {myFriends.map((fr) => (
                   <div
                     key={fr.id}
-                    onClick={() => handleOpenFriend(fr.id)}
+                    onClick={() => handleOpenFriend(fr.id, fr)}
                     className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 flex items-center justify-between gap-3 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -2149,7 +2187,7 @@ export default function ProfilePage({
                   return (
                     <div
                       key={fr.id}
-                      onClick={() => handleOpenFriend(fr.id)}
+                      onClick={() => handleOpenFriend(fr.id, fr)}
                       className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors flex flex-col justify-between gap-3"
                     >
                       <div className="flex items-center gap-3">
