@@ -37,13 +37,30 @@ export function clearCachedUserProfile() {
   }
 }
 
+const UNWANTED_JUST_ZERO_IDS = new Set([1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227]);
+
 export function getCachedUserRatings(userId) {
   try {
     const key = `${RATINGS_PREFIX}${userId || 'guest'}`;
     const raw = localStorage.getItem(key);
     if (!raw) return [];
-    const list = JSON.parse(raw);
-    return Array.isArray(list) ? list : [];
+    let list = JSON.parse(raw);
+    if (!Array.isArray(list)) return [];
+
+    const isJustUser = Number(userId) === 5 || userId === '5';
+    if (isJustUser) {
+      const originalLen = list.length;
+      list = list.filter((r) => {
+        const idNum = Number(r.id);
+        if (UNWANTED_JUST_ZERO_IDS.has(idNum)) return false;
+        if (Number(r.myScore) === 0) return false;
+        return true;
+      });
+      if (list.length !== originalLen) {
+        localStorage.setItem(key, JSON.stringify(list));
+      }
+    }
+    return list;
   } catch (e) {
     return [];
   }
@@ -53,7 +70,17 @@ export function setCachedUserRatings(userId, ratings) {
   try {
     if (!userId) return;
     const key = `${RATINGS_PREFIX}${userId}`;
-    const cleanList = (ratings || []).map((r) => ({
+    const isJustUser = Number(userId) === 5 || userId === '5';
+    let filteredRatings = ratings || [];
+    if (isJustUser) {
+      filteredRatings = filteredRatings.filter((r) => {
+        const idNum = Number(r.id);
+        if (UNWANTED_JUST_ZERO_IDS.has(idNum)) return false;
+        if (Number(r.myScore) === 0) return false;
+        return true;
+      });
+    }
+    const cleanList = filteredRatings.map((r) => ({
       id: r.id,
       title: r.title,
       originalTitle: r.originalTitle,
@@ -81,11 +108,13 @@ export function updateCachedUserRating(userId, animeId, score, animeData = null)
     const numId = Number(animeId);
     const animeTitle = (animeData?.title || '').trim().toLowerCase();
 
-    if (score === null || score === undefined) {
+    const isJustUser = Number(targetUserId) === 5 || targetUserId === '5';
+    if (score === null || score === undefined || (isJustUser && (UNWANTED_JUST_ZERO_IDS.has(numId) || Number(score) === 0))) {
       // Remove rating
       list = list.filter((it) => {
         if (Number(it.id) === numId) return false;
         if (animeTitle && it.title && it.title.trim().toLowerCase() === animeTitle) return false;
+        if (isJustUser && (UNWANTED_JUST_ZERO_IDS.has(Number(it.id)) || Number(it.myScore) === 0)) return false;
         return true;
       });
     } else {

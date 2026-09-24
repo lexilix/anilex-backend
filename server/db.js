@@ -592,6 +592,10 @@ function ensureAllUsersFriends() {
       // Ensure Just rating for 6970 is 7, and 5655 has NO rating
       db.prepare('DELETE FROM ratings WHERE user_id = ? AND anime_id = 5655').run(justUser.id);
       db.prepare(`
+        DELETE FROM ratings 
+        WHERE user_id = ? AND (anime_id IN (1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227) OR score = 0)
+      `).run(justUser.id);
+      db.prepare(`
         INSERT INTO ratings (user_id, anime_id, score, updated_at)
         VALUES (?, 6970, 7, CURRENT_TIMESTAMP)
         ON CONFLICT(user_id, anime_id) DO UPDATE SET score = 7, updated_at = CURRENT_TIMESTAMP

@@ -310,9 +310,22 @@ export default function ProfilePage({
       if (res.ok) {
         const data = await res.json();
         let allItems = deduplicateAnimeList(data.items || []);
+        const UNWANTED_JUST_ZERO_IDS = new Set([1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227]);
+        const isJust = Number(user?.id) === 5 || user?.nickname === 'Just';
 
-        // Merge with locally cached user ratings so fresh ratings (or cold starts) are never lost
-        const cachedRatings = getCachedUserRatings(user?.id) || [];
+        // Purge unwanted zero ratings for Just
+        if (isJust) {
+          allItems = allItems.filter(it => !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)) && Number(it.myScore) !== 0);
+        }
+
+        // Merge with locally cached user ratings (excluding any unwanted blacklist items)
+        const cachedRatings = (getCachedUserRatings(user?.id) || []).filter(it => {
+          if (isJust) {
+            return !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)) && Number(it.myScore) !== 0;
+          }
+          return true;
+        });
+
         if (cachedRatings.length > 0) {
           const allMap = new Map();
           allItems.forEach((it) => allMap.set(Number(it.id), it));
@@ -330,8 +343,15 @@ export default function ProfilePage({
           allItems = deduplicateAnimeList(Array.from(allMap.values()));
         }
 
+        if (isJust) {
+          allItems = allItems.filter(it => !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)) && Number(it.myScore) !== 0);
+        }
+
+        // Keep localStorage cache synced and purged
+        setCachedUserRatings(user?.id, allItems);
+
         if (data.total !== undefined) {
-          setTotalRatedCount(Math.max(data.total, allItems.length));
+          setTotalRatedCount(allItems.length);
         } else if (!searchQuery.trim() && selectedType === 'all' && activeRatedGenres.length === 0 && selectedScore === 'all') {
           setTotalRatedCount(allItems.length);
         }

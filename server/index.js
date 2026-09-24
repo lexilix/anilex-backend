@@ -60,7 +60,7 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.get('/api/version', (req, res) => {
   res.json({
     status: 'ok',
-    version: '1.0.9',
+    version: '1.0.10',
     nodeVersion: process.version,
     hasLowerUtf8: Boolean(db.hasLowerUtf8)
   });
@@ -3034,6 +3034,11 @@ app.get('/api/user/rated-anime', authMiddleware, (req, res) => {
 
     const params = [userId];
     let whereClauses = ['r.user_id = ?', "a.title != 'Лимонные девочки'"];
+
+    if (userId === 5 || req.user.nickname === 'Just') {
+      whereClauses.push('r.anime_id NOT IN (1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227)');
+      whereClauses.push('r.score > 0');
+    }
 
     if (search && search.trim()) {
       const term = `%${search.trim().toLowerCase()}%`;
