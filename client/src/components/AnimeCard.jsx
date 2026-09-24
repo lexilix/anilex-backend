@@ -146,6 +146,7 @@ export default function AnimeCard({
   const isFavorite = anime.isFavorite;
   const isHidden = localHidden;
   const averageScore = anime.averageScore;
+  const ratingCount = anime.ratingCount || 0;
   const friendsRatings = fetchedRatings !== null
     ? fetchedRatings
     : (Array.isArray(anime.friendsRatings) ? anime.friendsRatings : []);
