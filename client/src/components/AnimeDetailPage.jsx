@@ -7,6 +7,7 @@ import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 import { applyCustomAnimeEdits, getCustomAnimeEdits } from '../utils/customEditsStorage';
 import { getAllCachedAnime } from '../utils/catalogCache';
 import { getCachedUserRatings, getCachedUserProfile, updateCachedUserRating } from '../utils/profileCache';
+import initialCatalog from '../data/initialCatalog.json';
 
 export default function AnimeDetailPage({
   animeId,
@@ -142,10 +143,35 @@ export default function AnimeDetailPage({
     try {
       const token = localStorage.getItem('anime_auth_token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(apiUrl(`/api/anime/${animeId}/related`), { headers });
+      let items = [];
       if (res.ok) {
         const data = await res.json();
-        let items = data.items || [];
+        items = data.items || [];
+      } else {
+        const numId = Number(animeId);
+        const catItem = (Array.isArray(initialCatalog) ? initialCatalog : []).find(
+          (a) =>
+            Number(a.id) === numId ||
+            a.slug === animeId ||
+            (Array.isArray(a.aliasIds) && a.aliasIds.map(Number).includes(numId))
+        );
+        if (catItem && Array.isArray(catItem.linkedAnime)) {
+          items = [...catItem.linkedAnime];
+        }
+      }
+
+      if (items.length === 0) {
+        const numId = Number(animeId);
+        const catItem = (Array.isArray(initialCatalog) ? initialCatalog : []).find(
+          (a) =>
+            Number(a.id) === numId ||
+            a.slug === animeId ||
+            (Array.isArray(a.aliasIds) && a.aliasIds.map(Number).includes(numId))
+        );
+        if (catItem && Array.isArray(catItem.linkedAnime)) {
+          items = [...catItem.linkedAnime];
+        }
+      }
 
         // 1. Filter out placeholder junk, blue boxes, and commercial Snickers ads
         items = items.filter((it) => {
@@ -343,9 +369,20 @@ export default function AnimeDetailPage({
         });
 
         setRelatedAnime(deduplicateAnimeList(items));
-      }
     } catch (err) {
       console.error('Error loading related anime:', err);
+      try {
+        const numId = Number(animeId);
+        const catItem = (Array.isArray(initialCatalog) ? initialCatalog : []).find(
+          (a) =>
+            Number(a.id) === numId ||
+            a.slug === animeId ||
+            (Array.isArray(a.aliasIds) && a.aliasIds.map(Number).includes(numId))
+        );
+        if (catItem && Array.isArray(catItem.linkedAnime)) {
+          setRelatedAnime(deduplicateAnimeList([...catItem.linkedAnime]));
+        }
+      } catch (e) {}
     }
   };
 
@@ -403,9 +440,26 @@ export default function AnimeDetailPage({
         data = await res.json();
       } else {
         const edits = getCustomAnimeEdits();
-        const custom = edits[Number(animeId)];
+        let custom = edits[Number(animeId)];
+        if (!custom) {
+          const numId = Number(animeId);
+          custom = (Array.isArray(initialCatalog) ? initialCatalog : []).find(
+            (a) =>
+              Number(a.id) === numId ||
+              a.slug === animeId ||
+              (Array.isArray(a.aliasIds) && a.aliasIds.map(Number).includes(numId))
+          );
+        }
+        if (!custom) {
+          const allCached = getAllCachedAnime();
+          custom = allCached.find(
+            (a) =>
+              Number(a.id) === Number(animeId) ||
+              a.slug === animeId
+          );
+        }
         if (custom) {
-          data = custom;
+          data = { ...custom };
         } else {
           throw new Error('Not found');
         }
@@ -459,7 +513,13 @@ export default function AnimeDetailPage({
       console.error('Error loading anime details:', err);
       try {
         const edits = getCustomAnimeEdits();
-        const custom = edits[Number(animeId)];
+        let custom = edits[Number(animeId)];
+        if (!custom) {
+          const numId = Number(animeId);
+          custom = (Array.isArray(initialCatalog) ? initialCatalog : []).find(
+            (a) => Number(a.id) === numId || a.slug === animeId || (Array.isArray(a.aliasIds) && a.aliasIds.map(Number).includes(numId))
+          );
+        }
         if (custom) {
           if (custom.myScore === null || custom.myScore === undefined) {
             const currentUserId = user?.id || getCachedUserProfile()?.id;
@@ -601,6 +661,25 @@ export default function AnimeDetailPage({
           }
           return it;
         }));
+      } else if (res.status === 404 && targetAnime?.title) {
+        try {
+          await fetch(apiUrl('/api/anime/create'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              title: targetAnime.title,
+              originalTitle: targetAnime.originalTitle || '',
+              image: targetAnime.imageUrl || targetAnime.image_url || '',
+              type: targetAnime.type || 'Сериал',
+              score: newScore
+            })
+          });
+        } catch (createErr) {
+          console.warn('Fallback anime create error:', createErr);
+        }
       }
     } finally {
       setRatingLoading(false);

@@ -16,76 +16,28 @@
   {
     "id": 7195,
     "slug": "shiki-60303",
-    "title": "Я был предан товарищами в глубине подземелья, но благодаря своему навыку «Бесконечная гача» я обрёл союзников девять тысяч девятьсот девяносто девятого уровня, чтобы отомстить бывшим соратникам и всему миру!",
-    "originalTitle": "Shinjiteita Nakama-tachi ni Dungeon Okuchi de Korosarekaketa ga Gift \"Mugen Gacha\" de Level 9999 no Nakama-tachi wo Te ni Irete Moto Party Member to Sekai ni Fukushuu & \"Zamaa!\" Shimasu! / My Gift Lvl 9999 Unlimited Gacha: Backstabbed in a Backwater Dungeon, I'm Out for Revenge! / Бесконечная гача / Backstabbed in a Backwater Dungeon: My Trusted Companions Tried to Kill Me / But Thanks to the Gift of an Unlimited Gacha I Got LVL 9999 Friends and Am Out For Revenge on My Former Party Members and the World",
+    "title": "Мой подарок с уровнем 9999: Бесконечная гача",
+    "originalTitle": "Shinjiteita Nakama-tachi ni Dungeon Okuchi de Korosarekaketa ga Gift \"Mugen Gacha\" de Level 9999 no Nakama-tachi wo Te ni Irete Moto Party Member to Sekai ni Fukushuu & \"Zamaa!\" Shimasu! / My Gift Lvl 9999 Unlimited Gacha: Backstabbed in a Backwater Dungeon, I am Out for Revenge! / Бесконечная гача",
     "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
     "type": "Сериал",
     "year": "2025",
-    "genres": [],
+    "genres": [
+      "Экшен",
+      "Приключения",
+      "Фэнтези"
+    ],
     "description": "В мире, населённом девятью расами, люди занимают самое низкое положение и постоянно сталкиваются с презрением со стороны остальных. Лайт покидает родной дом, мечтая стать великим искателем приключений, однако его навык «Бесконечная гача», способный материализовывать случайные предметы, кажется окружающим совершенно бесполезным.\n\nВскоре Лайт становится представителем человечества в Союзе племён — отряде, объединившем представителей разных рас. Во время исследования Бездны, опаснейшего подземелья в мире, товарищи внезапно предают его и оставляют умирать среди чудовищ.\n\nОказавшись на грани гибели, Лайт вновь использует свой дар и неожиданно призывает Мэй — могущественную горничную 9999-го уровня, поклявшуюся ему в абсолютной верности. Открыв истинные возможности «Бесконечной гачи» и собрав вокруг себя невероятно сильных союзников, Лайт начинает готовить возмездие тем, кто обрёк его на смерть.",
     "myScore": null,
     "averageScore": null,
     "ratingCount": 0,
-    "season": "Спешл",
-    "linkedAnime": [
-      {
-        "id": 7191,
-        "title": "О моём перерождении в слизь",
-        "imageUrl": "https://shikimori.one/system/animes/original/37430.jpg?1711977107",
-        "type": "Сериал",
-        "year": "2018",
-        "relation": "1-й сезон"
-      },
-      {
-        "id": 7192,
-        "title": "О моём перерождении в слизь 2",
-        "imageUrl": "https://shikimori.one/system/animes/original/39551.jpg?1711977070",
-        "type": "Сериал",
-        "year": "2021",
-        "relation": "2-й сезон"
-      },
-      {
-        "id": 7193,
-        "title": "О моём перерождении в слизь 2. Часть 2",
-        "imageUrl": "https://shikimori.one/system/animes/original/41487.jpg?1711977051",
-        "type": "Сериал",
-        "year": "2021",
-        "relation": "2-й сезон часть 2"
-      },
-      {
-        "id": 7194,
-        "title": "О моём перерождении в слизь: Алые узы",
-        "imageUrl": "https://shikimori.one/system/animes/original/49877.jpg?1709524281",
-        "type": "Фильм",
-        "year": "2022",
-        "relation": "Фильм 1"
-      },
-      {
-        "id": 1446,
-        "title": "О моём перерождении в слизь 3",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/66/66732cd781462452350534",
-        "type": "Сериал",
-        "year": "2024",
-        "relation": "3-й сезон"
-      },
-      {
-        "id": 650,
-        "title": "О моём перерождении в слизь: Слёзы синего моря",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168",
-        "type": "Фильм",
-        "year": "2026",
-        "relation": "Фильм 2"
-      },
-      {
-        "id": 914,
-        "title": "О моём перерождении в слизь 4",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569",
-        "type": "Сериал",
-        "year": "2026",
-        "relation": "4-й сезон"
-      }
-    ],
-    "related_json": "[{\"id\":7191,\"title\":\"О моём перерождении в слизь\",\"imageUrl\":\"https://shikimori.one/system/animes/original/37430.jpg?1711977107\",\"type\":\"Сериал\",\"year\":\"2018\",\"relation\":\"1-й сезон\"},{\"id\":7192,\"title\":\"О моём перерождении в слизь 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39551.jpg?1711977070\",\"type\":\"Сериал\",\"year\":\"2021\",\"relation\":\"2-й сезон\"},{\"id\":7193,\"title\":\"О моём перерождении в слизь 2. Часть 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41487.jpg?1711977051\",\"type\":\"Сериал\",\"year\":\"2021\",\"relation\":\"2-й сезон часть 2\"},{\"id\":7194,\"title\":\"О моём перерождении в слизь: Алые узы\",\"imageUrl\":\"https://shikimori.one/system/animes/original/49877.jpg?1709524281\",\"type\":\"Фильм\",\"year\":\"2022\",\"relation\":\"Фильм 1\"},{\"id\":1446,\"title\":\"О моём перерождении в слизь 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/66/66732cd781462452350534\",\"type\":\"Сериал\",\"year\":\"2024\",\"relation\":\"3-й сезон\"},{\"id\":650,\"title\":\"О моём перерождении в слизь: Слёзы синего моря\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168\",\"type\":\"Фильм\",\"year\":\"2026\",\"relation\":\"Фильм 2\"},{\"id\":914,\"title\":\"О моём перерождении в слизь 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569\",\"type\":\"Сериал\",\"year\":\"2026\",\"relation\":\"4-й сезон\"}]"
+    "season": "",
+    "linkedAnime": [],
+    "related_json": "[{\"id\":7191,\"title\":\"О моём перерождении в слизь\",\"imageUrl\":\"https://shikimori.one/system/animes/original/37430.jpg?1711977107\",\"type\":\"Сериал\",\"year\":\"2018\",\"relation\":\"1-й сезон\"},{\"id\":7192,\"title\":\"О моём перерождении в слизь 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39551.jpg?1711977070\",\"type\":\"Сериал\",\"year\":\"2021\",\"relation\":\"2-й сезон\"},{\"id\":7193,\"title\":\"О моём перерождении в слизь 2. Часть 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41487.jpg?1711977051\",\"type\":\"Сериал\",\"year\":\"2021\",\"relation\":\"2-й сезон часть 2\"},{\"id\":7194,\"title\":\"О моём перерождении в слизь: Алые узы\",\"imageUrl\":\"https://shikimori.one/system/animes/original/49877.jpg?1709524281\",\"type\":\"Фильм\",\"year\":\"2022\",\"relation\":\"Фильм 1\"},{\"id\":1446,\"title\":\"О моём перерождении в слизь 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/66/66732cd781462452350534\",\"type\":\"Сериал\",\"year\":\"2024\",\"relation\":\"3-й сезон\"},{\"id\":650,\"title\":\"О моём перерождении в слизь: Слёзы синего моря\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168\",\"type\":\"Фильм\",\"year\":\"2026\",\"relation\":\"Фильм 2\"},{\"id\":914,\"title\":\"О моём перерождении в слизь 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569\",\"type\":\"Сериал\",\"year\":\"2026\",\"relation\":\"4-й сезон\"}]",
+    "aliasIds": [
+      7195,
+      7184,
+      60303
+    ]
   },
   {
     "id": 7194,
@@ -276,7 +228,7 @@
         "relation": "1-й сезон"
       },
       {
-        "id": 7193,
+        "id": 7197,
         "title": "О моём перерождении в слизь 2. Часть 2",
         "imageUrl": "https://shikimori.one/system/animes/original/41487.jpg?1711977051",
         "type": "Сериал",
@@ -284,7 +236,7 @@
         "relation": "2-й сезон часть 2"
       },
       {
-        "id": 7194,
+        "id": 7198,
         "title": "О моём перерождении в слизь: Алые узы",
         "imageUrl": "https://shikimori.one/system/animes/original/49877.jpg?1709524281",
         "type": "Фильм",
@@ -292,7 +244,7 @@
         "relation": "Фильм 1"
       },
       {
-        "id": 7195,
+        "id": 7199,
         "title": "О моём перерождении в слизь: Мечта Колеуса",
         "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
         "type": "ONA",
@@ -326,7 +278,11 @@
     ],
     "related_json": "[{\"id\":7191,\"title\":\"О моём перерождении в слизь\",\"imageUrl\":\"https://shikimori.one/system/animes/original/37430.jpg?1711977107\",\"type\":\"Сериал\",\"year\":\"2018\",\"relation\":\"1-й сезон\"},{\"id\":7193,\"title\":\"О моём перерождении в слизь 2. Часть 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41487.jpg?1711977051\",\"type\":\"Сериал\",\"year\":\"2021\",\"relation\":\"2-й сезон часть 2\"},{\"id\":7194,\"title\":\"О моём перерождении в слизь: Алые узы\",\"imageUrl\":\"https://shikimori.one/system/animes/original/49877.jpg?1709524281\",\"type\":\"Фильм\",\"year\":\"2022\",\"relation\":\"Фильм 1\"},{\"id\":7195,\"title\":\"О моём перерождении в слизь: Мечта Колеуса\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54565.jpg?1716771883\",\"type\":\"ONA\",\"year\":\"2023\",\"relation\":\"Спешл\"},{\"id\":1446,\"title\":\"О моём перерождении в слизь 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/66/66732cd781462452350534\",\"type\":\"Сериал\",\"year\":\"2024\",\"relation\":\"3-й сезон\"},{\"id\":650,\"title\":\"О моём перерождении в слизь: Слёзы синего моря\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168\",\"type\":\"Фильм\",\"year\":\"2026\",\"relation\":\"Фильм 2\"},{\"id\":914,\"title\":\"О моём перерождении в слизь 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569\",\"type\":\"Сериал\",\"year\":\"2026\",\"relation\":\"4-й сезон\"}]",
     "isFavorite": false,
-    "isHidden": false
+    "isHidden": false,
+    "aliasIds": [
+      7192,
+      39551
+    ]
   },
   {
     "id": 7191,
@@ -358,7 +314,7 @@
         "relation": "2-й сезон"
       },
       {
-        "id": 7193,
+        "id": 7197,
         "title": "О моём перерождении в слизь 2. Часть 2",
         "imageUrl": "https://shikimori.one/system/animes/original/41487.jpg?1711977051",
         "type": "Сериал",
@@ -366,7 +322,7 @@
         "relation": "2-й сезон часть 2"
       },
       {
-        "id": 7194,
+        "id": 7198,
         "title": "О моём перерождении в слизь: Алые узы",
         "imageUrl": "https://shikimori.one/system/animes/original/49877.jpg?1709524281",
         "type": "Фильм",
@@ -374,7 +330,7 @@
         "relation": "Фильм 1"
       },
       {
-        "id": 7195,
+        "id": 7199,
         "title": "О моём перерождении в слизь: Мечта Колеуса",
         "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
         "type": "ONA",
@@ -408,7 +364,11 @@
     ],
     "related_json": "[{\"id\":7192,\"title\":\"О моём перерождении в слизь 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39551.jpg?1711977070\",\"type\":\"Сериал\",\"year\":\"2021\",\"relation\":\"2-й сезон\"},{\"id\":7193,\"title\":\"О моём перерождении в слизь 2. Часть 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41487.jpg?1711977051\",\"type\":\"Сериал\",\"year\":\"2021\",\"relation\":\"2-й сезон часть 2\"},{\"id\":7194,\"title\":\"О моём перерождении в слизь: Алые узы\",\"imageUrl\":\"https://shikimori.one/system/animes/original/49877.jpg?1709524281\",\"type\":\"Фильм\",\"year\":\"2022\",\"relation\":\"Фильм 1\"},{\"id\":7195,\"title\":\"О моём перерождении в слизь: Мечта Колеуса\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54565.jpg?1716771883\",\"type\":\"ONA\",\"year\":\"2023\",\"relation\":\"Спешл\"},{\"id\":1446,\"title\":\"О моём перерождении в слизь 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/66/66732cd781462452350534\",\"type\":\"Сериал\",\"year\":\"2024\",\"relation\":\"3-й сезон\"},{\"id\":650,\"title\":\"О моём перерождении в слизь: Слёзы синего моря\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168\",\"type\":\"Фильм\",\"year\":\"2026\",\"relation\":\"Фильм 2\"},{\"id\":914,\"title\":\"О моём перерождении в слизь 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569\",\"type\":\"Сериал\",\"year\":\"2026\",\"relation\":\"4-й сезон\"}]",
     "isFavorite": false,
-    "isHidden": false
+    "isHidden": false,
+    "aliasIds": [
+      7191,
+      37430
+    ]
   },
   {
     "id": 7190,
@@ -99556,7 +99516,7 @@
         "relation": "2-й сезон"
       },
       {
-        "id": 7193,
+        "id": 7197,
         "title": "О моём перерождении в слизь 2. Часть 2",
         "imageUrl": "https://shikimori.one/system/animes/original/41487.jpg?1711977051",
         "type": "Сериал",
@@ -99564,7 +99524,7 @@
         "relation": "2-й сезон часть 2"
       },
       {
-        "id": 7194,
+        "id": 7198,
         "title": "О моём перерождении в слизь: Алые узы",
         "imageUrl": "https://shikimori.one/system/animes/original/49877.jpg?1709524281",
         "type": "Фильм",
@@ -99572,7 +99532,7 @@
         "relation": "Фильм 1"
       },
       {
-        "id": 7195,
+        "id": 7199,
         "title": "О моём перерождении в слизь: Мечта Колеуса",
         "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
         "type": "ONA",
@@ -124099,7 +124059,7 @@
         "relation": "2-й сезон"
       },
       {
-        "id": 7193,
+        "id": 7197,
         "title": "О моём перерождении в слизь 2. Часть 2",
         "imageUrl": "https://shikimori.one/system/animes/original/41487.jpg?1711977051",
         "type": "Сериал",
@@ -124107,7 +124067,7 @@
         "relation": "2-й сезон часть 2"
       },
       {
-        "id": 7194,
+        "id": 7198,
         "title": "О моём перерождении в слизь: Алые узы",
         "imageUrl": "https://shikimori.one/system/animes/original/49877.jpg?1709524281",
         "type": "Фильм",
@@ -124115,7 +124075,7 @@
         "relation": "Фильм 1"
       },
       {
-        "id": 7195,
+        "id": 7199,
         "title": "О моём перерождении в слизь: Мечта Колеуса",
         "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
         "type": "ONA",
@@ -133963,7 +133923,7 @@
         "relation": "2-й сезон"
       },
       {
-        "id": 7193,
+        "id": 7197,
         "title": "О моём перерождении в слизь 2. Часть 2",
         "imageUrl": "https://shikimori.one/system/animes/original/41487.jpg?1711977051",
         "type": "Сериал",
@@ -133971,7 +133931,7 @@
         "relation": "2-й сезон часть 2"
       },
       {
-        "id": 7194,
+        "id": 7198,
         "title": "О моём перерождении в слизь: Алые узы",
         "imageUrl": "https://shikimori.one/system/animes/original/49877.jpg?1709524281",
         "type": "Фильм",
@@ -133979,7 +133939,7 @@
         "relation": "Фильм 1"
       },
       {
-        "id": 7195,
+        "id": 7199,
         "title": "О моём перерождении в слизь: Мечта Колеуса",
         "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
         "type": "ONA",
@@ -145493,5 +145453,391 @@
     ],
     "related_json": "[{\"id\":6015,\"title\":\"Синяя тюрьма: Блю Лок\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/63/6341d35f1734f259446412\",\"year\":\"\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":7228,\"title\":\"Синяя тюрьма: Блю Лок — Эпизод с Наги\",\"imageUrl\":\"https://shikimori.io/system/animes/original/54866.jpg?1711514722\",\"year\":\"2024\",\"type\":\"Фильм\",\"relation\":\"Фильм\"}]",
     "season": "3-й сезон"
+  },
+  {
+    "id": 7197,
+    "slug": "shiki-41487",
+    "title": "О моём перерождении в слизь 2. Часть 2",
+    "originalTitle": "Tensei shitara Slime Datta Ken 2nd Season Part 2 / That Time I Got Reincarnated as a Slime Season 2 Part 2",
+    "aliasIds": [
+      7197,
+      41487
+    ],
+    "imageUrl": "https://shikimori.one/system/animes/original/41487.jpg?1711977051",
+    "type": "Сериал",
+    "year": "2021",
+    "genres": [
+      "Экшен",
+      "Приключения",
+      "Комедия",
+      "Фэнтези",
+      "Сёнен"
+    ],
+    "description": "Справившись с обрушившейся на страну трагедией, Римуру Темпест, пробудившийся как истинный Князь Тьмы, готовится заявить миру о правах монстров и столкнуться с коварным Клейманом на Вальпургиевом совете.",
+    "season": "2-й сезон часть 2",
+    "linkedAnime": [
+      {
+        "id": 7191,
+        "title": "О моём перерождении в слизь",
+        "imageUrl": "https://shikimori.one/system/animes/original/37430.jpg?1711977107",
+        "type": "Сериал",
+        "year": "2018",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 7192,
+        "title": "О моём перерождении в слизь 2",
+        "imageUrl": "https://shikimori.one/system/animes/original/39551.jpg?1711977070",
+        "type": "Сериал",
+        "year": "2021",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 7198,
+        "title": "О моём перерождении в слизь: Алые узы",
+        "imageUrl": "https://shikimori.one/system/animes/original/49877.jpg?1709524281",
+        "type": "Фильм",
+        "year": "2022",
+        "relation": "Фильм 1"
+      },
+      {
+        "id": 7199,
+        "title": "О моём перерождении в слизь: Мечта Колеуса",
+        "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
+        "type": "ONA",
+        "year": "2023",
+        "relation": "Спешл"
+      },
+      {
+        "id": 1446,
+        "title": "О моём перерождении в слизь 3",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/66/66732cd781462452350534",
+        "type": "Сериал",
+        "year": "2024",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 650,
+        "title": "О моём перерождении в слизь: Слёзы синего моря",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168",
+        "type": "Фильм",
+        "year": "2026",
+        "relation": "Фильм 2"
+      },
+      {
+        "id": 914,
+        "title": "О моём перерождении в слизь 4",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569",
+        "type": "Сериал",
+        "year": "2026",
+        "relation": "4-й сезон"
+      }
+    ],
+    "myScore": null,
+    "averageScore": null,
+    "ratingCount": 0,
+    "isFavorite": false,
+    "isHidden": false
+  },
+  {
+    "id": 7198,
+    "slug": "shiki-49877",
+    "title": "О моём перерождении в слизь: Алые узы",
+    "originalTitle": "Tensei shitara Slime Datta Ken Movie: Guren no Kizuna-hen / That Time I Got Reincarnated as a Slime: Scarlet Bond",
+    "aliasIds": [
+      7198,
+      49877
+    ],
+    "imageUrl": "https://shikimori.one/system/animes/original/49877.jpg?1709524281",
+    "type": "Фильм",
+    "year": "2022",
+    "genres": [
+      "Экшен",
+      "Приключения",
+      "Комедия",
+      "Фэнтези",
+      "Сёнен"
+    ],
+    "description": "История разворачивается вокруг небольшого королевства Раджа к западу от Темпеста. Римуру и его союзники встречают Хииро — выжившего огра и названого брата Бенимару, чья верность королеве Тове ведет к масштабному конфликту.",
+    "season": "Фильм 1",
+    "linkedAnime": [
+      {
+        "id": 7191,
+        "title": "О моём перерождении в слизь",
+        "imageUrl": "https://shikimori.one/system/animes/original/37430.jpg?1711977107",
+        "type": "Сериал",
+        "year": "2018",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 7192,
+        "title": "О моём перерождении в слизь 2",
+        "imageUrl": "https://shikimori.one/system/animes/original/39551.jpg?1711977070",
+        "type": "Сериал",
+        "year": "2021",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 7197,
+        "title": "О моём перерождении в слизь 2. Часть 2",
+        "imageUrl": "https://shikimori.one/system/animes/original/41487.jpg?1711977051",
+        "type": "Сериал",
+        "year": "2021",
+        "relation": "2-й сезон часть 2"
+      },
+      {
+        "id": 7199,
+        "title": "О моём перерождении в слизь: Мечта Колеуса",
+        "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
+        "type": "ONA",
+        "year": "2023",
+        "relation": "Спешл"
+      },
+      {
+        "id": 1446,
+        "title": "О моём перерождении в слизь 3",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/66/66732cd781462452350534",
+        "type": "Сериал",
+        "year": "2024",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 650,
+        "title": "О моём перерождении в слизь: Слёзы синего моря",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168",
+        "type": "Фильм",
+        "year": "2026",
+        "relation": "Фильм 2"
+      },
+      {
+        "id": 914,
+        "title": "О моём перерождении в слизь 4",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569",
+        "type": "Сериал",
+        "year": "2026",
+        "relation": "4-й сезон"
+      }
+    ],
+    "myScore": null,
+    "averageScore": null,
+    "ratingCount": 0,
+    "isFavorite": false,
+    "isHidden": false
+  },
+  {
+    "id": 7199,
+    "slug": "shiki-54565",
+    "title": "О моём перерождении в слизь: Мечта Колеуса",
+    "originalTitle": "Tensei shitara Slime Datta Ken: Coleus no Yume / That Time I Got Reincarnated as a Slime: Visions of Coleus",
+    "aliasIds": [
+      7199,
+      54565
+    ],
+    "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
+    "type": "ONA",
+    "year": "2023",
+    "genres": [
+      "Экшен",
+      "Приключения",
+      "Комедия",
+      "Фэнтези",
+      "Сёнен"
+    ],
+    "description": "По просьбе Юки Кагурадзаки, Римуру отправляется в королевство Колеус, где назревает ожесточенная борьба за трон между принцами Сауроном и Асланом.",
+    "season": "Спешл",
+    "linkedAnime": [
+      {
+        "id": 7191,
+        "title": "О моём перерождении в слизь",
+        "imageUrl": "https://shikimori.one/system/animes/original/37430.jpg?1711977107",
+        "type": "Сериал",
+        "year": "2018",
+        "relation": "1-й сезон"
+      },
+      {
+        "id": 7192,
+        "title": "О моём перерождении в слизь 2",
+        "imageUrl": "https://shikimori.one/system/animes/original/39551.jpg?1711977070",
+        "type": "Сериал",
+        "year": "2021",
+        "relation": "2-й сезон"
+      },
+      {
+        "id": 7197,
+        "title": "О моём перерождении в слизь 2. Часть 2",
+        "imageUrl": "https://shikimori.one/system/animes/original/41487.jpg?1711977051",
+        "type": "Сериал",
+        "year": "2021",
+        "relation": "2-й сезон часть 2"
+      },
+      {
+        "id": 7198,
+        "title": "О моём перерождении в слизь: Алые узы",
+        "imageUrl": "https://shikimori.one/system/animes/original/49877.jpg?1709524281",
+        "type": "Фильм",
+        "year": "2022",
+        "relation": "Фильм 1"
+      },
+      {
+        "id": 1446,
+        "title": "О моём перерождении в слизь 3",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/66/66732cd781462452350534",
+        "type": "Сериал",
+        "year": "2024",
+        "relation": "3-й сезон"
+      },
+      {
+        "id": 650,
+        "title": "О моём перерождении в слизь: Слёзы синего моря",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168",
+        "type": "Фильм",
+        "year": "2026",
+        "relation": "Фильм 2"
+      },
+      {
+        "id": 914,
+        "title": "О моём перерождении в слизь 4",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569",
+        "type": "Сериал",
+        "year": "2026",
+        "relation": "4-й сезон"
+      }
+    ],
+    "myScore": null,
+    "averageScore": null,
+    "ratingCount": 0,
+    "isFavorite": false,
+    "isHidden": false
+  },
+  {
+    "id": 7230,
+    "slug": "hime-sama-goumon-no-jikan-desu-s1",
+    "title": "Время пыток, принцесса!",
+    "originalTitle": "Hime-sama \"Goumon\" no Jikan desu / 'Tis Time for \"Torture,\" Princess",
+    "aliasIds": [
+      7230,
+      52490
+    ],
+    "imageUrl": "https://shikimori.one/system/animes/original/52490.jpg",
+    "type": "Сериал",
+    "year": "2024",
+    "genres": [
+      "Комедия",
+      "Фэнтези",
+      "Гурман"
+    ],
+    "description": "Шёл долгий и ожесточённый конфликт между армией людей и армией демонов. Принцесса, будучи командиром Третьего королевского отряда рыцарей, попала в плен к демонам. Теперь её ждут изощрённые и беспощадные... \"пытки\" свежайшей выпечкой, горячим рамэном и другими невероятными лакомствами!",
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 1128,
+        "title": "Время пыток, принцесса! 2",
+        "relation": "2-й сезон"
+      }
+    ],
+    "myScore": null,
+    "averageScore": null,
+    "ratingCount": 0,
+    "isFavorite": false,
+    "isHidden": false
+  },
+  {
+    "id": 7231,
+    "slug": "panty-and-stocking-with-garterbelt-s1",
+    "title": "Труська, Чулко и пресвятой Подвяз",
+    "originalTitle": "Panty & Stocking with Garterbelt",
+    "aliasIds": [
+      7231,
+      8795
+    ],
+    "imageUrl": "https://shikimori.one/system/animes/original/8795.jpg",
+    "type": "Сериал",
+    "year": "2010",
+    "genres": [
+      "Экшен",
+      "Комедия",
+      "Сверхъестественное",
+      "Пародия",
+      "Этти"
+    ],
+    "description": "Две сестры-ангела, Панти и Стокинг, были изгнаны из Рая за своё неподобающее поведение на Землю, в город Датен-Сити, находящийся на границе между Небесами и Адом. Чтобы вернуться обратно, им нужно истреблять злых призраков и собирать небесные монеты.",
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 1177,
+        "title": "Труська, Чулко и пресвятой Подвяз 2",
+        "relation": "2-й сезон"
+      }
+    ],
+    "myScore": null,
+    "averageScore": null,
+    "ratingCount": 0,
+    "isFavorite": false,
+    "isHidden": false
+  },
+  {
+    "id": 7232,
+    "slug": "puniru-wa-kawaii-slime-s1",
+    "title": "Пуниру — милая слизь",
+    "originalTitle": "Puniru wa Kawaii Slime",
+    "aliasIds": [
+      7232,
+      57802
+    ],
+    "imageUrl": "https://shikimori.one/system/animes/original/57802.jpg",
+    "type": "Сериал",
+    "year": "2024",
+    "genres": [
+      "Комедия",
+      "Повседневность"
+    ],
+    "description": "Котаро создал живую слизь по имени Пуниру семь лет назад. Со временем слизь научилась превращаться в милую девочку, и теперь беззаботные деньки Котаро наполнены забавными и милыми выходками Пуниру.",
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 1179,
+        "title": "Пуниру — милая слизь 2",
+        "relation": "2-й сезон"
+      }
+    ],
+    "myScore": null,
+    "averageScore": null,
+    "ratingCount": 0,
+    "isFavorite": false,
+    "isHidden": false
+  },
+  {
+    "id": 7233,
+    "slug": "yaoguai-mingdan-s1",
+    "title": "Список нечисти",
+    "originalTitle": "Yaoguai Mingdan / Monster List",
+    "aliasIds": [
+      7233,
+      28929
+    ],
+    "imageUrl": "https://shikimori.one/system/animes/original/28929.jpg",
+    "type": "Сериал",
+    "year": "2014",
+    "genres": [
+      "Экшен",
+      "Комедия",
+      "Фэнтези",
+      "Гарем",
+      "Романтика"
+    ],
+    "description": "Фэн Си — обычный студент, стремящийся к спокойной жизни. Однако его судьба резко меняется, когда он встречает загадочную девушку Су Цзюэр, оказавшуюся девятихвостой лисой. Вскоре Фэн Си узнает, что мир полон духов, демонов и даосов.",
+    "season": "1-й сезон",
+    "linkedAnime": [
+      {
+        "id": 971,
+        "title": "Список нечисти 2",
+        "relation": "2-й сезон"
+      }
+    ],
+    "myScore": null,
+    "averageScore": null,
+    "ratingCount": 0,
+    "isFavorite": false,
+    "isHidden": false
   }
 ]

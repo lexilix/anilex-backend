@@ -313,15 +313,20 @@ export default function ProfilePage({
         const UNWANTED_JUST_ZERO_IDS = new Set([1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227]);
         const isJust = Number(user?.id) === 5 || user?.nickname === 'Just';
 
-        // Purge unwanted zero ratings for Just
+        // Purge unwanted zero ratings for Just, but preserve 7195 / 7184 (Бесконечная гача)
+        const isGachaItem = (it) => {
+          const numId = Number(it.id);
+          return numId === 7195 || numId === 7184 || String(it.title || '').toLowerCase().includes('гача');
+        };
+
         if (isJust) {
-          allItems = allItems.filter(it => !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)) && Number(it.myScore) !== 0);
+          allItems = allItems.filter(it => !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)) && (Number(it.myScore) !== 0 || isGachaItem(it)));
         }
 
         // Merge with locally cached user ratings (excluding any unwanted blacklist items)
         const cachedRatings = (getCachedUserRatings(user?.id) || []).filter(it => {
           if (isJust) {
-            return !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)) && Number(it.myScore) !== 0;
+            return !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)) && (Number(it.myScore) !== 0 || isGachaItem(it));
           }
           return true;
         });
@@ -344,7 +349,12 @@ export default function ProfilePage({
         }
 
         if (isJust) {
-          allItems = allItems.filter(it => !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)) && Number(it.myScore) !== 0);
+          allItems = allItems.filter(it => {
+            const numId = Number(it.id);
+            if (UNWANTED_JUST_ZERO_IDS.has(numId)) return false;
+            const isGacha = numId === 7195 || numId === 7184 || String(it.title || '').toLowerCase().includes('гача');
+            return Number(it.myScore) !== 0 || isGacha;
+          });
         }
 
         // Keep localStorage cache synced and purged

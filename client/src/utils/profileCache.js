@@ -53,7 +53,8 @@ export function getCachedUserRatings(userId) {
       list = list.filter((r) => {
         const idNum = Number(r.id);
         if (UNWANTED_JUST_ZERO_IDS.has(idNum)) return false;
-        if (Number(r.myScore) === 0) return false;
+        const isGacha = idNum === 7195 || idNum === 7184 || String(r.title || '').toLowerCase().includes('гача');
+        if (Number(r.myScore) === 0 && !isGacha) return false;
         return true;
       });
       if (list.length !== originalLen) {
@@ -76,7 +77,8 @@ export function setCachedUserRatings(userId, ratings) {
       filteredRatings = filteredRatings.filter((r) => {
         const idNum = Number(r.id);
         if (UNWANTED_JUST_ZERO_IDS.has(idNum)) return false;
-        if (Number(r.myScore) === 0) return false;
+        const isGacha = idNum === 7195 || idNum === 7184 || String(r.title || '').toLowerCase().includes('гача');
+        if (Number(r.myScore) === 0 && !isGacha) return false;
         return true;
       });
     }
@@ -109,12 +111,12 @@ export function updateCachedUserRating(userId, animeId, score, animeData = null)
     const animeTitle = (animeData?.title || '').trim().toLowerCase();
 
     const isJustUser = Number(targetUserId) === 5 || targetUserId === '5';
-    if (score === null || score === undefined || (isJustUser && (UNWANTED_JUST_ZERO_IDS.has(numId) || Number(score) === 0))) {
+    if (score === null || score === undefined || (isJustUser && (UNWANTED_JUST_ZERO_IDS.has(numId) || (Number(score) === 0 && numId !== 7195)))) {
       // Remove rating
       list = list.filter((it) => {
         if (Number(it.id) === numId) return false;
         if (animeTitle && it.title && it.title.trim().toLowerCase() === animeTitle) return false;
-        if (isJustUser && (UNWANTED_JUST_ZERO_IDS.has(Number(it.id)) || Number(it.myScore) === 0)) return false;
+        if (isJustUser && (UNWANTED_JUST_ZERO_IDS.has(Number(it.id)) || (Number(it.myScore) === 0 && Number(it.id) !== 7195))) return false;
         return true;
       });
     } else {
