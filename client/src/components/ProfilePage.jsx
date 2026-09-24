@@ -326,6 +326,7 @@ export default function ProfilePage({
       if (sortOption) params.append('sort', sortOption);
       if (selectedType !== 'all') params.append('type', selectedType);
       if (activeRatedGenres.length > 0) params.append('genres', activeRatedGenres.join(','));
+      if (selectedScore !== 'all' && selectedScore !== 'top5') params.append('score', selectedScore);
 
       const res = await fetch(apiUrl(`/api/user/rated-anime?${params.toString()}`), {
         headers: { Authorization: `Bearer ${token}` }
@@ -333,10 +334,10 @@ export default function ProfilePage({
       if (res.ok) {
         const data = await res.json();
         let allItems = deduplicateAnimeList(data.items || []);
-        const UNWANTED_JUST_ZERO_IDS = new Set([1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227]);
+        const UNWANTED_JUST_ZERO_IDS = new Set([1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234]);
         const isJust = Number(user?.id) === 5 || user?.nickname === 'Just';
 
-        // Purge unwanted zero ratings for Just, but preserve 7195 / 7184 (Бесконечная гача)
+        // Purge unwanted zero ratings for Just, but preserve 7195 (Бесконечная гача)
         const isGachaZeroAllowed = (it) => {
           return Number(it.id) === 7195;
         };
@@ -344,7 +345,6 @@ export default function ProfilePage({
         if (isJust) {
           allItems = allItems.filter(it => {
             const numId = Number(it.id);
-            if (numId === 5655 || numId === 7234) return false;
             if (UNWANTED_JUST_ZERO_IDS.has(numId)) return false;
             return Number(it.myScore) !== 0 || isGachaZeroAllowed(it);
           });
@@ -354,13 +354,15 @@ export default function ProfilePage({
         const cachedRatings = (getCachedUserRatings(user?.id) || []).filter(it => {
           if (isJust) {
             const numId = Number(it.id);
-            if (numId === 5655 || numId === 7234) return false;
-            return !UNWANTED_JUST_ZERO_IDS.has(numId) && (Number(it.myScore) !== 0 || isGachaZeroAllowed(it));
+            if (UNWANTED_JUST_ZERO_IDS.has(numId)) return false;
+            return Number(it.myScore) !== 0 || isGachaZeroAllowed(it);
           }
           return true;
         });
 
-        if (cachedRatings.length > 0) {
+        // Only merge general local cache when loading all ratings without filters
+        const isDefaultView = !searchQuery.trim() && selectedType === 'all' && activeRatedGenres.length === 0 && selectedScore === 'all';
+        if (isDefaultView && cachedRatings.length > 0) {
           const allMap = new Map();
           allItems.forEach((it) => allMap.set(Number(it.id), it));
           cachedRatings.forEach((cached) => {
@@ -380,18 +382,14 @@ export default function ProfilePage({
         if (isJust) {
           allItems = allItems.filter(it => {
             const numId = Number(it.id);
-            if (numId === 5655 || numId === 7234) return false;
             if (UNWANTED_JUST_ZERO_IDS.has(numId)) return false;
             return Number(it.myScore) !== 0 || isGachaZeroAllowed(it);
           });
         }
 
-        // Keep localStorage cache synced and purged
-        setCachedUserRatings(user?.id, allItems);
-
         if (data.total !== undefined) {
           setTotalRatedCount(allItems.length);
-        } else if (!searchQuery.trim() && selectedType === 'all' && activeRatedGenres.length === 0 && selectedScore === 'all') {
+        } else if (isDefaultView) {
           setTotalRatedCount(allItems.length);
         }
 
@@ -409,19 +407,27 @@ export default function ProfilePage({
         }
 
         // Apply strict sorting for rated titles:
+        // - In 'all' view: pinned Top-5 always come first in order #1..#5
         // - my_score_desc: 10 -> 0
         // - my_score_asc: 0 -> 10 (0 first!)
         // - recent_rated: by user rating timestamp from newest to oldest
         // - newest: by anime release year from newest to oldest
-        if (selectedScore !== 'top5') {
+        if (selectedScore === 'all') {
           items.sort((a, b) => {
+            const idxA = myTop5Ids.findIndex((id) => Number(id) === Number(a.id));
+            const idxB = myTop5Ids.findIndex((id) => Number(id) === Number(b.id));
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+
             if (sortOption === 'my_score_desc') {
               const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : -1;
               const sb = (b.myScore !== null && b.myScore !== undefined) ? Number(b.myScore) : -1;
               if (sb !== sa) return sb - sa;
               const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
               const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
-              return dateB - dateA;
+              if (dateB !== dateA) return dateB - dateA;
+              return (b.id || 0) - (a.id || 0);
             }
             if (sortOption === 'my_score_asc') {
               const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : 999;
@@ -429,7 +435,48 @@ export default function ProfilePage({
               if (sa !== sb) return sa - sb;
               const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
               const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
-              return dateB - dateA;
+              if (dateB !== dateA) return dateB - dateA;
+              return (a.id || 0) - (b.id || 0);
+            }
+            if (sortOption === 'recent_rated') {
+              const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
+              const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
+              if (dateB !== dateA) return dateB - dateA;
+              return (b.id || 0) - (a.id || 0);
+            }
+            if (sortOption === 'newest') {
+              const ya = parseInt(a.year, 10) || 0;
+              const yb = parseInt(b.year, 10) || 0;
+              if (yb !== ya) return yb - ya;
+              return (b.id || 0) - (a.id || 0);
+            }
+            return 0;
+          });
+        } else if (selectedScore !== 'top5') {
+          items.sort((a, b) => {
+            const idxA = myTop5Ids.findIndex((id) => Number(id) === Number(a.id));
+            const idxB = myTop5Ids.findIndex((id) => Number(id) === Number(b.id));
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+
+            if (sortOption === 'my_score_desc') {
+              const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : -1;
+              const sb = (b.myScore !== null && b.myScore !== undefined) ? Number(b.myScore) : -1;
+              if (sb !== sa) return sb - sa;
+              const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
+              const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
+              if (dateB !== dateA) return dateB - dateA;
+              return (b.id || 0) - (a.id || 0);
+            }
+            if (sortOption === 'my_score_asc') {
+              const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : 999;
+              const sb = (b.myScore !== null && b.myScore !== undefined) ? Number(b.myScore) : 999;
+              if (sa !== sb) return sa - sb;
+              const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
+              const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
+              if (dateB !== dateA) return dateB - dateA;
+              return (a.id || 0) - (b.id || 0);
             }
             if (sortOption === 'recent_rated') {
               const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();

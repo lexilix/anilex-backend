@@ -3030,14 +3030,21 @@ app.post('/api/user/top5/set', authMiddleware, (req, res) => {
 app.get('/api/user/rated-anime', authMiddleware, (req, res) => {
   try {
     const userId = req.user.id;
-    const { search, genres, type, sort = 'my_score_desc' } = req.query;
+    const { search, genres, type, score, sort = 'my_score_desc' } = req.query;
 
     const params = [userId];
     let whereClauses = ['r.user_id = ?', "a.title != 'Лимонные девочки'"];
 
     if (userId === 5 || req.user.nickname === 'Just') {
-      whereClauses.push('r.anime_id NOT IN (1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227)');
-      whereClauses.push('r.score > 0');
+      whereClauses.push('r.anime_id NOT IN (1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234)');
+    }
+
+    if (score !== undefined && score !== null && score !== 'all' && score !== 'top5') {
+      const numScore = parseInt(score, 10);
+      if (!isNaN(numScore) && numScore >= 0 && numScore <= 10) {
+        whereClauses.push('r.score = ?');
+        params.push(numScore);
+      }
     }
 
     if (search && search.trim()) {
