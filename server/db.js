@@ -593,7 +593,10 @@ function ensureAllUsersFriends() {
       db.prepare('DELETE FROM ratings WHERE user_id = ? AND anime_id = 5655').run(justUser.id);
       db.prepare(`
         DELETE FROM ratings 
-        WHERE user_id = ? AND (anime_id IN (1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227) OR score = 0)
+        WHERE user_id = ? AND (
+          anime_id IN (1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234)
+          OR (score = 0 AND anime_id NOT IN (7186, 7195, 7187, 7184))
+        )
       `).run(justUser.id);
       db.prepare(`
         INSERT INTO ratings (user_id, anime_id, score, updated_at)

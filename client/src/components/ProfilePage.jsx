@@ -337,9 +337,10 @@ export default function ProfilePage({
         const UNWANTED_JUST_ZERO_IDS = new Set([1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234]);
         const isJust = Number(user?.id) === 5 || user?.nickname === 'Just';
 
-        // Purge unwanted zero ratings for Just, but preserve 7195 (Бесконечная гача)
+        // Purge unwanted zero ratings for Just, but preserve Gacha titles (7186, 7195, 7187)
         const isGachaZeroAllowed = (it) => {
-          return Number(it.id) === 7195;
+          const num = Number(it?.id);
+          return num === 7186 || num === 7195 || num === 7187 || num === 7184 || String(it?.title || '').toLowerCase().includes('гача');
         };
 
         if (isJust) {
@@ -360,13 +361,34 @@ export default function ProfilePage({
           return true;
         });
 
-        // Only merge general local cache when loading all ratings without filters
-        const isDefaultView = !searchQuery.trim() && selectedType === 'all' && activeRatedGenres.length === 0 && selectedScore === 'all';
-        if (isDefaultView && cachedRatings.length > 0) {
+        // Merge local cache:
+        // - In default view, merge all cached ratings
+        // - When a score or search filter is active, merge matching cached items to ensure newly rated titles appear immediately
+        if (cachedRatings.length > 0) {
           const allMap = new Map();
           allItems.forEach((it) => allMap.set(Number(it.id), it));
+
           cachedRatings.forEach((cached) => {
             const cId = Number(cached.id);
+            if (selectedScore !== 'all' && selectedScore !== 'top5') {
+              const targetScore = parseInt(selectedScore, 10);
+              if (Number(cached.myScore) !== targetScore) return;
+            }
+            if (searchQuery.trim()) {
+              const q = searchQuery.trim().toLowerCase();
+              const matchTitle = (cached.title || '').toLowerCase().includes(q);
+              const matchOrig = (cached.originalTitle || '').toLowerCase().includes(q);
+              if (!matchTitle && !matchOrig) return;
+            }
+            if (selectedType !== 'all') {
+              if (cached.type !== selectedType) return;
+            }
+            if (activeRatedGenres.length > 0) {
+              const genres = Array.isArray(cached.genres) ? cached.genres : [];
+              const hasAll = activeRatedGenres.every(g => genres.includes(g));
+              if (!hasAll) return;
+            }
+
             if (!allMap.has(cId)) {
               allMap.set(cId, cached);
             } else {
