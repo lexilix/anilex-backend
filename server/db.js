@@ -372,18 +372,30 @@ function restoreAccountsFromBackup() {
       `);
       for (const u of data.users) {
         try {
-          insertUserStmt.run(
-            u.id,
-            u.email,
-            u.nickname,
-            u.password_hash || 'RESTORED_ACCOUNT',
-            u.salt || 'RESTORED_SALT',
-            u.avatar_url || null,
-            u.banner_url || null,
-            u.allow_password_set !== undefined ? u.allow_password_set : 0,
-            u.is_blocked !== undefined ? u.is_blocked : 0,
-            u.created_at || new Date().toISOString()
-          );
+          const existingByEmail = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(u.email.toLowerCase());
+          if (existingByEmail) {
+            db.prepare(`
+              UPDATE users SET
+                avatar_url = COALESCE(users.avatar_url, ?),
+                banner_url = COALESCE(users.banner_url, ?),
+                nickname = COALESCE(users.nickname, ?),
+                is_blocked = COALESCE(users.is_blocked, ?)
+              WHERE id = ?
+            `).run(u.avatar_url || null, u.banner_url || null, u.nickname, u.is_blocked ? 1 : 0, existingByEmail.id);
+          } else {
+            insertUserStmt.run(
+              u.id,
+              u.email,
+              u.nickname,
+              u.password_hash || 'RESTORED_ACCOUNT',
+              u.salt || 'RESTORED_SALT',
+              u.avatar_url || null,
+              u.banner_url || null,
+              u.allow_password_set !== undefined ? u.allow_password_set : 0,
+              u.is_blocked !== undefined ? u.is_blocked : 0,
+              u.created_at || new Date().toISOString()
+            );
+          }
         } catch (e) {}
       }
     }
@@ -404,20 +416,12 @@ function restoreAccountsFromBackup() {
       }
     }
 
-    // 5. Restore ratings - IMPORTANT: DO NOT OVERWRITE or resurrect deleted ratings for users who already have ratings!
+    // 5. Restore ratings - IMPORTANT: Strictly DO NOT OVERWRITE or resurrect deleted/altered ratings for users who already have ratings!
     if (Array.isArray(data.ratings)) {
       const existingUserIdsWithRatings = new Set(
         db.prepare('SELECT DISTINCT user_id FROM ratings').all().map((r) => r.user_id)
       );
 
-      const insertRatingStmt = db.prepare(`
-        INSERT INTO ratings (id, user_id, anime_id, score, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(user_id, anime_id) DO UPDATE SET
-          score = excluded.score,
-          updated_at = excluded.updated_at
-        WHERE excluded.updated_at > ratings.updated_at
-      `);
       const insertOrIgnoreRatingStmt = db.prepare(`
         INSERT OR IGNORE INTO ratings (id, user_id, anime_id, score, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -437,9 +441,9 @@ function restoreAccountsFromBackup() {
             } catch (e) {}
           }
           if (animeExists) {
-            // Only insert ratings if this user has NO ratings in DB yet (initial seed on empty DB)
-            // Also restore for MrTech (20) and haitek (24) so their ratings are never dropped
-            if (!existingUserIdsWithRatings.has(r.user_id) || r.user_id === 20 || r.user_id === 24) {
+            // Strictly insert ratings ONLY if this user has NO ratings in DB yet (fresh/empty DB cold start)
+            // If the user already has ratings in the live DB, their active ratings are preserved and never overwritten or re-seeded
+            if (!existingUserIdsWithRatings.has(r.user_id)) {
               insertOrIgnoreRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
             }
           }

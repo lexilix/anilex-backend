@@ -4453,7 +4453,7 @@ app.delete('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
     }
 
     // Strictly disallow deleting Just, Katsu, MrTech, Venicek, haitek
-    const isProtected = [5, 15, 20, 21, 24].includes(targetUser.id) ||
+    const isProtected = [5, 15, 20, 21, 22, 24].includes(targetUser.id) ||
       ['just', 'katsu', 'mrtech', 'venicek', 'haitek'].includes((targetUser.nickname || '').toLowerCase()) ||
       ['just9jeeet@gmail.com', 'cik5921@gmail.com', 'mrtech@example.com', 'venicek@example.com', 'katsudemisek@gmail.com'].includes((targetUser.email || '').toLowerCase());
     if (isProtected) {
