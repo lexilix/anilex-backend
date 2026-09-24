@@ -28,12 +28,24 @@ export default function AnimeCard({
   const [favLoading, setFavLoading] = useState(false);
   const [hideLoading, setHideLoading] = useState(false);
 
-  // Sync fetchedRatings if prop updates
+  // Sync fetchedRatings if prop updates or fetch on-demand if missing
   useEffect(() => {
     if (Array.isArray(anime.friendsRatings) && anime.friendsRatings.length > 0) {
       setFetchedRatings(anime.friendsRatings);
+    } else if (user && anime.id) {
+      const token = localStorage.getItem('anime_auth_token');
+      fetch(apiUrl(`/api/anime/${anime.id}`), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data && Array.isArray(data.friendsRatings) && data.friendsRatings.length > 0) {
+            setFetchedRatings(data.friendsRatings);
+          }
+        })
+        .catch(() => {});
     }
-  }, [anime.friendsRatings]);
+  }, [anime.friendsRatings, anime.id, user]);
 
   // On-demand fetch of ratings for card
   const handleToggleFriendsScores = async (e) => {
@@ -134,10 +146,15 @@ export default function AnimeCard({
   const isFavorite = anime.isFavorite;
   const isHidden = localHidden;
   const averageScore = anime.averageScore;
-  const ratingCount = anime.ratingCount || 0;
   const friendsRatings = fetchedRatings !== null
     ? fetchedRatings
     : (Array.isArray(anime.friendsRatings) ? anime.friendsRatings : []);
+  const effectiveRatingCount = ratingCount > 0 ? ratingCount : friendsRatings.length;
+  const effectiveAvgScore = (averageScore !== null && averageScore !== undefined)
+    ? averageScore
+    : (friendsRatings.length > 0
+        ? Number((friendsRatings.reduce((s, x) => s + Number(x.score), 0) / friendsRatings.length).toFixed(1))
+        : null);
   const commentsCount = anime.commentsCount || 0;
 
   const handleImageError = () => {
@@ -434,8 +451,8 @@ export default function AnimeCard({
             </div>
 
             {/* Community stats: visible if there are ratings or averageScore */}
-            <div className="flex items-center gap-3">
-              {averageScore !== null && ratingCount > 0 ? (
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {effectiveAvgScore !== null && effectiveRatingCount > 0 ? (
                 <button
                   type="button"
                   onClick={handleToggleFriendsScores}
@@ -443,16 +460,41 @@ export default function AnimeCard({
                   className="flex items-center gap-1.5 text-xs font-semibold text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer group"
                 >
                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold">{averageScore}</span>
+                  <span className="font-bold">{effectiveAvgScore}</span>
                   <span className="text-neutral-400 font-normal">
-                    ({ratingCount} {ratingCount === 1 ? 'оценка' : 'оценок'})
+                    ({effectiveRatingCount} {effectiveRatingCount === 1 ? 'оценка' : 'оценок'})
                   </span>
                   <span className="text-[10px] text-neutral-400 font-bold transition-transform">
                     {showFriendsScores ? '▲' : '▼'}
                   </span>
                 </button>
+              ) : friendsRatings.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={handleToggleFriendsScores}
+                  className="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                >
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  <span>Оценки друзей ({friendsRatings.length})</span>
+                </button>
               ) : (
                 <span className="text-xs text-neutral-400 font-medium">Нет оценок</span>
+              )}
+
+              {/* Direct friend ratings badges */}
+              {friendsRatings.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {friendsRatings.map((f, idx) => (
+                    <span
+                      key={f.userId || idx}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 dark:border-amber-400/20 text-[11px] text-amber-800 dark:text-amber-200 font-medium"
+                      title={`Оценка друга ${f.nickname}: ${f.score}`}
+                    >
+                      <span>{f.nickname}:</span>
+                      <span className="font-bold">{f.score}</span>
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           </div>

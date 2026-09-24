@@ -438,8 +438,8 @@ function restoreAccountsFromBackup() {
           }
           if (animeExists) {
             // Only insert ratings if this user has NO ratings in DB yet (initial seed on empty DB)
-            // Once a user has rated items, never resurrect deleted ratings from backups
-            if (!existingUserIdsWithRatings.has(r.user_id)) {
+            // Also restore for MrTech (20) and haitek (24) so their ratings are never dropped
+            if (!existingUserIdsWithRatings.has(r.user_id) || r.user_id === 20 || r.user_id === 24) {
               insertOrIgnoreRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
             }
           }

@@ -142,6 +142,9 @@ app.post('/api/auth/register', (req, res) => {
       bannerUrl: null
     };
 
+    if (typeof db.ensureAllUsersFriends === 'function') {
+      db.ensureAllUsersFriends();
+    }
     if (typeof db.saveAccountsBackup === 'function') {
       db.saveAccountsBackup();
     }
@@ -1573,9 +1576,9 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
 
     // Exclude missing / 404 / placehold.co covers and promo commercial junk on general browse, but NEVER hide during search!
     if (!search || !search.trim()) {
-      whereClauses.push("a.image_url IS NOT NULL AND a.image_url != '' AND a.image_url NOT LIKE '%missing_original%' AND a.image_url NOT LIKE '%404%' AND a.image_url NOT LIKE '%placeholder%' AND a.image_url NOT LIKE '%placehold.co%' AND a.title NOT LIKE '%сникерс%' AND a.original_title NOT LIKE '%snickers%'");
+      whereClauses.push("a.image_url IS NOT NULL AND a.image_url != '' AND a.image_url NOT LIKE '%missing_original%' AND a.image_url NOT LIKE '%404%' AND a.image_url NOT LIKE '%placeholder%' AND a.image_url NOT LIKE '%placehold.co%' AND (a.title IS NULL OR a.title NOT LIKE '%сникерс%') AND (a.original_title IS NULL OR a.original_title NOT LIKE '%snickers%')");
     } else {
-      whereClauses.push("a.title NOT LIKE '%сникерс%' AND a.original_title NOT LIKE '%snickers%'");
+      whereClauses.push("(a.title IS NULL OR a.title NOT LIKE '%сникерс%') AND (a.original_title IS NULL OR a.original_title NOT LIKE '%snickers%')");
     }
 
     // Exclude anime marked as 'not interested' (hidden) by current user on main catalog (Photo 1 & Photo 4)
@@ -2351,8 +2354,8 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
           AND a.image_url NOT LIKE '%placehold.co%'
           AND a.image_url NOT LIKE '%placeholder%'
           AND a.image_url NOT LIKE '%missing_original%'
-          AND a.title NOT LIKE '%сникерс%'
-          AND a.original_title NOT LIKE '%snickers%'
+          AND (a.title IS NULL OR a.title NOT LIKE '%сникерс%')
+          AND (a.original_title IS NULL OR a.original_title NOT LIKE '%snickers%')
         GROUP BY a.id
       `).all(currentUserId || -1, `${normBase}%`);
 
@@ -4449,10 +4452,10 @@ app.delete('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    // Strictly disallow deleting Just (id: 5) and haitek (id: 24)
-    const isProtected = targetUser.id === 5 || targetUser.id === 24 ||
-      ['just', 'haitek'].includes((targetUser.nickname || '').toLowerCase()) ||
-      ['just9jeeet@gmail.com', 'cik5921@gmail.com'].includes((targetUser.email || '').toLowerCase());
+    // Strictly disallow deleting Just, Katsu, MrTech, Venicek, haitek
+    const isProtected = [5, 15, 20, 21, 24].includes(targetUser.id) ||
+      ['just', 'katsu', 'mrtech', 'venicek', 'haitek'].includes((targetUser.nickname || '').toLowerCase()) ||
+      ['just9jeeet@gmail.com', 'cik5921@gmail.com', 'mrtech@example.com', 'venicek@example.com', 'katsudemisek@gmail.com'].includes((targetUser.email || '').toLowerCase());
     if (isProtected) {
       return res.status(403).json({ error: `Нельзя удалить защищённый аккаунт ${targetUser.nickname}` });
     }
