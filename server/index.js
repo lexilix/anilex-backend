@@ -4098,25 +4098,41 @@ app.post('/api/dev/users/:userId/ratings', devAdminMiddleware, (req, res) => {
     const targetUserId = parseInt(req.params.userId, 10);
     const { animeId, score } = req.body;
     const numScore = parseInt(score, 10);
+    const parsedAnimeId = parseInt(animeId, 10);
 
-    if (isNaN(numScore) || numScore < 1 || numScore > 10) {
-      return res.status(400).json({ error: 'Оценка должна быть от 1 до 10' });
+    if (isNaN(numScore) || numScore < 0 || numScore > 10) {
+      return res.status(400).json({ error: 'Оценка должна быть от 0 до 10' });
+    }
+    if (isNaN(parsedAnimeId)) {
+      return res.status(400).json({ error: 'Неверный ID аниме' });
     }
 
-    const existing = db.prepare('SELECT id FROM ratings WHERE user_id = ? AND anime_id = ?').get(targetUserId, animeId);
+    // Ensure anime exists in anime table to avoid SQLite FOREIGN KEY constraint violation
+    const animeRow = db.prepare('SELECT id FROM anime WHERE id = ?').get(parsedAnimeId);
+    if (!animeRow) {
+      const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+      const fallbackTitle = `Аниме #${parsedAnimeId}`;
+      db.prepare(`
+        INSERT INTO anime (id, slug, title, title_lower, description, image_url, type, year, genres, season, related_json, created_at, updated_at)
+        VALUES (?, ?, ?, ?, '', '', 'Сериал', '', '[]', '', '[]', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `).run(parsedAnimeId, `anime-${parsedAnimeId}`, fallbackTitle, normalize(fallbackTitle));
+    }
+
+    const existing = db.prepare('SELECT id FROM ratings WHERE user_id = ? AND anime_id = ?').get(targetUserId, parsedAnimeId);
     if (existing) {
       db.prepare('UPDATE ratings SET score = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(numScore, existing.id);
     } else {
-      db.prepare('INSERT INTO ratings (user_id, anime_id, score, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)').run(targetUserId, animeId, numScore);
+      db.prepare('INSERT INTO ratings (user_id, anime_id, score, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)').run(targetUserId, parsedAnimeId, numScore);
     }
 
     if (typeof db.saveAccountsBackup === 'function') {
       db.saveAccountsBackup();
     }
 
-    return res.json({ success: true, animeId, score: numScore });
+    return res.json({ success: true, animeId: parsedAnimeId, score: numScore });
   } catch (err) {
-    return res.status(500).json({ error: 'Ошибка установки оценки' });
+    console.error('Dev set rating error:', err);
+    return res.status(500).json({ error: 'Ошибка установки оценки: ' + err.message });
   }
 });
 
@@ -4125,6 +4141,9 @@ app.delete('/api/dev/users/:userId/ratings/:animeId', devAdminMiddleware, (req, 
   try {
     const targetUserId = parseInt(req.params.userId, 10);
     const animeId = parseInt(req.params.animeId, 10);
+    if (isNaN(targetUserId) || isNaN(animeId)) {
+      return res.status(400).json({ error: 'Неверный ID пользователя или аниме' });
+    }
     db.prepare('DELETE FROM ratings WHERE user_id = ? AND anime_id = ?').run(targetUserId, animeId);
     db.prepare('DELETE FROM user_top5 WHERE user_id = ? AND anime_id = ?').run(targetUserId, animeId);
 
@@ -4134,7 +4153,7 @@ app.delete('/api/dev/users/:userId/ratings/:animeId', devAdminMiddleware, (req, 
 
     return res.json({ success: true });
   } catch (err) {
-    return res.status(500).json({ error: 'Ошибка удаления оценки' });
+    return res.status(500).json({ error: 'Ошибка удаления оценки: ' + err.message });
   }
 });
 
@@ -4315,7 +4334,53 @@ app.put('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
       WHERE id = ?
     `).run(newTitle, newTitleLower, newOriginalTitle, newOriginalTitleLower, newDesc, newImage, newType, newYear, finalGenresJson, newSeason, finalRelatedJson, animeId);
 
-    // Sync reciprocal links: ensure each linked anime also references this anime
+    // 1. Reciprocal unlinking: find all anime that were previously linked to this anime or referenced this anime
+    const newLinkedIdSet = new Set((returnLinked || []).map((x) => Number(x.id)).filter((id) => Boolean(id) && id !== animeId));
+
+    let oldList = [];
+    try {
+      oldList = JSON.parse(anime.related_json || '[]');
+    } catch (e) {
+      oldList = [];
+    }
+    const candidatesToUnlink = new Set(oldList.map((x) => Number(x.id)).filter((id) => Boolean(id) && id !== animeId && !newLinkedIdSet.has(id)));
+
+    try {
+      const referencingRows = db.prepare(`
+        SELECT id, related_json FROM anime
+        WHERE related_json IS NOT NULL AND related_json != '' AND related_json != '[]'
+      `).all();
+      for (const row of referencingRows) {
+        if (Number(row.id) === animeId) continue;
+        if (!newLinkedIdSet.has(Number(row.id))) {
+          try {
+            const list = JSON.parse(row.related_json || '[]');
+            if (Array.isArray(list) && list.some((x) => Number(x.id) === animeId)) {
+              candidatesToUnlink.add(Number(row.id));
+            }
+          } catch (e) {}
+        }
+      }
+    } catch (e) {}
+
+    for (const unlinkId of candidatesToUnlink) {
+      try {
+        const uRow = db.prepare('SELECT id, related_json FROM anime WHERE id = ?').get(unlinkId);
+        if (uRow) {
+          let uList = [];
+          try {
+            uList = JSON.parse(uRow.related_json || '[]');
+          } catch (e) {
+            uList = [];
+          }
+          const filtered = uList.filter((x) => Number(x.id) !== animeId);
+          db.prepare('UPDATE anime SET related_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+            .run(JSON.stringify(filtered), unlinkId);
+        }
+      } catch (e) {}
+    }
+
+    // 2. Sync reciprocal links: ensure each linked anime also references this anime
     if (Array.isArray(returnLinked)) {
       for (const target of returnLinked) {
         if (!target || !target.id || Number(target.id) === animeId) continue;

@@ -1023,32 +1023,35 @@ export default function DevConsolePage({
     setLinkSearchResults([]);
     setSelectedLinkRelation(detectedSeason && detectedSeason.includes('1') ? '2-й сезон' : '1-й сезон');
 
-    // Asynchronously fetch relations to discover links registered from other anime
-    fetch(apiUrl(`/api/anime/${anime.id}/related`))
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data && Array.isArray(data.items)) {
-          const relatedItems = data.items.filter((it) => Number(it.id) !== Number(anime.id));
-          if (relatedItems.length > 0) {
-            setEditLinkedAnime((prev) => {
-              const existingIds = new Set(prev.map((x) => Number(x.id)));
-              const toAdd = relatedItems
-                .filter((x) => !existingIds.has(Number(x.id)))
-                .map((x) => ({
-                  id: Number(x.id),
-                  title: x.title,
-                  originalTitle: x.originalTitle || x.original_title || '',
-                  year: x.year || '',
-                  type: x.type || 'Сериал',
-                  imageUrl: x.imageUrl || x.image_url || '',
-                  relation: x.relation || 'Связанная часть'
-                }));
-              return [...prev, ...toAdd];
-            });
+    // Only discover external relations if no links are present AND no custom edits exist for this anime
+    if (existingLinked.length === 0 && custom.linkedAnime === undefined) {
+      fetch(apiUrl(`/api/anime/${anime.id}/related`))
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data && Array.isArray(data.items)) {
+            const relatedItems = data.items.filter((it) => Number(it.id) !== Number(anime.id));
+            if (relatedItems.length > 0) {
+              setEditLinkedAnime((prev) => {
+                if (prev.length > 0) return prev;
+                const existingIds = new Set(prev.map((x) => Number(x.id)));
+                const toAdd = relatedItems
+                  .filter((x) => !existingIds.has(Number(x.id)))
+                  .map((x) => ({
+                    id: Number(x.id),
+                    title: x.title,
+                    originalTitle: x.originalTitle || x.original_title || '',
+                    year: x.year || '',
+                    type: x.type || 'Сериал',
+                    imageUrl: x.imageUrl || x.image_url || '',
+                    relation: x.relation || 'Связанная часть'
+                  }));
+                return [...prev, ...toAdd];
+              });
+            }
           }
-        }
-      })
-      .catch(() => {});
+        })
+        .catch(() => {});
+    }
   };
 
   const handleUpdateLinkedAnimeRelation = (linkedId, newRelation) => {
@@ -1276,9 +1279,49 @@ export default function DevConsolePage({
       // 1. Immediately persist to localStorage custom edits so changes are NEVER lost
       saveCustomAnimeEdit(animeId, payload);
 
-      // 1b. Reciprocally link Title A back into each target's linkedAnime (and link all peers in the cluster)
+      // 1b. Reciprocally unlink any anime that was removed from linkedAnime
       const allEdits = getCustomAnimeEdits();
       const allCached = (typeof getAllCachedAnime === 'function' ? getAllCachedAnime() : []) || [];
+      const currentLinkedIds = new Set((editLinkedAnime || []).map((x) => Number(x.id)));
+
+      // Check editingAnime.linkedAnime and custom edits to see what was previously linked
+      const prevLinks = [
+        ...(Array.isArray(editingAnime.linkedAnime) ? editingAnime.linkedAnime : []),
+        ...(Array.isArray(allEdits[animeId]?.linkedAnime) ? allEdits[animeId].linkedAnime : [])
+      ];
+      const unlinkedIds = new Set(
+        prevLinks
+          .map((x) => Number(x.id))
+          .filter((id) => Boolean(id) && id !== animeId && !currentLinkedIds.has(id))
+      );
+
+      for (const uId of unlinkedIds) {
+        const uCustom = allEdits[uId] || {};
+        const uCached = allCached.find((c) => Number(c.id) === uId) || {};
+        let uLinks = Array.isArray(uCustom.linkedAnime)
+          ? [...uCustom.linkedAnime]
+          : (Array.isArray(uCached.linkedAnime) ? [...uCached.linkedAnime] : []);
+        const filtered = uLinks.filter((x) => Number(x.id) !== animeId);
+        const uPayload = {
+          ...uCached,
+          ...uCustom,
+          id: uId,
+          linkedAnime: filtered,
+          related_json: JSON.stringify(filtered)
+        };
+        saveCustomAnimeEdit(uId, uPayload);
+        updateCachedAnimeItem(uId, uPayload);
+        upsertCachedAnimeItem(uPayload);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('anilex:anime-updated', {
+              detail: uPayload
+            })
+          );
+        }
+      }
+
+      // 1c. Reciprocally link Title A back into each target's linkedAnime (and link all peers in the cluster)
       const cluster = [
         {
           id: animeId,
@@ -1387,7 +1430,7 @@ export default function DevConsolePage({
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        console.warn('Backend update anime warning:', errData.error);
+        throw new Error(errData.error || `Ошибка сервера (${res.status})`);
       }
 
       showToast(`Тайтл «${editTitle}» успешно сохранен!`);
@@ -1659,7 +1702,7 @@ export default function DevConsolePage({
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        console.warn('Backend update user notice:', errData.error);
+        throw new Error(errData.error || `Ошибка сервера (${res.status})`);
       }
 
       // 5. Notify app and other open components via global event
@@ -1695,15 +1738,20 @@ export default function DevConsolePage({
       const token = localStorage.getItem('anime_auth_token');
       const numScore = parseInt(newScoreVal, 10);
 
-      // 1. Try /api/dev/users/:userId/ratings
-      await fetch(apiUrl(`/api/dev/users/${selectedUserId}/ratings`), {
+      // 1. Send /api/dev/users/:userId/ratings
+      const res = await fetch(apiUrl(`/api/dev/users/${selectedUserId}/ratings`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ animeId, score: numScore })
-      }).catch(() => {});
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Ошибка сервера (${res.status})`);
+      }
 
       // If editing current user, also fire /api/anime/:id/rate and sync client state
       if (selectedUserId === user?.id) {
@@ -1730,7 +1778,7 @@ export default function DevConsolePage({
       );
       showToast(`Оценка изменена на ${numScore}/10`);
     } catch (err) {
-      showToast('Ошибка изменения оценки', 'error');
+      showToast('Ошибка изменения оценки: ' + err.message, 'error');
     }
   };
 
@@ -1740,11 +1788,16 @@ export default function DevConsolePage({
     try {
       const token = localStorage.getItem('anime_auth_token');
 
-      // 1. Try /api/dev/users/:userId/ratings/:animeId
-      await fetch(apiUrl(`/api/dev/users/${selectedUserId}/ratings/${animeId}`), {
+      // 1. Send DELETE /api/dev/users/:userId/ratings/:animeId
+      const res = await fetch(apiUrl(`/api/dev/users/${selectedUserId}/ratings/${animeId}`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
-      }).catch(() => {});
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Ошибка сервера (${res.status})`);
+      }
 
       // Fallback if current user
       if (selectedUserId === user?.id) {
@@ -1769,7 +1822,7 @@ export default function DevConsolePage({
       setUserRatings((prev) => prev.filter((r) => r.id !== animeId));
       showToast(`Оценка для «${animeTitle}» удалена`);
     } catch (err) {
-      showToast('Ошибка удаления оценки', 'error');
+      showToast('Ошибка удаления оценки: ' + err.message, 'error');
     }
   };
 
@@ -1806,14 +1859,19 @@ export default function DevConsolePage({
       const cleanBanner = (targetUser.bannerUrl || '').split('#top5=')[0];
       const newBanner = cleanBanner + (newTop5.length > 0 ? '#top5=' + newTop5.join(',') : '');
 
-      await fetch(apiUrl(`/api/dev/users/${targetUser.id}`), {
+      const res = await fetch(apiUrl(`/api/dev/users/${targetUser.id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ top5Ids: newTop5, bannerUrl: newBanner })
-      }).catch(() => {});
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Ошибка сервера (${res.status})`);
+      }
 
       // Update in local state
       setUsersList((prev) =>
@@ -1868,14 +1926,19 @@ export default function DevConsolePage({
       const token = localStorage.getItem('anime_auth_token');
       const numScore = parseInt(scoreNum, 10);
 
-      await fetch(apiUrl(`/api/dev/users/${selectedUserId}/ratings`), {
+      const res = await fetch(apiUrl(`/api/dev/users/${selectedUserId}/ratings`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ animeId: animeItem.id, score: numScore })
-      }).catch(() => {});
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Ошибка сервера (${res.status})`);
+      }
 
       if (selectedUserId === user?.id) {
         fetch(apiUrl(`/api/anime/${animeItem.id}/rate`), {

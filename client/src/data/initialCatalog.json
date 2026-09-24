@@ -15,7 +15,7 @@
   },
   {
     "id": 7195,
-    "slug": "shiki-60303",
+    "slug": "beskonechnaya-gacha-7195",
     "title": "Бесконечная гача",
     "originalTitle": "Shinjiteita Nakama-tachi ni Dungeon Okuchi de Korosarekaketa ga Gift \"Mugen Gacha\" de Level 9999 no Nakama-tachi wo Te ni Irete Moto Party Member to Sekai ni Fukushuu & \"Zamaa!\" Shimasu!",
     "imageUrl": "/mugen_gacha_poster.jpg",
@@ -520,74 +520,24 @@
   },
   {
     "id": 7186,
-    "slug": "neon-genesis-evangelion",
-    "title": "Евангелион нового поколения",
-    "originalTitle": "Shin Seiki Evangelion",
-    "imageUrl": "https://shikimori.one/system/animes/original/30.jpg",
+    "slug": "moi-podarok-s-urovnem-9999-beskonechnaya-gacha-7186",
+    "title": "Мой подарок с уровнем 9999: Бесконечная гача",
+    "originalTitle": "My Gift Lvl 9999 Unlimited Gacha: Backstabbed in a Backwater Dungeon, I am Out for Revenge!",
+    "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
     "type": "Сериал",
-    "year": "1995",
+    "year": "2025",
     "genres": [
-      "Меха",
-      "Фантастика",
-      "Психология",
-      "Драма"
+      "Экшен",
+      "Приключения",
+      "Фэнтези"
     ],
-    "description": "2015 год. Земля пережила катастрофу «Второй удар» и сталкивается с нападением гигантских созданий — Ангелов. Организация NERV создает гигантских биороботов «Евангелионы». Четырнадцатилетний Синдзи Икари по вызову отца прибывает в Токио-3 и вынужден стать пилотом Евы-01, погружаясь в тайны человеческой души и судьбы цивилизации.",
+    "description": "В мире, где люди занимают самое низкое положение, Лайт обладает навыком «Бесконечная гача». После предательства в Бездне он открывает истинную силу своего дара и собирает непобедимую армию союзниц 9999-го уровня.",
     "myScore": null,
     "averageScore": null,
     "ratingCount": 0,
-    "season": "1-й сезон",
-    "linkedAnime": [
-      {
-        "id": 2898,
-        "title": "Евангелион: Конец Евангелиона",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676420abc78e1513836264",
-        "year": "1997",
-        "type": "Фильм",
-        "relation": "Фильм"
-      },
-      {
-        "id": 2899,
-        "title": "Евангелион: Смерть и перерождение",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676420a6ad8c6628699393",
-        "year": "1997",
-        "type": "Фильм",
-        "relation": "Фильм"
-      },
-      {
-        "id": 2897,
-        "title": "Евангелион 1.11: Ты (не) один",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/5c/5c572ffa50fbf507991336",
-        "year": "2007",
-        "type": "Фильм",
-        "relation": "Фильм 1"
-      },
-      {
-        "id": 2896,
-        "title": "Евангелион 2.22: Ты (не) пройдешь",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/5c/5c57331d02fd4834851030",
-        "year": "2009",
-        "type": "Фильм",
-        "relation": "Фильм 2"
-      },
-      {
-        "id": 2895,
-        "title": "Евангелион 3.33: Ты (не) исправишь",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/5c/5c5735e45fb76549504149",
-        "year": "2012",
-        "type": "Фильм",
-        "relation": "Фильм 3"
-      },
-      {
-        "id": 2002,
-        "title": "Евангелион 3.0+1.01: Как-то раз",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/61/618059ed8c97b159698846",
-        "year": "2021",
-        "type": "Фильм",
-        "relation": "Фильм"
-      }
-    ],
-    "related_json": "[{\"id\":2898,\"title\":\"Евангелион: Конец Евангелиона\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676420abc78e1513836264\",\"year\":\"1997\",\"type\":\"Фильм\",\"relation\":\"Фильм\"},{\"id\":2899,\"title\":\"Евангелион: Смерть и перерождение\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676420a6ad8c6628699393\",\"year\":\"1997\",\"type\":\"Фильм\",\"relation\":\"Фильм\"},{\"id\":2897,\"title\":\"Евангелион 1.11: Ты (не) один\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c572ffa50fbf507991336\",\"year\":\"2007\",\"type\":\"Фильм\",\"relation\":\"Фильм 1\"},{\"id\":2896,\"title\":\"Евангелион 2.22: Ты (не) пройдешь\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c57331d02fd4834851030\",\"year\":\"2009\",\"type\":\"Фильм\",\"relation\":\"Фильм 2\"},{\"id\":2895,\"title\":\"Евангелион 3.33: Ты (не) исправишь\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5735e45fb76549504149\",\"year\":\"2012\",\"type\":\"Фильм\",\"relation\":\"Фильм 3\"},{\"id\":2002,\"title\":\"Евангелион 3.0+1.01: Как-то раз\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/61/618059ed8c97b159698846\",\"year\":\"2021\",\"type\":\"Фильм\",\"relation\":\"Фильм\"}]"
+    "season": "2025",
+    "linkedAnime": [],
+    "related_json": "[]"
   },
   {
     "id": 7185,
@@ -695,7 +645,7 @@
   },
   {
     "id": 7184,
-    "slug": "mob-psycho-100",
+    "slug": "mob-psycho-100-32182",
     "title": "Моб Психо 100",
     "originalTitle": "Mob Psycho 100",
     "imageUrl": "https://shikimori.one/system/animes/original/32182.jpg",
@@ -145833,26 +145783,5 @@
     "ratingCount": 0,
     "isFavorite": false,
     "isHidden": false
-  },
-  {
-    "id": 7234,
-    "slug": "moi-podarok-s-urovnem-9999-beskonechnaya-gacha-7234",
-    "title": "Мой подарок с уровнем 9999: Бесконечная гача",
-    "originalTitle": "My Gift Lvl 9999 Unlimited Gacha: Backstabbed in a Backwater Dungeon, I am Out for Revenge!",
-    "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
-    "type": "Сериал",
-    "year": "2025",
-    "season": "2025",
-    "genres": [
-      "Экшен",
-      "Приключения",
-      "Фэнтези"
-    ],
-    "description": "В мире, где люди занимают самое низкое положение, Лайт обладает навыком «Бесконечная гача». После предательства в Бездне он открывает истинную силу своего дара и собирает непобедимую армию союзниц 9999-го уровня.",
-    "myScore": null,
-    "averageScore": null,
-    "ratingCount": 0,
-    "linkedAnime": [],
-    "related_json": "[]"
   }
 ]
