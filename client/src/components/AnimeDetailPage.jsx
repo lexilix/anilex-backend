@@ -378,25 +378,12 @@ export default function AnimeDetailPage({
           if (r.title) userRatingsMap.set(r.title.trim().toLowerCase(), r);
         });
 
-        const DEMON_SLAYER_JUST = {
-          6026: 8,
-          2012: 9,
-          2061: 9,
-          7143: 9,
-          2040: 10,
-          1676: 8,
-          1444: 7,
-          1085: null
-        };
-
         const enrichedItems = items.map((it) => {
           const itId = Number(it.id);
           const isCurr = itId === Number(animeId) || it.isCurrent;
           let myScore = it.myScore;
 
-          if (isJust && DEMON_SLAYER_JUST[itId] !== undefined) {
-            myScore = DEMON_SLAYER_JUST[itId];
-          } else if (isCurr && anime?.myScore !== null && anime?.myScore !== undefined) {
+          if (isCurr && anime?.myScore !== null && anime?.myScore !== undefined) {
             myScore = Number(anime.myScore);
           } else if (myScore === null || myScore === undefined) {
             let found = userRatingsMap.get(itId);
@@ -553,32 +540,7 @@ export default function AnimeDetailPage({
         }
       }
 
-      // Ensure explicit rules for Just (user 5)
       const currentUserId = user?.id || getCachedUserProfile()?.id;
-      if (currentUserId === 5 || user?.nickname === 'Just') {
-        if (Number(data.id) === 5655) {
-          data.myScore = null;
-        } else if (Number(data.id) === 6970) {
-          data.myScore = 7;
-        } else if (Number(data.id) === 7195) {
-          data.myScore = 0;
-        } else if (Number(data.id) === 7234) {
-          data.myScore = null;
-        } else if ([2012, 2061, 7143].includes(Number(data.id)) || (data.title && /бесконечный поезд/i.test(data.title))) {
-          data.myScore = 9;
-        } else if (Number(data.id) === 6026 || (data.title && data.title.trim() === 'Клинок, рассекающий демонов')) {
-          data.myScore = 8;
-        } else if (Number(data.id) === 2040 || (data.title && /квартал красных фонарей/i.test(data.title))) {
-          data.myScore = 10;
-        } else if (Number(data.id) === 1676 || (data.title && /деревня кузнецов/i.test(data.title))) {
-          data.myScore = 8;
-        } else if (Number(data.id) === 1444 || (data.title && /тренировка столпов/i.test(data.title))) {
-          data.myScore = 7;
-        } else if (Number(data.id) === 1085 || (data.title && /бесконечный замок/i.test(data.title))) {
-          data.myScore = null;
-        }
-      }
-
       if (currentUserId && (data.myScore === null || data.myScore === undefined)) {
         const cachedRatings = getCachedUserRatings(currentUserId) || [];
         const match = cachedRatings.find((r) => {
@@ -720,65 +682,62 @@ export default function AnimeDetailPage({
         });
       }
 
+      let rateData = null;
       if (onRateAnime) {
-        onRateAnime(animeId, newScore, targetAnime);
-      }
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent('anilex:rating-updated', {
-            detail: { animeId: Number(animeId), score: newScore, anime: targetAnime }
-          })
-        );
+        rateData = await onRateAnime(animeId, newScore, targetAnime);
+      } else {
+        const res = await fetch(apiUrl(`/api/anime/${animeId}/rate`), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ score: newScore, anime: targetAnime })
+        });
+
+        if (res.ok) {
+          rateData = await res.json();
+        } else if (res.status === 404 && targetAnime?.title) {
+          try {
+            await fetch(apiUrl('/api/anime/create'), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                title: targetAnime.title,
+                originalTitle: targetAnime.originalTitle || '',
+                image: targetAnime.imageUrl || targetAnime.image_url || '',
+                type: targetAnime.type || 'Сериал',
+                score: newScore
+              })
+            });
+          } catch (createErr) {
+            console.warn('Fallback anime create error:', createErr);
+          }
+        }
       }
 
-      const res = await fetch(apiUrl(`/api/anime/${animeId}/rate`), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ score: newScore, anime: targetAnime })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
+      if (rateData) {
         setAnime((prev) => ({
           ...prev,
-          myScore: data.myScore,
-          averageScore: data.averageScore,
-          ratingCount: data.ratingCount,
-          friendsRatings: data.friendsRatings
+          myScore: rateData.myScore,
+          averageScore: rateData.averageScore,
+          ratingCount: rateData.ratingCount,
+          friendsRatings: rateData.friendsRatings
         }));
         setRelatedAnime((prev) => prev.map((it) => {
           if (Number(it.id) === Number(animeId) || it.isCurrent) {
             return {
               ...it,
-              myScore: data.myScore,
-              averageScore: data.averageScore,
-              ratingCount: data.ratingCount
+              myScore: rateData.myScore,
+              averageScore: rateData.averageScore,
+              ratingCount: rateData.ratingCount
             };
           }
           return it;
         }));
-      } else if (res.status === 404 && targetAnime?.title) {
-        try {
-          await fetch(apiUrl('/api/anime/create'), {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              title: targetAnime.title,
-              originalTitle: targetAnime.originalTitle || '',
-              image: targetAnime.imageUrl || targetAnime.image_url || '',
-              type: targetAnime.type || 'Сериал',
-              score: newScore
-            })
-          });
-        } catch (createErr) {
-          console.warn('Fallback anime create error:', createErr);
-        }
       }
     } finally {
       setRatingLoading(false);

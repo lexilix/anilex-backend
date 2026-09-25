@@ -168,27 +168,25 @@ export default function ProfilePage({
   const [selectedType, setSelectedType] = useState('all');
   const [selectedScore, setSelectedScore] = useState('all');
 
-  // Check if default ratings view is active (no search/filter applied)
-  const isDefaultView = !searchQuery.trim() && selectedType === 'all' && activeRatedGenres.length === 0 && selectedScore === 'all';
-
   // Overall total rated count - must remain stable and reflect all user ratings regardless of active filter
   const [totalRatedCount, setTotalRatedCount] = useState(() => {
+    const cached = getCachedUserRatings(user?.id);
+    if (Array.isArray(cached) && cached.length > 0) return cached.length;
     const fromUser = Number(user?.ratedCount);
     if (!isNaN(fromUser) && fromUser > 0) return fromUser;
-    const cached = getCachedUserRatings(user?.id);
-    return Array.isArray(cached) ? cached.length : 0;
+    return 0;
   });
 
   useEffect(() => {
     if (user?.ratedCount !== undefined && user?.ratedCount !== null) {
       const fromUser = Number(user.ratedCount);
       if (!isNaN(fromUser) && fromUser > 0) {
-        setTotalRatedCount(fromUser);
+        setTotalRatedCount((prev) => (prev > 0 ? Math.max(prev, fromUser) : fromUser));
       }
     }
   }, [user?.ratedCount]);
 
-  const effectiveTotalRated = totalRatedCount || Number(user?.ratedCount) || (isDefaultView ? ratedAnime.length : 0);
+  const effectiveTotalRated = totalRatedCount || Number(user?.ratedCount) || 0;
 
 
   // Favorites state
@@ -348,14 +346,7 @@ export default function ProfilePage({
       const token = localStorage.getItem('anime_auth_token');
       if (!token) return;
 
-      const params = new URLSearchParams();
-      if (searchQuery.trim()) params.append('search', searchQuery.trim());
-      if (sortOption) params.append('sort', sortOption);
-      if (selectedType !== 'all') params.append('type', selectedType);
-      if (activeRatedGenres.length > 0) params.append('genres', activeRatedGenres.join(','));
-      if (selectedScore !== 'all' && selectedScore !== 'top5') params.append('score', selectedScore);
-
-      const res = await fetch(apiUrl(`/api/user/rated-anime?${params.toString()}`), {
+      const res = await fetch(apiUrl('/api/user/rated-anime'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -376,34 +367,12 @@ export default function ProfilePage({
           return true;
         });
 
-        // Merge local cache:
-        // - In default view, merge all cached ratings
-        // - When a score or search filter is active, merge matching cached items to ensure newly rated titles appear immediately
         if (cachedRatings.length > 0) {
           const allMap = new Map();
           allItems.forEach((it) => allMap.set(Number(it.id), it));
 
           cachedRatings.forEach((cached) => {
             const cId = Number(cached.id);
-            if (selectedScore !== 'all' && selectedScore !== 'top5') {
-              const targetScore = parseInt(selectedScore, 10);
-              if (Number(cached.myScore) !== targetScore) return;
-            }
-            if (searchQuery.trim()) {
-              const q = searchQuery.trim().toLowerCase();
-              const matchTitle = (cached.title || '').toLowerCase().includes(q);
-              const matchOrig = (cached.originalTitle || '').toLowerCase().includes(q);
-              if (!matchTitle && !matchOrig) return;
-            }
-            if (selectedType !== 'all') {
-              if (cached.type !== selectedType) return;
-            }
-            if (activeRatedGenres.length > 0) {
-              const genres = Array.isArray(cached.genres) ? cached.genres : [];
-              const hasAll = activeRatedGenres.every(g => genres.includes(g));
-              if (!hasAll) return;
-            }
-
             if (!allMap.has(cId)) {
               allMap.set(cId, cached);
             } else {
@@ -420,13 +389,30 @@ export default function ProfilePage({
           allItems = allItems.filter(it => !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)));
         }
 
-        // Only update totalRatedCount and save persistent cached ratings when in default view (unfiltered)
-        if (isDefaultView) {
-          setTotalRatedCount(allItems.length);
-          setCachedUserRatings(user?.id, allItems);
-        }
+        // Always update totalRatedCount and save complete cached ratings
+        setTotalRatedCount(allItems.length);
+        setCachedUserRatings(user?.id, allItems);
 
         let items = allItems;
+        if (searchQuery.trim()) {
+          const q = searchQuery.trim().toLowerCase();
+          items = items.filter((it) =>
+            (it.title && it.title.toLowerCase().includes(q)) ||
+            (it.originalTitle && it.originalTitle.toLowerCase().includes(q))
+          );
+        }
+
+        if (selectedType !== 'all') {
+          items = items.filter((it) => it.type === selectedType);
+        }
+
+        if (activeRatedGenres.length > 0) {
+          items = items.filter((it) => {
+            const genres = Array.isArray(it.genres) ? it.genres : [];
+            return activeRatedGenres.every((g) => genres.includes(g));
+          });
+        }
+
         if (selectedScore === 'top5') {
           const ordered = [];
           myTop5Ids.forEach((id) => {
@@ -527,16 +513,13 @@ export default function ProfilePage({
           });
         }
         setRatedAnime(items);
-        if (isDefaultView) {
-          setCachedUserRatings(user?.id, allItems);
-        }
       }
     } catch (err) {
       console.error('Error fetching rated anime:', err);
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, sortOption, selectedType, activeRatedGenres, selectedScore, myTop5Ids, isDefaultView, user?.id]);
+  }, [searchQuery, sortOption, selectedType, activeRatedGenres, selectedScore, myTop5Ids, user?.id]);
 
   useEffect(() => {
     if (activeTab === 'ratings') {
@@ -547,29 +530,36 @@ export default function ProfilePage({
   // Live listener for ratings updated anywhere in the app (detail page, search, or dev console)
   useEffect(() => {
     const handleRatingUpdated = (e) => {
-      const { animeId, score, anime: updatedAnime } = e.detail || {};
+      const { animeId, score, prevScore, hadRatingBefore: eventHadRating, totalCount: eventTotalCount, anime: updatedAnime } = e.detail || {};
       if (!animeId) return;
       const numId = Number(animeId);
 
-      // Check against current cached ratings to accurately determine if this was a new rating or updating existing
-      const cached = getCachedUserRatings(user?.id) || [];
-      const hadRatingBefore = cached.some((it) => Number(it.id) === numId);
+      const hadRatingBefore = eventHadRating !== undefined
+        ? eventHadRating
+        : (prevScore !== undefined && prevScore !== null);
 
       if (score === null || score === undefined || score === '') {
         // Rating removed
-        if (hadRatingBefore) {
+        if (eventTotalCount !== undefined) {
+          setTotalRatedCount(eventTotalCount);
+        } else if (hadRatingBefore) {
           setTotalRatedCount((prev) => Math.max(0, prev - 1));
         }
         setRatedAnime((prev) => prev.filter((it) => Number(it.id) !== numId));
       } else {
         // Rating added or changed (0 to 10)
         const numericScore = Number(score);
-        if (!hadRatingBefore) {
+        if (eventTotalCount !== undefined) {
+          setTotalRatedCount(eventTotalCount);
+        } else if (!hadRatingBefore) {
           setTotalRatedCount((prev) => prev + 1);
         }
         setRatedAnime((prev) => {
           const exists = prev.some((it) => Number(it.id) === numId);
           if (exists) {
+            if (selectedScore !== 'all' && selectedScore !== 'top5' && Number(selectedScore) !== numericScore) {
+              return prev.filter((it) => Number(it.id) !== numId);
+            }
             return prev.map((it) => (Number(it.id) === numId ? { ...it, myScore: numericScore } : it));
           } else if (updatedAnime) {
             if (selectedScore === 'top5' && !myTop5Ids.map(Number).includes(numId)) {
@@ -590,14 +580,11 @@ export default function ProfilePage({
           return prev;
         });
       }
-
-      // Align with server/cache in background
-      fetchRated();
     };
 
     window.addEventListener('anilex:rating-updated', handleRatingUpdated);
     return () => window.removeEventListener('anilex:rating-updated', handleRatingUpdated);
-  }, [fetchRated, user?.id, selectedScore, myTop5Ids]);
+  }, [user?.id, selectedScore, myTop5Ids]);
 
   // Re-sync ratings when returning to the tab/window
   useEffect(() => {
@@ -715,6 +702,7 @@ export default function ProfilePage({
   // Quick change rating directly from profile card
   const handleQuickChangeScore = async (e, anime, newScoreVal) => {
     e.stopPropagation();
+    if (!anime) return;
     if (newScoreVal === 'delete') {
       handleDeleteRating(e, anime.id);
       return;
@@ -722,42 +710,52 @@ export default function ProfilePage({
     const scoreNum = Number(newScoreVal);
     if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 10) return;
 
-    const token = localStorage.getItem('anime_auth_token');
     const updatedAnime = { ...anime, myScore: scoreNum };
 
     // 1. Optimistically update local ratedAnime state
-    setRatedAnime((prev) =>
-      prev.map((it) => (Number(it.id) === Number(anime.id) ? { ...it, myScore: scoreNum } : it))
-    );
+    setRatedAnime((prev) => {
+      if (selectedScore !== 'all' && selectedScore !== 'top5' && Number(selectedScore) !== scoreNum) {
+        return prev.filter((it) => Number(it.id) !== Number(anime.id));
+      }
+      return prev.map((it) => (Number(it.id) === Number(anime.id) ? { ...it, myScore: scoreNum } : it));
+    });
 
-    // 2. Update client cache
-    updateCachedUserRating(user?.id, anime.id, scoreNum, updatedAnime);
-
-    // 3. Notify parent app and other components
+    // 2. Delegate to onRateAnime or fallback
     if (onRateAnime) {
-      onRateAnime(anime.id, scoreNum, updatedAnime);
-    }
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent('anilex:rating-updated', {
-          detail: { animeId: Number(anime.id), score: scoreNum, anime: updatedAnime }
-        })
-      );
-    }
-
-    // 4. Send to server
-    if (token) {
-      try {
-        await fetch(apiUrl(`/api/anime/${anime.id}/rate`), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({ score: scoreNum, anime: updatedAnime })
-        });
-      } catch (err) {
-        console.warn('Quick change score backend notice:', err);
+      await onRateAnime(anime.id, scoreNum, updatedAnime);
+    } else {
+      const cacheResult = updateCachedUserRating(user?.id, anime.id, scoreNum, updatedAnime);
+      if (cacheResult?.count !== undefined) {
+        setTotalRatedCount(cacheResult.count);
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('anilex:rating-updated', {
+            detail: {
+              animeId: Number(anime.id),
+              score: scoreNum,
+              anime: updatedAnime,
+              hadRatingBefore: cacheResult?.hadRatingBefore,
+              previousScore: cacheResult?.previousScore,
+              totalCount: cacheResult?.count
+            }
+          })
+        );
+      }
+      const token = localStorage.getItem('anime_auth_token');
+      if (token) {
+        try {
+          await fetch(apiUrl(`/api/anime/${anime.id}/rate`), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ score: scoreNum, anime: updatedAnime })
+          });
+        } catch (err) {
+          console.warn('Quick change score backend notice:', err);
+        }
       }
     }
   };
@@ -765,33 +763,42 @@ export default function ProfilePage({
   // Quick delete rating directly from profile card (Photo 2)
   const handleDeleteRating = async (e, animeId) => {
     e.stopPropagation();
+    const numId = Number(animeId);
     try {
-      const token = localStorage.getItem('anime_auth_token');
-
-      // Optimistically remove from state and update cache
-      setRatedAnime((prev) => prev.filter((it) => Number(it.id) !== Number(animeId)));
-      updateCachedUserRating(user?.id, animeId, null);
+      // Optimistically remove from state and decrement total count
+      setRatedAnime((prev) => prev.filter((it) => Number(it.id) !== numId));
+      setTotalRatedCount((prev) => Math.max(0, prev - 1));
 
       if (onRateAnime) {
-        onRateAnime(animeId, null);
-      }
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent('anilex:rating-updated', {
-            detail: { animeId: Number(animeId), score: null }
-          })
-        );
-      }
-
-      if (token) {
-        await fetch(apiUrl(`/api/anime/${animeId}/rate`), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({ score: null })
-        });
+        await onRateAnime(animeId, null);
+      } else {
+        const cacheResult = updateCachedUserRating(user?.id, animeId, null);
+        if (cacheResult?.count !== undefined) {
+          setTotalRatedCount(cacheResult.count);
+        }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('anilex:rating-updated', {
+              detail: {
+                animeId: numId,
+                score: null,
+                hadRatingBefore: true,
+                totalCount: cacheResult?.count
+              }
+            })
+          );
+        }
+        const token = localStorage.getItem('anime_auth_token');
+        if (token) {
+          await fetch(apiUrl(`/api/anime/${animeId}/rate`), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ score: null })
+          });
+        }
       }
     } catch (err) {
       console.error('Error deleting rating:', err);

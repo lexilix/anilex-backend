@@ -100,7 +100,7 @@ export function setCachedUserRatings(userId, ratings) {
 export function updateCachedUserRating(userId, animeId, score, animeData = null) {
   try {
     const targetUserId = userId || getCachedUserProfile()?.id;
-    if (!targetUserId) return;
+    if (!targetUserId) return null;
     const key = `${RATINGS_PREFIX}${targetUserId}`;
     let list = getCachedUserRatings(targetUserId);
     const numId = Number(animeId);
@@ -108,6 +108,16 @@ export function updateCachedUserRating(userId, animeId, score, animeData = null)
 
     const isJustUser = Number(targetUserId) === 5 || targetUserId === '5';
     const isUnwantedBlacklist = isJustUser && UNWANTED_JUST_ZERO_IDS.has(numId);
+
+    const existingIdx = list.findIndex(
+      (it) =>
+        Number(it.id) === numId ||
+        (Array.isArray(it.aliasIds) && it.aliasIds.map(Number).includes(numId)) ||
+        (animeTitle && it.title && it.title.trim().toLowerCase() === animeTitle)
+    );
+    const hadRatingBefore = existingIdx >= 0;
+    const previousScore = hadRatingBefore ? list[existingIdx].myScore : null;
+
     if (score === null || score === undefined || score === '' || isUnwantedBlacklist) {
       // Remove rating
       list = list.filter((it) => {
@@ -118,12 +128,6 @@ export function updateCachedUserRating(userId, animeId, score, animeData = null)
       });
     } else {
       // Update or insert
-      const existingIdx = list.findIndex(
-        (it) =>
-          Number(it.id) === numId ||
-          (Array.isArray(it.aliasIds) && it.aliasIds.map(Number).includes(numId)) ||
-          (animeTitle && it.title && it.title.trim().toLowerCase() === animeTitle)
-      );
       if (existingIdx >= 0) {
         list[existingIdx] = {
           ...list[existingIdx],
@@ -148,7 +152,13 @@ export function updateCachedUserRating(userId, animeId, score, animeData = null)
     }
 
     localStorage.setItem(key, JSON.stringify(list.slice(0, 1000)));
+    return {
+      hadRatingBefore,
+      previousScore,
+      count: list.length
+    };
   } catch (e) {
     console.warn('Failed to update cached rating in localStorage', e);
+    return null;
   }
 }

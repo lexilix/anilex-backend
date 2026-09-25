@@ -1121,7 +1121,7 @@ export default function App() {
   const handleRate = async (animeId, score, animeObj = null) => {
     if (!token) {
       setAuthModalOpen(true);
-      return;
+      return null;
     }
 
     const numAnimeId = Number(animeId);
@@ -1131,15 +1131,26 @@ export default function App() {
       getAllCachedAnime().find((it) => Number(it.id) === numAnimeId);
 
     // Optimistic local update
+    let cacheResult = null;
     if (user?.id) {
-      updateCachedUserRating(user.id, numAnimeId, score, targetAnime);
+      cacheResult = updateCachedUserRating(user.id, numAnimeId, score, targetAnime);
+      if (cacheResult?.count !== undefined) {
+        setUser((prev) => (prev ? { ...prev, ratedCount: cacheResult.count } : prev));
+      }
     }
     updateCachedAnimeItem(numAnimeId, { myScore: score });
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent('anilex:rating-updated', {
-          detail: { animeId: numAnimeId, score, anime: targetAnime }
+          detail: {
+            animeId: numAnimeId,
+            score,
+            anime: targetAnime,
+            hadRatingBefore: cacheResult?.hadRatingBefore,
+            previousScore: cacheResult?.previousScore,
+            totalCount: cacheResult?.count
+          }
         })
       );
     }
@@ -1202,25 +1213,19 @@ export default function App() {
           averageScore: data.averageScore,
           ratingCount: data.ratingCount
         });
-        updateCachedAnimeItem(resolvedId, {
-          myScore: data.myScore,
-          averageScore: data.averageScore,
-          ratingCount: data.ratingCount
-        });
-        if (user?.id) {
-          updateCachedUserRating(user.id, resolvedId, data.myScore, targetAnime);
+        if (resolvedId !== numAnimeId) {
+          updateCachedAnimeItem(resolvedId, {
+            myScore: data.myScore,
+            averageScore: data.averageScore,
+            ratingCount: data.ratingCount
+          });
         }
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(
-            new CustomEvent('anilex:rating-updated', {
-              detail: { animeId: resolvedId, score: data.myScore, anime: targetAnime }
-            })
-          );
-        }
+        return data;
       }
     } catch (err) {
       console.warn('Backend rate notice (rating saved in client):', err);
     }
+    return null;
   };
 
   // Genre click handler

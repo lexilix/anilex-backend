@@ -215,23 +215,29 @@ export default function AnimeCard({
     const newScore = myScore === score ? null : score;
     setLocalScore(newScore);
 
-    // Optimistically update localStorage cache immediately
-    if (currentUserId) {
-      updateCachedUserRating(currentUserId, anime.id, newScore, anime);
-    }
-
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent('anilex:rating-updated', {
-          detail: { animeId: Number(anime.id), score: newScore, anime }
-        })
-      );
-    }
-
     setRatingLoading(true);
     try {
       if (onRate) {
         await onRate(anime.id, newScore, anime);
+      } else {
+        let cacheResult = null;
+        if (currentUserId) {
+          cacheResult = updateCachedUserRating(currentUserId, anime.id, newScore, anime);
+        }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('anilex:rating-updated', {
+              detail: {
+                animeId: Number(anime.id),
+                score: newScore,
+                prevScore: myScore,
+                hadRatingBefore: cacheResult?.hadRatingBefore,
+                totalCount: cacheResult?.count,
+                anime
+              }
+            })
+          );
+        }
       }
     } catch (err) {
       console.warn('Rating error:', err);
