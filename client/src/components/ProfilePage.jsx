@@ -167,7 +167,29 @@ export default function ProfilePage({
   const [showAllRatedGenres, setShowAllRatedGenres] = useState(false);
   const [selectedType, setSelectedType] = useState('all');
   const [selectedScore, setSelectedScore] = useState('all');
-  const [totalRatedCount, setTotalRatedCount] = useState(0);
+
+  // Check if default ratings view is active (no search/filter applied)
+  const isDefaultView = !searchQuery.trim() && selectedType === 'all' && activeRatedGenres.length === 0 && selectedScore === 'all';
+
+  // Overall total rated count - must remain stable and reflect all user ratings regardless of active filter
+  const [totalRatedCount, setTotalRatedCount] = useState(() => {
+    const fromUser = Number(user?.ratedCount);
+    if (!isNaN(fromUser) && fromUser > 0) return fromUser;
+    const cached = getCachedUserRatings(user?.id);
+    return Array.isArray(cached) ? cached.length : 0;
+  });
+
+  useEffect(() => {
+    if (user?.ratedCount !== undefined && user?.ratedCount !== null) {
+      const fromUser = Number(user.ratedCount);
+      if (!isNaN(fromUser) && fromUser > 0) {
+        setTotalRatedCount(fromUser);
+      }
+    }
+  }, [user?.ratedCount]);
+
+  const effectiveTotalRated = totalRatedCount || Number(user?.ratedCount) || (isDefaultView ? ratedAnime.length : 0);
+
 
   // Favorites state
   const [favoritesList, setFavoritesList] = useState([]);
@@ -389,9 +411,7 @@ export default function ProfilePage({
               if (!hasAll) return;
             }
 
-            if (!allMap.has(cId)) {
-              allMap.set(cId, cached);
-            } else {
+            if (allMap.has(cId)) {
               const existing = allMap.get(cId);
               if (cached.myScore !== null && cached.myScore !== undefined) {
                 existing.myScore = cached.myScore;
@@ -409,10 +429,10 @@ export default function ProfilePage({
           });
         }
 
-        if (data.total !== undefined) {
+        // Only update totalRatedCount and save persistent cached ratings when in default view (unfiltered)
+        if (isDefaultView) {
           setTotalRatedCount(allItems.length);
-        } else if (isDefaultView) {
-          setTotalRatedCount(allItems.length);
+          setCachedUserRatings(user?.id, allItems);
         }
 
         let items = allItems;
@@ -516,7 +536,7 @@ export default function ProfilePage({
           });
         }
         setRatedAnime(items);
-        if (!searchQuery.trim() && selectedType === 'all' && activeRatedGenres.length === 0 && selectedScore === 'all') {
+        if (isDefaultView) {
           setCachedUserRatings(user?.id, allItems);
         }
       }
@@ -525,7 +545,7 @@ export default function ProfilePage({
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, sortOption, selectedType, activeRatedGenres, selectedScore, myTop5Ids]);
+  }, [searchQuery, sortOption, selectedType, activeRatedGenres, selectedScore, myTop5Ids, isDefaultView, user?.id]);
 
   useEffect(() => {
     if (activeTab === 'ratings') {
@@ -1313,7 +1333,7 @@ export default function ProfilePage({
                   Оценено
                 </span>
                 <span className="text-base font-bold text-neutral-900 dark:text-white">
-                  {Math.max(user?.ratedCount || 0, totalRatedCount || 0, ratedAnime.length)}
+                  {effectiveTotalRated}
                 </span>
               </div>
 
@@ -1340,7 +1360,7 @@ export default function ProfilePage({
 
           {/* Otaku Level & Progression Card */}
           {(() => {
-            const ratedCount = Math.max(user?.ratedCount || 0, totalRatedCount || 0, ratedAnime.length);
+            const ratedCount = effectiveTotalRated;
             const userLevelData = getUserLevel(ratedCount);
 
             return (
@@ -1424,7 +1444,7 @@ export default function ProfilePage({
                   : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
               }`}
             >
-              Мои оценки ({Math.max(user?.ratedCount || 0, totalRatedCount || 0, ratedAnime.length)})
+              Мои оценки ({effectiveTotalRated})
             </button>
             <button
               onClick={() => setActiveTab('favorites')}
@@ -1608,6 +1628,27 @@ export default function ProfilePage({
               </div>
             )}
           </div>
+
+          {/* Active filter summary if filters are applied */}
+          {!isDefaultView && selectedScore !== 'top5' && (
+            <div className="flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400 px-3 py-1.5 bg-neutral-100/60 dark:bg-neutral-800/40 rounded-2xl">
+              <span>
+                Найдено по фильтрам: <strong className="text-neutral-900 dark:text-white font-bold">{ratedAnime.length}</strong> из {effectiveTotalRated}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedType('all');
+                  setActiveRatedGenres([]);
+                  setSelectedScore('all');
+                }}
+                className="text-xs text-rose-500 hover:underline font-medium"
+              >
+                Сбросить фильтры
+              </button>
+            </div>
+          )}
 
           {/* List of Rated Anime */}
           {loading ? (
@@ -2938,7 +2979,7 @@ export default function ProfilePage({
 
             {/* Current User Level Banner */}
             {(() => {
-              const ratedCount = Math.max(user?.ratedCount || 0, totalRatedCount || 0, ratedAnime.length);
+              const ratedCount = effectiveTotalRated;
               const userLevelData = getUserLevel(ratedCount);
 
               return (
@@ -2998,7 +3039,7 @@ export default function ProfilePage({
 
               <div className="space-y-3">
                 {(() => {
-                  const ratedCount = Math.max(user?.ratedCount || 0, totalRatedCount || 0, ratedAnime.length);
+                  const ratedCount = effectiveTotalRated;
                   const userLevelData = getUserLevel(ratedCount);
 
                   return LEVELS_CONFIG.map((tier) => {

@@ -37,7 +37,7 @@ export function clearCachedUserProfile() {
   }
 }
 
-const UNWANTED_JUST_ZERO_IDS = new Set([1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227]);
+const UNWANTED_JUST_ZERO_IDS = new Set([1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234]);
 
 export function getCachedUserRatings(userId) {
   try {
