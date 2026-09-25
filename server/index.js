@@ -1854,7 +1854,41 @@ app.get('/api/anime/:id', optionalAuthMiddleware, async (req, res) => {
     const currentUserId = req.user ? req.user.id : null;
     const animeId = parseInt(req.params.id, 10);
 
-    const anime = db.prepare('SELECT * FROM anime WHERE id = ?').get(animeId);
+    let anime = db.prepare('SELECT * FROM anime WHERE id = ?').get(animeId);
+    if (!anime) {
+      try {
+        const catPath = path.join(__dirname, '..', 'client', 'src', 'data', 'initialCatalog.json');
+        if (fs.existsSync(catPath)) {
+          const cat = JSON.parse(fs.readFileSync(catPath, 'utf8'));
+          const found = cat.find((x) => x.id === animeId || x.slug === req.params.id);
+          if (found) {
+            const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+            db.prepare(`
+              INSERT INTO anime (id, slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET title = excluded.title
+            `).run(
+              found.id,
+              found.slug || `anime-${found.id}`,
+              found.title,
+              normalize(found.title),
+              found.originalTitle || '',
+              normalize(found.originalTitle || ''),
+              found.imageUrl || found.image_url || '',
+              found.type || 'Сериал',
+              found.year || '',
+              JSON.stringify(found.genres || []),
+              found.description || '',
+              found.season || '',
+              found.related_json || JSON.stringify(found.linkedAnime || [])
+            );
+            anime = db.prepare('SELECT * FROM anime WHERE id = ?').get(found.id);
+          }
+        }
+      } catch (catErr) {
+        console.warn('Auto-restore catalog anime error:', catErr.message);
+      }
+    }
     if (!anime) {
       return res.status(404).json({ error: 'Аниме не найдено' });
     }
@@ -3203,28 +3237,89 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
       } else {
         const genresStr = JSON.stringify(animeData.genres || []);
         try {
-          const insertInfo = db.prepare(`
-            INSERT INTO anime (slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `).run(
-            slug,
-            animeData.title,
-            tLower,
-            animeData.originalTitle || animeData.original_title || '',
-            oLower,
-            animeData.imageUrl || animeData.image_url || '',
-            animeData.type || 'Сериал',
-            animeData.year || '',
-            genresStr,
-            animeData.description || '',
-            animeData.season || '',
-            JSON.stringify(animeData.linkedAnime || [])
-          );
-          targetId = Number(insertInfo.lastInsertRowid);
-          anime = { id: targetId };
+          if (rawAnimeId && !isNaN(rawAnimeId) && rawAnimeId > 0) {
+            db.prepare(`
+              INSERT INTO anime (id, slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET title = excluded.title
+            `).run(
+              rawAnimeId,
+              slug,
+              animeData.title,
+              tLower,
+              animeData.originalTitle || animeData.original_title || '',
+              oLower,
+              animeData.imageUrl || animeData.image_url || '',
+              animeData.type || 'Сериал',
+              animeData.year || '',
+              genresStr,
+              animeData.description || '',
+              animeData.season || '',
+              JSON.stringify(animeData.linkedAnime || [])
+            );
+            targetId = rawAnimeId;
+            anime = { id: targetId };
+          } else {
+            const insertInfo = db.prepare(`
+              INSERT INTO anime (slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+              slug,
+              animeData.title,
+              tLower,
+              animeData.originalTitle || animeData.original_title || '',
+              oLower,
+              animeData.imageUrl || animeData.image_url || '',
+              animeData.type || 'Сериал',
+              animeData.year || '',
+              genresStr,
+              animeData.description || '',
+              animeData.season || '',
+              JSON.stringify(animeData.linkedAnime || [])
+            );
+            targetId = Number(insertInfo.lastInsertRowid);
+            anime = { id: targetId };
+          }
         } catch (insertErr) {
           console.warn('Auto-create anime on rate notice:', insertErr.message);
         }
+      }
+    }
+
+    // 4. Fallback: check initialCatalog by ID or slug
+    if (!anime && rawAnimeId) {
+      try {
+        const catPath = path.join(__dirname, '..', 'client', 'src', 'data', 'initialCatalog.json');
+        if (fs.existsSync(catPath)) {
+          const cat = JSON.parse(fs.readFileSync(catPath, 'utf8'));
+          const found = cat.find((x) => x.id === rawAnimeId || x.slug === String(rawAnimeId));
+          if (found) {
+            const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+            db.prepare(`
+              INSERT INTO anime (id, slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET title = excluded.title
+            `).run(
+              found.id,
+              found.slug || `anime-${found.id}`,
+              found.title,
+              normalize(found.title),
+              found.originalTitle || '',
+              normalize(found.originalTitle || ''),
+              found.imageUrl || found.image_url || '',
+              found.type || 'Сериал',
+              found.year || '',
+              JSON.stringify(found.genres || []),
+              found.description || '',
+              found.season || '',
+              found.related_json || JSON.stringify(found.linkedAnime || [])
+            );
+            targetId = found.id;
+            anime = { id: targetId };
+          }
+        }
+      } catch (catErr) {
+        console.warn('Catalog auto-insert on rate notice:', catErr.message);
       }
     }
 
@@ -3247,6 +3342,25 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
           score = excluded.score,
           updated_at = CURRENT_TIMESTAMP
       `).run(userId, targetId, numScore);
+    }
+
+    // Synchronize Demon Slayer Mugen Train aliases if rated
+    if ([2012, 2061, 7143].includes(targetId)) {
+      const trainIds = [2012, 2061, 7143].filter((id) => id !== targetId);
+      for (const tId of trainIds) {
+        const tExists = db.prepare('SELECT id FROM anime WHERE id = ?').get(tId);
+        if (tExists) {
+          if (score === null || score === undefined || score === '') {
+            db.prepare('DELETE FROM ratings WHERE user_id = ? AND anime_id = ?').run(userId, tId);
+          } else {
+            db.prepare(`
+              INSERT INTO ratings (user_id, anime_id, score, updated_at)
+              VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+              ON CONFLICT(user_id, anime_id) DO UPDATE SET score = excluded.score, updated_at = CURRENT_TIMESTAMP
+            `).run(userId, tId, parseInt(score, 10));
+          }
+        }
+      }
     }
 
     if (typeof db.saveAccountsBackup === 'function') {
