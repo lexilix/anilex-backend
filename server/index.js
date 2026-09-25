@@ -4530,10 +4530,10 @@ app.delete('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    // Strictly disallow deleting Just, Katsu, MrTech, Venicek, haitek
-    const isProtected = [5, 15, 20, 21, 22, 24].includes(targetUser.id) ||
-      ['just', 'katsu', 'mrtech', 'venicek', 'haitek'].includes((targetUser.nickname || '').toLowerCase()) ||
-      ['just9jeeet@gmail.com', 'cik5921@gmail.com', 'mrtech@example.com', 'venicek@example.com', 'katsudemisek@gmail.com'].includes((targetUser.email || '').toLowerCase());
+    // Strictly disallow deleting Just, Katsu, MrTech, Venicek, haitek, lonely4ka
+    const isProtected = [5, 15, 20, 21, 22, 23, 24].includes(targetUser.id) ||
+      ['just', 'katsu', 'mrtech', 'venicek', 'haitek', 'lonely4ka'].includes((targetUser.nickname || '').toLowerCase()) ||
+      ['just9jeeet@gmail.com', 'cik5921@gmail.com', 'xyesosinaaaaa@gmail.com', 'mrtech@example.com', 'venicek@example.com', 'katsudemisek@gmail.com'].includes((targetUser.email || '').toLowerCase());
     if (isProtected) {
       return res.status(403).json({ error: `Нельзя удалить защищённый аккаунт ${targetUser.nickname}` });
     }
@@ -4579,6 +4579,28 @@ app.delete('/api/dev/users/:id', devAdminMiddleware, (req, res) => {
   } catch (err) {
     res.setHeader('Content-Type', 'application/json');
     return res.status(500).json({ error: 'Ошибка удаления пользователя: ' + err.message });
+  }
+});
+
+// Dev: Force restore from latest permanent backup
+app.post('/api/dev/restore-backup', devAdminMiddleware, (req, res) => {
+  try {
+    if (typeof db.restoreAccountsFromBackup === 'function') {
+      db.restoreAccountsFromBackup();
+    }
+    if (typeof db.ensureAllUsersFriends === 'function') {
+      db.ensureAllUsersFriends();
+    }
+    const users = db.prepare('SELECT id, nickname, email FROM users').all();
+    const ratingsCount = db.prepare('SELECT count(*) as c FROM ratings').get()?.c;
+    return res.json({
+      success: true,
+      message: 'База данных успешно восстановлена из последней резервной копии.',
+      usersCount: users.length,
+      ratingsCount
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка восстановления базы данных: ' + err.message });
   }
 });
 

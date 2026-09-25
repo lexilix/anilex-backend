@@ -291,17 +291,38 @@ try {
 }
 
 // Auto-restore registered accounts, ratings, friendships, and comments from persistent backup
+function getBestBackupData() {
+  const f1 = path.join(dataDir, 'accounts_backup.json');
+  const f2 = path.join(dataDir, 'accounts_backup_permanent.json');
+  let d1 = null;
+  let d2 = null;
+  try { if (fs.existsSync(f1)) d1 = JSON.parse(fs.readFileSync(f1, 'utf8')); } catch (e) {}
+  try { if (fs.existsSync(f2)) d2 = JSON.parse(fs.readFileSync(f2, 'utf8')); } catch (e) {}
+
+  if (!d1 && !d2) return null;
+  if (d1 && !d2) return d1;
+  if (!d1 && d2) return d2;
+
+  const u1 = Array.isArray(d1.users) ? d1.users.length : 0;
+  const u2 = Array.isArray(d2.users) ? d2.users.length : 0;
+  if (u1 > u2) return d1;
+  if (u2 > u1) return d2;
+
+  const r1 = Array.isArray(d1.ratings) ? d1.ratings.length : 0;
+  const r2 = Array.isArray(d2.ratings) ? d2.ratings.length : 0;
+  if (r1 > r2) return d1;
+  if (r2 > r1) return d2;
+
+  const t1 = d1.savedAt ? new Date(d1.savedAt).getTime() : 0;
+  const t2 = d2.savedAt ? new Date(d2.savedAt).getTime() : 0;
+  return t1 >= t2 ? d1 : d2;
+}
+
 function restoreAccountsFromBackup() {
-  let backupFile = path.join(dataDir, 'accounts_backup.json');
-  if (!fs.existsSync(backupFile)) {
-    backupFile = path.join(dataDir, 'accounts_backup_permanent.json');
-  }
-  if (!fs.existsSync(backupFile)) return;
+  const data = getBestBackupData();
+  if (!data) return;
 
   try {
-    const raw = fs.readFileSync(backupFile, 'utf8');
-    const data = JSON.parse(raw);
-
     // 1. Restore customAnime FIRST so anime records exist for ratings, favorites, top5
     if (Array.isArray(data.customAnime)) {
       const insertAnimeStmt = db.prepare(`
@@ -376,8 +397,8 @@ function restoreAccountsFromBackup() {
           if (existingByEmail) {
             db.prepare(`
               UPDATE users SET
-                avatar_url = COALESCE(users.avatar_url, ?),
-                banner_url = COALESCE(users.banner_url, ?),
+                avatar_url = CASE WHEN users.avatar_url IS NOT NULL AND length(users.avatar_url) > 10 THEN users.avatar_url ELSE ? END,
+                banner_url = CASE WHEN users.banner_url IS NOT NULL AND length(users.banner_url) > 10 THEN users.banner_url ELSE ? END,
                 nickname = COALESCE(users.nickname, ?),
                 is_blocked = COALESCE(users.is_blocked, ?)
               WHERE id = ?
@@ -398,29 +419,33 @@ function restoreAccountsFromBackup() {
           }
         } catch (e) {}
       }
-      // Guarantee haitek user exists
-      const haitekUser = db.prepare("SELECT id FROM users WHERE LOWER(nickname) = 'haitek' OR LOWER(email) = 'cik5921@gmail.com'").get();
-      if (!haitekUser && Array.isArray(data.users)) {
-        const hData = data.users.find(u => u.nickname?.toLowerCase() === 'haitek');
-        if (hData) {
-          try {
-            db.prepare(`
-              INSERT INTO users (id, email, nickname, password_hash, salt, avatar_url, banner_url, allow_password_set, is_blocked, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(
-              hData.id || 24,
-              hData.email || 'cik5921@gmail.com',
-              hData.nickname || 'haitek',
-              hData.password_hash || 'RESTORED_ACCOUNT',
-              hData.salt || 'RESTORED_SALT',
-              hData.avatar_url || null,
-              hData.banner_url || null,
-              0,
-              0,
-              hData.created_at || new Date().toISOString()
-            );
-          } catch (e) {
-            console.error('[Database] Failed to insert haitek user explicitly:', e.message);
+
+      // Guarantee all standard users exist (Just, Katsu, MrTech, Venicek, haitek, lonely4ka)
+      const guaranteeList = ['haitek', 'lonely4ka', 'mrtech', 'venicek', 'katsu', 'just'];
+      for (const name of guaranteeList) {
+        const found = db.prepare("SELECT id FROM users WHERE LOWER(nickname) = ?").get(name);
+        if (!found && Array.isArray(data.users)) {
+          const uObj = data.users.find(u => u.nickname?.toLowerCase() === name);
+          if (uObj) {
+            try {
+              db.prepare(`
+                INSERT INTO users (id, email, nickname, password_hash, salt, avatar_url, banner_url, allow_password_set, is_blocked, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `).run(
+                uObj.id,
+                uObj.email,
+                uObj.nickname,
+                uObj.password_hash || 'RESTORED_ACCOUNT',
+                uObj.salt || 'RESTORED_SALT',
+                uObj.avatar_url || null,
+                uObj.banner_url || null,
+                0,
+                0,
+                uObj.created_at || new Date().toISOString()
+              );
+            } catch (e) {
+              console.error(`[Database] Failed to insert ${name} user explicitly:`, e.message);
+            }
           }
         }
       }
@@ -589,7 +614,7 @@ function ensureAllUsersFriends() {
         });
       }
 
-      // Ensure Just rating for 6970 is 7, and 5655 has NO rating
+      // Ensure Just rating for 6970 is 7, 7186 is 0, and 5655 has NO rating
       db.prepare('DELETE FROM ratings WHERE user_id = ? AND anime_id = 5655').run(justUser.id);
       db.prepare(`
         DELETE FROM ratings 
@@ -602,6 +627,11 @@ function ensureAllUsersFriends() {
         INSERT INTO ratings (user_id, anime_id, score, updated_at)
         VALUES (?, 6970, 7, CURRENT_TIMESTAMP)
         ON CONFLICT(user_id, anime_id) DO UPDATE SET score = 7, updated_at = CURRENT_TIMESTAMP
+      `).run(justUser.id);
+      db.prepare(`
+        INSERT INTO ratings (user_id, anime_id, score, updated_at)
+        VALUES (?, 7186, 0, CURRENT_TIMESTAMP)
+        ON CONFLICT(user_id, anime_id) DO UPDATE SET score = 0, updated_at = CURRENT_TIMESTAMP
       `).run(justUser.id);
     }
 
@@ -634,6 +664,13 @@ function saveAccountsBackup() {
     const comments = db.prepare('SELECT * FROM comments').all();
     const hiddenAnime = db.prepare('SELECT * FROM user_hidden_anime').all();
     const userTop5 = db.prepare('SELECT * FROM user_top5').all();
+
+    // Strict Anti-Wipe Safeguard: refuse to overwrite backup files if DB state has fewer users or depleted ratings
+    if (users.length < 6 || ratings.length < 200) {
+      console.warn(`[Anti-Wipe Safeguard] Blocked saving accounts_backup.json: Reduced counts detected (users: ${users.length}, ratings: ${ratings.length}). Auto-restoring latest valid backup instead.`);
+      restoreAccountsFromBackup();
+      return;
+    }
 
     // Include ALL non-default anime, or anime that have ratings/favorites/top5/comments, or explicit IDs
     const customAnime = db.prepare(`
@@ -694,7 +731,16 @@ function saveAccountsBackup() {
   }
 }
 
-db.saveAccountsBackup = saveAccountsBackup;
+let _saveBackupTimeout = null;
+function debouncedSaveAccountsBackup() {
+  if (_saveBackupTimeout) clearTimeout(_saveBackupTimeout);
+  _saveBackupTimeout = setTimeout(() => {
+    saveAccountsBackup();
+  }, 2000);
+}
+
+db.saveAccountsBackup = debouncedSaveAccountsBackup;
+db.saveAccountsBackupSync = saveAccountsBackup;
 
 // Helper for Russian number words normalization
 function normalizeNumberWords(text) {
