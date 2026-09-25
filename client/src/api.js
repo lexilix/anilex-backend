@@ -26,5 +26,9 @@ export const getImageUrl = (url) => {
   if (url.startsWith('data:') || url.startsWith('blob:')) {
     return url;
   }
+  // Local static image paths should be served directly by the web host
+  if (url.startsWith('/') && !url.startsWith('//')) {
+    return url;
+  }
   return apiUrl(`/api/proxy-image?url=${encodeURIComponent(url)}`);
 };

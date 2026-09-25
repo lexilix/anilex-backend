@@ -250,11 +250,16 @@ export default function ProfilePage({
   // Custom User Top-5 State (max 5 items, Photo 1 & Photo 2)
   const [myTop5Ids, setMyTop5Ids] = useState(() => {
     try {
+      if (user?.nickname === 'Just' || user?.id === 5) {
+        const JUST_TOP5 = [2646, 6080, 2346, 1807, 5779];
+        try {
+          localStorage.setItem('anilex_top5_5', JSON.stringify(JUST_TOP5));
+          localStorage.setItem('anilex_top5_Just', JSON.stringify(JUST_TOP5));
+        } catch (e) {}
+        return JUST_TOP5;
+      }
       const saved = localStorage.getItem('anilex_top5_' + user?.id);
       let list = saved ? JSON.parse(saved) : [];
-      if (user?.nickname === 'Just' || user?.id === 5) {
-        if (!Array.isArray(list) || list.length < 5) list = [2646, 6080, 2346, 1807, 5779];
-      }
       if (user?.nickname === 'MrTech' || user?.id === 20) {
         if (!list.includes(7170)) list.unshift(7170);
       }
@@ -355,6 +360,7 @@ export default function ProfilePage({
       });
       if (res.ok) {
         const data = await res.json();
+        let allItems = deduplicateAnimeList(data.items || []);
         const UNWANTED_JUST_ZERO_IDS = new Set([1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234]);
         const isJust = Number(user?.id) === 5 || user?.nickname === 'Just';
 
@@ -398,7 +404,9 @@ export default function ProfilePage({
               if (!hasAll) return;
             }
 
-            if (allMap.has(cId)) {
+            if (!allMap.has(cId)) {
+              allMap.set(cId, cached);
+            } else {
               const existing = allMap.get(cId);
               if (cached.myScore !== null && cached.myScore !== undefined) {
                 existing.myScore = cached.myScore;
@@ -564,7 +572,20 @@ export default function ProfilePage({
           if (exists) {
             return prev.map((it) => (Number(it.id) === numId ? { ...it, myScore: numericScore } : it));
           } else if (updatedAnime) {
-            return [{ ...updatedAnime, id: numId, myScore: numericScore }, ...prev];
+            if (selectedScore === 'top5' && !myTop5Ids.map(Number).includes(numId)) {
+              return prev;
+            }
+            if (selectedScore !== 'all' && selectedScore !== 'top5' && Number(selectedScore) !== numericScore) {
+              return prev;
+            }
+            const img = updatedAnime.imageUrl || updatedAnime.image_url || updatedAnime.image;
+            return [{
+              ...updatedAnime,
+              id: numId,
+              imageUrl: img,
+              image_url: img,
+              myScore: numericScore
+            }, ...prev];
           }
           return prev;
         });
@@ -576,7 +597,7 @@ export default function ProfilePage({
 
     window.addEventListener('anilex:rating-updated', handleRatingUpdated);
     return () => window.removeEventListener('anilex:rating-updated', handleRatingUpdated);
-  }, [fetchRated, user?.id]);
+  }, [fetchRated, user?.id, selectedScore, myTop5Ids]);
 
   // Re-sync ratings when returning to the tab/window
   useEffect(() => {
@@ -1654,7 +1675,7 @@ export default function ProfilePage({
                     </div>
                     <div>
                       <h3 className="text-sm font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">
-                        ТОП-5 ЛУЧШИХ ТАЙТЛОВ ({ratedAnime.length} ИЗ 5)
+                        ТОП-5 ЛУЧШИХ ТАЙТЛОВ ({Math.min(5, ratedAnime.length)} ИЗ 5)
                       </h3>
                       <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">
                         Настраивайте порядок стрелками <span className="font-bold">▲</span> и <span className="font-bold">▼</span> — тайтлы будут отображаться с 1 по 5 место в вашем профиле и у друзей.
@@ -1662,7 +1683,7 @@ export default function ProfilePage({
                     </div>
                   </div>
                   <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15 px-3 py-1 rounded-xl self-start sm:self-auto shrink-0">
-                    {ratedAnime.length}/5 закреплено
+                    {Math.min(5, ratedAnime.length)}/5 закреплено
                   </span>
                 </div>
               )}
@@ -1699,11 +1720,17 @@ export default function ProfilePage({
 
                       <div className="w-20 aspect-[5/7] rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 shrink-0">
                         <img
-                          src={getImageUrl(anime.imageUrl)}
+                          src={getImageUrl(anime.imageUrl || anime.image_url || anime.image)}
                           alt={anime.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                           onError={(e) => {
-                            e.target.style.display = 'none';
+                            const raw = anime.image_url || anime.imageUrl || anime.image;
+                            if (raw && !e.target.dataset.triedFallback) {
+                              e.target.dataset.triedFallback = 'true';
+                              e.target.src = raw;
+                            } else {
+                              e.target.src = 'https://placehold.co/300x450/1e293b/ffffff?text=Anime';
+                            }
                           }}
                         />
                       </div>
@@ -1949,11 +1976,17 @@ export default function ProfilePage({
                 >
                   <div className="w-20 sm:w-24 aspect-[5/7] rounded-2xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 shrink-0">
                     <img
-                      src={getImageUrl(anime.imageUrl)}
+                      src={getImageUrl(anime.imageUrl || anime.image_url || anime.image)}
                       alt={anime.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                       onError={(e) => {
-                        e.target.style.display = 'none';
+                        const raw = anime.image_url || anime.imageUrl || anime.image;
+                        if (raw && !e.target.dataset.triedFallback) {
+                          e.target.dataset.triedFallback = 'true';
+                          e.target.src = raw;
+                        } else {
+                          e.target.src = 'https://placehold.co/300x450/1e293b/ffffff?text=Anime';
+                        }
                       }}
                     />
                   </div>
@@ -2094,11 +2127,17 @@ export default function ProfilePage({
                   >
                     <div className="w-20 sm:w-24 aspect-[5/7] rounded-2xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 shrink-0">
                       <img
-                        src={getImageUrl(anime.imageUrl)}
+                        src={getImageUrl(anime.imageUrl || anime.image_url || anime.image)}
                         alt={anime.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                         onError={(e) => {
-                          e.target.style.display = 'none';
+                          const raw = anime.image_url || anime.imageUrl || anime.image;
+                          if (raw && !e.target.dataset.triedFallback) {
+                            e.target.dataset.triedFallback = 'true';
+                            e.target.src = raw;
+                          } else {
+                            e.target.src = 'https://placehold.co/300x450/1e293b/ffffff?text=Anime';
+                          }
                         }}
                       />
                     </div>
@@ -2864,11 +2903,17 @@ export default function ProfilePage({
 
                                     <div className="w-10 aspect-[5/7] rounded-lg overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0">
                                       <img
-                                        src={getImageUrl(item.imageUrl)}
+                                        src={getImageUrl(item.imageUrl || item.image_url || item.image)}
                                         alt={item.title}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                         onError={(e) => {
-                                          e.target.style.display = 'none';
+                                          const raw = item.image_url || item.imageUrl || item.image;
+                                          if (raw && !e.target.dataset.triedFallback) {
+                                            e.target.dataset.triedFallback = 'true';
+                                            e.target.src = raw;
+                                          } else {
+                                            e.target.src = 'https://placehold.co/300x450/1e293b/ffffff?text=Anime';
+                                          }
                                         }}
                                       />
                                     </div>
