@@ -879,11 +879,24 @@ export default function ProfilePage({
     setActionLoadingId(friendId);
     try {
       const token = localStorage.getItem('anime_auth_token');
-      const res = await fetch(apiUrl(`/api/friends/${friendId}`), {
+      let res = await fetch(apiUrl(`/api/friends/${friendId}`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
+      }).catch(() => null);
+
+      if (!res || !res.ok) {
+        // Fallback for live server versions
+        res = await fetch(apiUrl('/api/friends/respond/0'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ action: 'reject', fromUserId: Number(friendId) })
+        }).catch(() => null);
+      }
+
+      if (res && res.ok) {
         showToast(`«${friendNick || 'Пользователь'}» удален из друзей`, 'info');
         setFriendsList((prev) => prev.map((u) => (u.id === friendId ? { ...u, friendshipStatus: 'none', isFriend: false } : u)));
         if (selectedFriend && selectedFriend.id === friendId) {
@@ -892,7 +905,7 @@ export default function ProfilePage({
         fetchFriendRequestsAndMyFriends();
         searchFriends(friendsQuery);
       } else {
-        const data = await res.json().catch(() => ({}));
+        const data = res ? await res.json().catch(() => ({})) : {};
         showToast(data.error || 'Ошибка удаления из друзей', 'error');
       }
     } catch (err) {
