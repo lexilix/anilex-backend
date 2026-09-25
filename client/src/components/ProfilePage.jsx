@@ -355,30 +355,17 @@ export default function ProfilePage({
       });
       if (res.ok) {
         const data = await res.json();
-        let allItems = deduplicateAnimeList(data.items || []);
         const UNWANTED_JUST_ZERO_IDS = new Set([1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234]);
         const isJust = Number(user?.id) === 5 || user?.nickname === 'Just';
 
-        // Purge unwanted zero ratings for Just, but preserve Gacha titles (7186, 7195, 7187)
-        const isGachaZeroAllowed = (it) => {
-          const num = Number(it?.id);
-          return num === 7186 || num === 7195 || num === 7187 || num === 7184 || String(it?.title || '').toLowerCase().includes('гача');
-        };
-
         if (isJust) {
-          allItems = allItems.filter(it => {
-            const numId = Number(it.id);
-            if (UNWANTED_JUST_ZERO_IDS.has(numId)) return false;
-            return Number(it.myScore) !== 0 || isGachaZeroAllowed(it);
-          });
+          allItems = allItems.filter(it => !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)));
         }
 
         // Merge with locally cached user ratings (excluding any unwanted blacklist items)
         const cachedRatings = (getCachedUserRatings(user?.id) || []).filter(it => {
           if (isJust) {
-            const numId = Number(it.id);
-            if (UNWANTED_JUST_ZERO_IDS.has(numId)) return false;
-            return Number(it.myScore) !== 0 || isGachaZeroAllowed(it);
+            return !UNWANTED_JUST_ZERO_IDS.has(Number(it.id));
           }
           return true;
         });
@@ -422,11 +409,7 @@ export default function ProfilePage({
         }
 
         if (isJust) {
-          allItems = allItems.filter(it => {
-            const numId = Number(it.id);
-            if (UNWANTED_JUST_ZERO_IDS.has(numId)) return false;
-            return Number(it.myScore) !== 0 || isGachaZeroAllowed(it);
-          });
+          allItems = allItems.filter(it => !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)));
         }
 
         // Only update totalRatedCount and save persistent cached ratings when in default view (unfiltered)
@@ -560,18 +543,32 @@ export default function ProfilePage({
       if (!animeId) return;
       const numId = Number(animeId);
 
-      setRatedAnime((prev) => {
-        if (score === null || score === undefined) {
-          return prev.filter((it) => Number(it.id) !== numId);
+      // Check against current cached ratings to accurately determine if this was a new rating or updating existing
+      const cached = getCachedUserRatings(user?.id) || [];
+      const hadRatingBefore = cached.some((it) => Number(it.id) === numId);
+
+      if (score === null || score === undefined || score === '') {
+        // Rating removed
+        if (hadRatingBefore) {
+          setTotalRatedCount((prev) => Math.max(0, prev - 1));
         }
-        const exists = prev.some((it) => Number(it.id) === numId);
-        if (exists) {
-          return prev.map((it) => (Number(it.id) === numId ? { ...it, myScore: score } : it));
-        } else if (updatedAnime) {
-          return [{ ...updatedAnime, myScore: score }, ...prev];
+        setRatedAnime((prev) => prev.filter((it) => Number(it.id) !== numId));
+      } else {
+        // Rating added or changed (0 to 10)
+        const numericScore = Number(score);
+        if (!hadRatingBefore) {
+          setTotalRatedCount((prev) => prev + 1);
         }
-        return prev;
-      });
+        setRatedAnime((prev) => {
+          const exists = prev.some((it) => Number(it.id) === numId);
+          if (exists) {
+            return prev.map((it) => (Number(it.id) === numId ? { ...it, myScore: numericScore } : it));
+          } else if (updatedAnime) {
+            return [{ ...updatedAnime, id: numId, myScore: numericScore }, ...prev];
+          }
+          return prev;
+        });
+      }
 
       // Align with server/cache in background
       fetchRated();
@@ -579,7 +576,7 @@ export default function ProfilePage({
 
     window.addEventListener('anilex:rating-updated', handleRatingUpdated);
     return () => window.removeEventListener('anilex:rating-updated', handleRatingUpdated);
-  }, [fetchRated]);
+  }, [fetchRated, user?.id]);
 
   // Re-sync ratings when returning to the tab/window
   useEffect(() => {
@@ -1628,27 +1625,6 @@ export default function ProfilePage({
               </div>
             )}
           </div>
-
-          {/* Active filter summary if filters are applied */}
-          {!isDefaultView && selectedScore !== 'top5' && (
-            <div className="flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400 px-3 py-1.5 bg-neutral-100/60 dark:bg-neutral-800/40 rounded-2xl">
-              <span>
-                Найдено по фильтрам: <strong className="text-neutral-900 dark:text-white font-bold">{ratedAnime.length}</strong> из {effectiveTotalRated}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedType('all');
-                  setActiveRatedGenres([]);
-                  setSelectedScore('all');
-                }}
-                className="text-xs text-rose-500 hover:underline font-medium"
-              >
-                Сбросить фильтры
-              </button>
-            </div>
-          )}
 
           {/* List of Rated Anime */}
           {loading ? (

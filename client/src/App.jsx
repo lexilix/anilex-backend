@@ -144,6 +144,26 @@ export default function App() {
           return item;
         })
       );
+      // Dynamically update user.ratedCount in global state & profile cache
+      setUser((prevUser) => {
+        if (!prevUser) return prevUser;
+        const currentUserId = prevUser.id;
+        const cached = getCachedUserRatings(currentUserId) || [];
+        const hadRatingBefore = cached.some((it) => Number(it.id) === numId);
+
+        let delta = 0;
+        if (score === null || score === undefined || score === '') {
+          if (hadRatingBefore) delta = -1;
+        } else if (!hadRatingBefore) {
+          delta = 1;
+        }
+
+        if (delta === 0) return prevUser;
+        const newCount = Math.max(0, (Number(prevUser.ratedCount) || 0) + delta);
+        const updated = { ...prevUser, ratedCount: newCount };
+        setCachedUserProfile(updated);
+        return updated;
+      });
     };
 
     window.addEventListener('anilex:rating-updated', handleRatingUpdated);
