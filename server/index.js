@@ -856,6 +856,36 @@ app.post('/api/friends/respond/:requestId', authMiddleware, (req, res) => {
   }
 });
 
+// Remove Friend (mutual removal)
+const handleRemoveFriend = (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+    const friendId = parseInt(req.params.friendId || req.body.friendId, 10);
+    if (!friendId || isNaN(friendId)) {
+      return res.status(400).json({ error: 'Неверный ID друга' });
+    }
+
+    db.prepare(`
+      DELETE FROM friend_requests
+      WHERE (from_user_id = ? AND to_user_id = ?)
+         OR (from_user_id = ? AND to_user_id = ?)
+    `).run(currentUserId, friendId, friendId, currentUserId);
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({ success: true, message: 'Пользователь удален из друзей' });
+  } catch (err) {
+    console.error('Remove friend error:', err);
+    return res.status(500).json({ error: 'Ошибка удаления из друзей: ' + err.message });
+  }
+};
+
+app.delete('/api/friends/:friendId', authMiddleware, handleRemoveFriend);
+app.post('/api/friends/remove', authMiddleware, handleRemoveFriend);
+app.post('/api/friends/remove/:friendId', authMiddleware, handleRemoveFriend);
+
 // Get incoming and outgoing friend requests
 app.get('/api/friends/requests', authMiddleware, (req, res) => {
   try {
@@ -4161,6 +4191,91 @@ app.delete('/api/dev/users/:userId/ratings/:animeId', devAdminMiddleware, (req, 
     return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ error: 'Ошибка удаления оценки: ' + err.message });
+  }
+});
+
+// Dev: Get friends list for a user
+app.get('/api/dev/users/:userId/friends', devAdminMiddleware, (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.userId, 10);
+    if (isNaN(targetUserId)) {
+      return res.status(400).json({ error: 'Неверный ID пользователя' });
+    }
+    const friends = db.prepare(`
+      SELECT u.id, u.nickname, u.email, u.avatar_url,
+             (SELECT count(*) FROM ratings r WHERE r.user_id = u.id) as rated_count
+      FROM users u
+      WHERE u.id IN (
+        SELECT CASE WHEN from_user_id = ? THEN to_user_id ELSE from_user_id END
+        FROM friend_requests
+        WHERE (from_user_id = ? OR to_user_id = ?) AND status = 'accepted'
+      )
+      ORDER BY u.nickname ASC
+    `).all(targetUserId, targetUserId, targetUserId);
+
+    return res.json({ success: true, friends });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка получения друзей: ' + err.message });
+  }
+});
+
+// Dev: Add mutual friend to a user
+app.post('/api/dev/users/:userId/friends', devAdminMiddleware, (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.userId, 10);
+    const friendId = parseInt(req.body.friendId, 10);
+    if (isNaN(targetUserId) || isNaN(friendId) || targetUserId === friendId) {
+      return res.status(400).json({ error: 'Неверный ID пользователя или друга' });
+    }
+
+    const u1 = db.prepare('SELECT id, nickname FROM users WHERE id = ?').get(targetUserId);
+    const u2 = db.prepare('SELECT id, nickname FROM users WHERE id = ?').get(friendId);
+    if (!u1 || !u2) {
+      return res.status(404).json({ error: 'Один из пользователей не найден' });
+    }
+
+    const insertOrUpdate = db.prepare(`
+      INSERT INTO friend_requests (from_user_id, to_user_id, status, created_at, updated_at)
+      VALUES (?, ?, 'accepted', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT(from_user_id, to_user_id) DO UPDATE SET
+        status = 'accepted',
+        updated_at = CURRENT_TIMESTAMP
+    `);
+    insertOrUpdate.run(targetUserId, friendId);
+    insertOrUpdate.run(friendId, targetUserId);
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({ success: true, message: `«${u2.nickname}» добавлен в друзья к «${u1.nickname}»` });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка добавления друга: ' + err.message });
+  }
+});
+
+// Dev: Remove friend from a user
+app.delete('/api/dev/users/:userId/friends/:friendId', devAdminMiddleware, (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.userId, 10);
+    const friendId = parseInt(req.params.friendId, 10);
+    if (isNaN(targetUserId) || isNaN(friendId)) {
+      return res.status(400).json({ error: 'Неверный ID пользователя или друга' });
+    }
+
+    db.prepare(`
+      DELETE FROM friend_requests
+      WHERE (from_user_id = ? AND to_user_id = ?)
+         OR (from_user_id = ? AND to_user_id = ?)
+    `).run(targetUserId, friendId, friendId, targetUserId);
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    return res.json({ success: true, message: 'Друг успешно удален' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка удаления друга: ' + err.message });
   }
 });
 

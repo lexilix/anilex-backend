@@ -32,7 +32,10 @@ import {
   Sparkles,
   Link,
   Ban,
-  KeyRound
+  KeyRound,
+  Users,
+  UserMinus,
+  UserPlus
 } from 'lucide-react';
 import { apiUrl } from '../api';
 import {
@@ -548,6 +551,13 @@ export default function DevConsolePage({
   // Delete User Modal
   const [deletingUser, setDeletingUser] = useState(null);
   const [deleteUserLoading, setDeleteUserLoading] = useState(false);
+
+  // Manage Friends Modal
+  const [friendsModalUser, setFriendsModalUser] = useState(null);
+  const [userFriendsList, setUserFriendsList] = useState([]);
+  const [userFriendsLoading, setUserFriendsLoading] = useState(false);
+  const [selectedFriendToAddId, setSelectedFriendToAddId] = useState('');
+  const [friendActionLoading, setFriendActionLoading] = useState(false);
 
   // ----------------------------------------------------
   // RATINGS TAB STATE
@@ -1649,6 +1659,86 @@ export default function DevConsolePage({
     }
   };
 
+  const fetchUserFriends = async (userId) => {
+    if (!userId) return;
+    setUserFriendsLoading(true);
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      const res = await fetch(apiUrl(`/api/dev/users/${userId}/friends`), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUserFriendsList(data.friends || []);
+      } else {
+        setUserFriendsList([]);
+      }
+    } catch (err) {
+      console.error('Error fetching friends for user:', err);
+      setUserFriendsList([]);
+    } finally {
+      setUserFriendsLoading(false);
+    }
+  };
+
+  const handleOpenFriendsModal = (targetUser) => {
+    setFriendsModalUser(targetUser);
+    setSelectedFriendToAddId('');
+    fetchUserFriends(targetUser.id);
+  };
+
+  const handleDevAddFriend = async (e) => {
+    e?.preventDefault?.();
+    if (!friendsModalUser || !selectedFriendToAddId) return;
+    setFriendActionLoading(true);
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      const res = await fetch(apiUrl(`/api/dev/users/${friendsModalUser.id}/friends`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ friendId: Number(selectedFriendToAddId) })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Ошибка добавления друга');
+      }
+      showToast(data.message || 'Друг успешно добавлен');
+      setSelectedFriendToAddId('');
+      fetchUserFriends(friendsModalUser.id);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setFriendActionLoading(false);
+    }
+  };
+
+  const handleDevRemoveFriend = async (friendId, friendNick) => {
+    if (!friendsModalUser || !friendId) return;
+    const confirmed = window.confirm(`Удалить «${friendNick || 'пользователя'}» из друзей «${friendsModalUser.nickname}»?`);
+    if (!confirmed) return;
+    setFriendActionLoading(true);
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      const res = await fetch(apiUrl(`/api/dev/users/${friendsModalUser.id}/friends/${friendId}`), {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Ошибка удаления друга');
+      }
+      showToast(data.message || 'Друг успешно удален');
+      fetchUserFriends(friendsModalUser.id);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setFriendActionLoading(false);
+    }
+  };
+
   const handleSaveUser = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
@@ -2610,6 +2700,16 @@ export default function DevConsolePage({
                     >
                       <Star className="w-3.5 h-3.5 shrink-0" />
                       <span>Оценки</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenFriendsModal(u)}
+                      className="py-1.5 px-2.5 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500 hover:text-white dark:hover:text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1 shrink-0"
+                      title="Управление друзьями пользователя"
+                    >
+                      <Users className="w-3.5 h-3.5 shrink-0" />
+                      <span>Друзья</span>
                     </button>
 
                     {u.nickname !== 'Just' && Number(u.id) !== 5 && (
@@ -4144,6 +4244,139 @@ export default function DevConsolePage({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* MODAL: MANAGE USER FRIENDS (DEV CONSOLE) */}
+      {/* ---------------------------------------------------- */}
+      {friendsModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div
+            className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#151518] p-6 shadow-2xl border border-neutral-200 dark:border-neutral-800 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 text-indigo-500 flex items-center justify-center shrink-0">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-neutral-900 dark:text-white">
+                    Друзья пользователя: <span className="text-indigo-500">{friendsModalUser.nickname}</span>
+                  </h3>
+                  <p className="text-xs text-neutral-400">
+                    ID: {friendsModalUser.id} · Всего друзей: {userFriendsList.length}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFriendsModalUser(null)}
+                className="p-1 rounded-full text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Add Friend Form */}
+            <form onSubmit={handleDevAddFriend} className="p-3.5 rounded-2xl bg-neutral-100/70 dark:bg-neutral-800/50 border border-neutral-200/60 dark:border-neutral-700/60 space-y-2.5">
+              <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300">
+                Добавить пользователя в друзья
+              </label>
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedFriendToAddId}
+                  onChange={(e) => setSelectedFriendToAddId(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-[#151518] text-neutral-900 dark:text-white text-xs border border-neutral-200 dark:border-neutral-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="">-- Выберите профиль для добавления --</option>
+                  {usersList
+                    .filter((u) => u.id !== friendsModalUser.id && !userFriendsList.some((f) => f.id === u.id))
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.nickname} (ID: {u.id}{u.email ? `, ${u.email}` : ''})
+                      </option>
+                    ))}
+                </select>
+                <button
+                  type="submit"
+                  disabled={!selectedFriendToAddId || friendActionLoading}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all disabled:opacity-40 flex items-center gap-1.5 shrink-0 shadow-sm"
+                >
+                  {friendActionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+                  <span>Добавить</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Current Friends List */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                Текущие друзья ({userFriendsList.length})
+              </h4>
+              {userFriendsLoading ? (
+                <div className="py-8 flex flex-col items-center justify-center gap-2 text-neutral-400">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-xs">Загрузка списка друзей...</span>
+                </div>
+              ) : userFriendsList.length === 0 ? (
+                <div className="py-6 text-center text-xs text-neutral-400 bg-neutral-50 dark:bg-neutral-900/50 rounded-2xl border border-dashed border-neutral-200 dark:border-neutral-800">
+                  У этого пользователя пока нет друзей
+                </div>
+              ) : (
+                <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                  {userFriendsList.map((fr) => (
+                    <div
+                      key={fr.id}
+                      className="p-2.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/70 border border-neutral-200/60 dark:border-neutral-800 flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center font-bold text-xs overflow-hidden shrink-0">
+                          {fr.avatar_url || fr.avatarUrl ? (
+                            <img src={fr.avatar_url || fr.avatarUrl} alt={fr.nickname} className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{fr.nickname ? fr.nickname.charAt(0).toUpperCase() : 'U'}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-neutral-900 dark:text-white truncate">
+                            {fr.nickname}
+                          </p>
+                          <p className="text-[10px] text-neutral-400 truncate">
+                            ID: {fr.id} {fr.rated_count != null ? `· ${fr.rated_count} оценок` : ''}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={friendActionLoading}
+                        onClick={() => handleDevRemoveFriend(fr.id, fr.nickname)}
+                        className="px-2.5 py-1 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white text-xs font-semibold transition-colors flex items-center gap-1 shrink-0"
+                        title="Удалить из друзей"
+                      >
+                        <UserMinus className="w-3.5 h-3.5" />
+                        <span>Удалить</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end pt-2 border-t border-neutral-100 dark:border-neutral-800">
+              <button
+                type="button"
+                onClick={() => setFriendsModalUser(null)}
+                className="px-4 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 text-xs font-semibold hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+              >
+                Закрыть
+              </button>
+            </div>
           </div>
         </div>
       )}

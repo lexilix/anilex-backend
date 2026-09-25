@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Settings, Star, Search, Filter, X, ArrowLeft, Film, Users, Calendar, Bookmark, Trash2, Check, UserPlus, UserCheck, Lock, Trophy, Sparkles, Award, ChevronRight, Download, RefreshCw, ExternalLink, HelpCircle, AlertCircle, Ghost, Swords, Gamepad2, Crown, Zap, Eye, EyeOff, Infinity } from 'lucide-react';
+import { User, Settings, Star, Search, Filter, X, ArrowLeft, Film, Users, Calendar, Bookmark, Trash2, Check, UserPlus, UserMinus, UserCheck, Lock, Trophy, Sparkles, Award, ChevronRight, Download, RefreshCw, ExternalLink, HelpCircle, AlertCircle, Ghost, Swords, Gamepad2, Crown, Zap, Eye, EyeOff, Infinity } from 'lucide-react';
 import { getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl } from '../api';
 import { getUserLevel, LEVELS_CONFIG } from '../utils/levels';
@@ -865,6 +865,39 @@ export default function ProfilePage({
       }
     } catch (err) {
       console.error('Respond friend request error:', err);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Remove user from friends
+  const handleRemoveFriend = async (friendId, friendNick = '') => {
+    if (!friendId) return;
+    const confirmed = window.confirm(`Вы уверены, что хотите удалить «${friendNick || 'пользователя'}» из друзей?`);
+    if (!confirmed) return;
+
+    setActionLoadingId(friendId);
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      const res = await fetch(apiUrl(`/api/friends/${friendId}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        showToast(`«${friendNick || 'Пользователь'}» удален из друзей`, 'info');
+        setFriendsList((prev) => prev.map((u) => (u.id === friendId ? { ...u, friendshipStatus: 'none', isFriend: false } : u)));
+        if (selectedFriend && selectedFriend.id === friendId) {
+          setSelectedFriend((prev) => (prev ? { ...prev, friendshipStatus: 'none', isFriend: false } : null));
+        }
+        fetchFriendRequestsAndMyFriends();
+        searchFriends(friendsQuery);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || 'Ошибка удаления из друзей', 'error');
+      }
+    } catch (err) {
+      console.error('Remove friend error:', err);
+      showToast('Ошибка удаления из друзей', 'error');
     } finally {
       setActionLoadingId(null);
     }
@@ -2293,10 +2326,21 @@ export default function ProfilePage({
                         {isSelf ? (
                           <span className="text-[11px] text-neutral-400 font-medium">Это вы</span>
                         ) : isAccepted ? (
-                          <span className="text-[11px] text-neutral-600 dark:text-neutral-300 font-semibold flex items-center gap-1">
-                            <UserCheck className="w-3.5 h-3.5 text-neutral-400" />
-                            В друзьях
-                          </span>
+                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                              <UserCheck className="w-3.5 h-3.5" />
+                              В друзьях
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFriend(fr.id, fr.nickname)}
+                              className="px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white text-[10px] font-semibold transition-colors flex items-center gap-0.5"
+                              title="Удалить из друзей"
+                            >
+                              <UserMinus className="w-3 h-3" />
+                              <span>Удалить</span>
+                            </button>
+                          </div>
                         ) : isPendingSent ? (
                           <span className="text-[11px] text-neutral-400 font-medium">
                             Заявка отправлена
@@ -2421,6 +2465,20 @@ export default function ProfilePage({
                           );
                         })()}
                       </div>
+                    </div>
+
+                    {/* Friend action button inside modal */}
+                    <div className="mb-2 shrink-0">
+                      {selectedFriend.id !== user?.id && (selectedFriend.isFriend || selectedFriend.friendshipStatus === 'accepted') && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFriend(selectedFriend.id, selectedFriend.nickname)}
+                          className="px-3.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 shadow-sm border border-rose-500/20 hover:border-rose-500"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                          <span>Удалить из друзей</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 

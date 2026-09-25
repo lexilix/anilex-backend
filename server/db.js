@@ -579,24 +579,28 @@ function restoreAccountsFromBackup() {
   }
 }
 
-// Helper to guarantee mutual friendship between all registered users
+// Helper to seed mutual friendship if not already present
 function ensureAllUsersFriends() {
   try {
     const users = db.prepare("SELECT id, nickname FROM users WHERE LOWER(nickname) != 'inspector'").all();
     if (users.length <= 1) return;
 
-    const insertOrReplaceStmt = db.prepare(`
-      INSERT INTO friend_requests (from_user_id, to_user_id, status, created_at, updated_at)
-      VALUES (?, ?, 'accepted', datetime('now'), datetime('now'))
-      ON CONFLICT(from_user_id, to_user_id) DO UPDATE SET
-        status = 'accepted',
-        updated_at = datetime('now')
-    `);
+    const existingCount = db.prepare("SELECT count(*) as c FROM friend_requests").get()?.c || 0;
+    // Only auto-link all users if friend_requests table is completely empty (fresh initialization)
+    if (existingCount === 0) {
+      const insertOrReplaceStmt = db.prepare(`
+        INSERT INTO friend_requests (from_user_id, to_user_id, status, created_at, updated_at)
+        VALUES (?, ?, 'accepted', datetime('now'), datetime('now'))
+        ON CONFLICT(from_user_id, to_user_id) DO UPDATE SET
+          status = 'accepted',
+          updated_at = datetime('now')
+      `);
 
-    for (let i = 0; i < users.length; i++) {
-      for (let j = 0; j < users.length; j++) {
-        if (i !== j) {
-          insertOrReplaceStmt.run(users[i].id, users[j].id);
+      for (let i = 0; i < users.length; i++) {
+        for (let j = 0; j < users.length; j++) {
+          if (i !== j) {
+            insertOrReplaceStmt.run(users[i].id, users[j].id);
+          }
         }
       }
     }
