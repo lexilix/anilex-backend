@@ -198,6 +198,13 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_friend_requests_to ON friend_requests(to_user_id);
   CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, is_read);
   CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at);
+
+  CREATE TRIGGER IF NOT EXISTS prevent_core_users_deletion
+  BEFORE DELETE ON users
+  WHEN OLD.id IN (5, 15, 20, 21, 22, 23)
+  BEGIN
+    SELECT RAISE(ABORT, 'Core user accounts are strictly protected against deletion');
+  END;
 `);
 
 // Migrations for users and anime schema
@@ -420,32 +427,34 @@ function restoreAccountsFromBackup() {
         } catch (e) {}
       }
 
-      // Guarantee all standard users exist (Just, Katsu, MrTech, Venicek, haitek, lonely4ka)
-      const guaranteeList = ['haitek', 'lonely4ka', 'mrtech', 'venicek', 'katsu', 'just'];
-      for (const name of guaranteeList) {
-        const found = db.prepare("SELECT id FROM users WHERE LOWER(nickname) = ?").get(name);
-        if (!found && Array.isArray(data.users)) {
-          const uObj = data.users.find(u => u.nickname?.toLowerCase() === name);
-          if (uObj) {
-            try {
-              db.prepare(`
-                INSERT INTO users (id, email, nickname, password_hash, salt, avatar_url, banner_url, allow_password_set, is_blocked, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `).run(
-                uObj.id,
-                uObj.email,
-                uObj.nickname,
-                uObj.password_hash || 'RESTORED_ACCOUNT',
-                uObj.salt || 'RESTORED_SALT',
-                uObj.avatar_url || null,
-                uObj.banner_url || null,
-                0,
-                0,
-                uObj.created_at || new Date().toISOString()
-              );
-            } catch (e) {
-              console.error(`[Database] Failed to insert ${name} user explicitly:`, e.message);
-            }
+      // Guarantee all standard core users exist (Just: 5, Katsu: 15, MrTech: 20, Venicek: 21, haitek: 22, lonely4ka: 23)
+      const GOLDEN_USERS = [
+        { id: 5, nickname: 'Just', email: 'just9jeeet@gmail.com' },
+        { id: 15, nickname: 'Katsu', email: 'katsudemisek@gmail.com' },
+        { id: 20, nickname: 'MrTech', email: 'mrtech@example.com' },
+        { id: 21, nickname: 'Venicek', email: 'venicek@example.com' },
+        { id: 22, nickname: 'haitek', email: 'cik5921@gmail.com' },
+        { id: 23, nickname: 'lonely4ka', email: 'xyesosinaaaaa@gmail.com' }
+      ];
+      for (const gu of GOLDEN_USERS) {
+        const found = db.prepare("SELECT id FROM users WHERE id = ? OR LOWER(nickname) = ? OR LOWER(email) = ?").get(gu.id, gu.nickname.toLowerCase(), gu.email.toLowerCase());
+        if (!found) {
+          const uObj = Array.isArray(data.users) ? data.users.find(u => u.id === gu.id || u.nickname?.toLowerCase() === gu.nickname.toLowerCase() || u.email?.toLowerCase() === gu.email.toLowerCase()) : null;
+          try {
+            db.prepare(`
+              INSERT INTO users (id, email, nickname, password_hash, salt, avatar_url, banner_url, allow_password_set, is_blocked, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, CURRENT_TIMESTAMP)
+            `).run(
+              gu.id,
+              uObj ? uObj.email : gu.email,
+              uObj ? uObj.nickname : gu.nickname,
+              uObj?.password_hash || 'RESTORED_ACCOUNT',
+              uObj?.salt || 'RESTORED_SALT',
+              uObj?.avatar_url || null,
+              uObj?.banner_url || null
+            );
+          } catch (e) {
+            console.error(`[Database] Failed to insert golden user ${gu.nickname} explicitly:`, e.message);
           }
         }
       }
@@ -467,15 +476,17 @@ function restoreAccountsFromBackup() {
       }
     }
 
-    // 5. Restore ratings - IMPORTANT: Strictly DO NOT OVERWRITE or resurrect deleted/altered ratings for users who already have ratings!
+    // 5. Restore ratings - IMPORTANT: Never drop ratings due to ID collisions, and never overwrite Just active ratings
     if (Array.isArray(data.ratings)) {
       const existingUserIdsWithRatings = new Set(
         db.prepare('SELECT DISTINCT user_id FROM ratings').all().map((r) => r.user_id)
       );
 
+      // Do NOT insert 'id' column to avoid auto-increment primary key collision!
+      // Conflict resolution is by UNIQUE(user_id, anime_id).
       const insertOrIgnoreRatingStmt = db.prepare(`
-        INSERT OR IGNORE INTO ratings (id, user_id, anime_id, score, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT OR IGNORE INTO ratings (user_id, anime_id, score, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
       `);
       for (const r of data.ratings) {
         try {
@@ -492,13 +503,12 @@ function restoreAccountsFromBackup() {
             } catch (e) {}
           }
           if (animeExists) {
-            // Strictly insert ratings ONLY if this user has NO ratings in DB yet (fresh/empty DB cold start)
-            // For user 5 (Just): preserve active ratings and never resurrect deleted/altered ratings
-            // For club members (MrTech, haitek): insert missing ratings so their full lists are preserved
+            // For club members (MrTech, haitek, lonely4ka, Venicek, Katsu): insert any missing ratings
+            // For user 5 (Just): insert all on empty DB cold start, but preserve active ratings if already present
             if (r.user_id !== 5) {
-              insertOrIgnoreRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
+              insertOrIgnoreRatingStmt.run(r.user_id, r.anime_id, r.score, r.created_at || new Date().toISOString(), r.updated_at || new Date().toISOString());
             } else if (!existingUserIdsWithRatings.has(5)) {
-              insertOrIgnoreRatingStmt.run(r.id, r.user_id, r.anime_id, r.score, r.created_at, r.updated_at);
+              insertOrIgnoreRatingStmt.run(r.user_id, r.anime_id, r.score, r.created_at || new Date().toISOString(), r.updated_at || new Date().toISOString());
             }
           }
         } catch (e) {}
@@ -583,11 +593,7 @@ function restoreAccountsFromBackup() {
 function ensureAllUsersFriends() {
   try {
     const users = db.prepare("SELECT id, nickname FROM users WHERE LOWER(nickname) != 'inspector'").all();
-    if (users.length <= 1) return;
-
-    const existingCount = db.prepare("SELECT count(*) as c FROM friend_requests").get()?.c || 0;
-    // Only auto-link all users if friend_requests table is completely empty (fresh initialization)
-    if (existingCount === 0) {
+    if (users.length > 1) {
       const insertOrReplaceStmt = db.prepare(`
         INSERT INTO friend_requests (from_user_id, to_user_id, status, created_at, updated_at)
         VALUES (?, ?, 'accepted', datetime('now'), datetime('now'))
@@ -612,7 +618,7 @@ function ensureAllUsersFriends() {
       const currentJustTop5 = db.prepare('SELECT anime_id FROM user_top5 WHERE user_id = ? ORDER BY position ASC').all(justUser.id).map(r => r.anime_id);
       if (currentJustTop5.length < 5 || JSON.stringify(currentJustTop5) !== JSON.stringify(justTop5Ids)) {
         db.prepare('DELETE FROM user_top5 WHERE user_id = ?').run(justUser.id);
-        const insTop5 = db.prepare('INSERT INTO user_top5 (user_id, anime_id, position, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)');
+        const insTop5 = db.prepare('INSERT OR REPLACE INTO user_top5 (user_id, anime_id, position, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)');
         justTop5Ids.forEach((id, idx) => {
           insTop5.run(justUser.id, id, idx + 1);
         });
@@ -622,10 +628,7 @@ function ensureAllUsersFriends() {
       db.prepare('DELETE FROM ratings WHERE user_id = ? AND anime_id = 5655').run(justUser.id);
       db.prepare(`
         DELETE FROM ratings 
-        WHERE user_id = ? AND (
-          anime_id IN (1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234)
-          OR (score = 0 AND anime_id NOT IN (7186, 7195, 7187, 7184))
-        )
+        WHERE user_id = ? AND anime_id IN (1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234)
       `).run(justUser.id);
       db.prepare(`
         INSERT INTO ratings (user_id, anime_id, score, updated_at)
@@ -637,6 +640,11 @@ function ensureAllUsersFriends() {
         VALUES (?, 7186, 0, CURRENT_TIMESTAMP)
         ON CONFLICT(user_id, anime_id) DO UPDATE SET score = 0, updated_at = CURRENT_TIMESTAMP
       `).run(justUser.id);
+    }
+
+    const mrTechUser = db.prepare("SELECT id FROM users WHERE nickname = 'MrTech' OR id = 20").get();
+    if (mrTechUser) {
+      db.prepare('INSERT OR IGNORE INTO user_top5 (user_id, anime_id, position, created_at) VALUES (?, 7170, 1, CURRENT_TIMESTAMP)').run(mrTechUser.id);
     }
 
     // Clean description of Башня Бога (2346)
