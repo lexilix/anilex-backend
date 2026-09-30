@@ -5,13 +5,17 @@ const PRIMARY_SERVER = (
   (import.meta.env.PROD ? 'https://anilex-backend.onrender.com' : '')
 ).replace(/\/+$/, '');
 
-const MIRROR_SERVER = (
+// Live tunnel mirror running locally as backup instance for today
+const LIVE_MIRROR = 'https://anilex-backend-live.loca.lt';
+
+const CUSTOM_MIRROR = (
   (typeof window !== 'undefined' && localStorage.getItem('anilex_backend_mirror')) ||
   import.meta.env.VITE_MIRROR_API_URL ||
   ''
 ).replace(/\/+$/, '');
 
-let currentActiveBase = PRIMARY_SERVER;
+// Default to live mirror right now if primary is currently suspended (September 30th)
+let currentActiveBase = LIVE_MIRROR || PRIMARY_SERVER;
 let isServerCurrentlyOffline = false;
 
 export function getActiveApiBase() {
@@ -36,7 +40,8 @@ export const apiUrl = (endpoint, useBase = null) => {
 };
 
 /**
- * Returns proxy image URL for external anime posters.
+ * Returns image URL for external anime posters.
+ * Directly loads external CDN images with no-referrer to save 100% of server bandwidth!
  */
 export const getImageUrl = (url) => {
   if (!url) return '';
@@ -46,7 +51,7 @@ export const getImageUrl = (url) => {
   if (url.startsWith('/') && !url.startsWith('//')) {
     return url;
   }
-  return apiUrl(`/api/proxy-image?url=${encodeURIComponent(url)}`);
+  return url;
 };
 
 /**
@@ -63,7 +68,7 @@ export function getFriendlyErrorMessage(err) {
     msg.includes('Unexpected token') ||
     msg.includes('Service Suspended')
   ) {
-    return 'Сервер бэкенда временно «спит» или недоступен (Render 503). Все ваши аккаунты и оценки сохранены в безопасности. Подождите 30–60 секунд и повторите попытку.';
+    return 'Сервер бэкенда временно «спит» или переподключается. Все ваши аккаунты и оценки сохранены в безопасности. Подождите 15–30 секунд и повторите попытку.';
   }
   return msg || 'Произошла непредвиденная ошибка';
 }
@@ -74,23 +79,32 @@ export function getFriendlyErrorMessage(err) {
 export async function apiFetch(endpoint, options = {}, retries = 1) {
   const url = apiUrl(endpoint);
 
+  const fetchOptions = {
+    ...options,
+    headers: {
+      'Bypass-Tunnel-Reminder': 'true',
+      ...(options.headers || {})
+    }
+  };
+
   try {
-    const res = await fetch(url, options);
+    const res = await fetch(url, fetchOptions);
 
     // If server returned 503 / 502 / Service Suspended
     if (res.status === 503 || res.status === 502) {
+      // Try alternate mirror server if available
+      const altServer = currentActiveBase === PRIMARY_SERVER ? LIVE_MIRROR : (CUSTOM_MIRROR || PRIMARY_SERVER);
+      if (altServer && currentActiveBase !== altServer) {
+        console.warn(`Server returned ${res.status}. Failing over to backup instance:`, altServer);
+        currentActiveBase = altServer;
+        return apiFetch(endpoint, options, 0);
+      }
+
       if (!isServerCurrentlyOffline) {
         isServerCurrentlyOffline = true;
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('server-status-change', { detail: { offline: true, status: res.status } }));
         }
-      }
-
-      // Try mirror server if available
-      if (MIRROR_SERVER && currentActiveBase !== MIRROR_SERVER) {
-        console.warn(`Primary server returned ${res.status}. Failing over to mirror:`, MIRROR_SERVER);
-        currentActiveBase = MIRROR_SERVER;
-        return apiFetch(endpoint, options, 0);
       }
 
       throw new Error(`Сервер временно недоступен (${res.status}). Все ваши аккаунты сохранены.`);
@@ -108,7 +122,13 @@ export async function apiFetch(endpoint, options = {}, retries = 1) {
   } catch (err) {
     // If it was a network error and we have retries left
     if (retries > 0 && (err.name === 'TypeError' || err.message?.includes('Failed to fetch'))) {
-      await new Promise((r) => setTimeout(r, 1500));
+      const altServer = currentActiveBase === PRIMARY_SERVER ? LIVE_MIRROR : (CUSTOM_MIRROR || PRIMARY_SERVER);
+      if (altServer && currentActiveBase !== altServer) {
+        console.warn('Network error on primary. Trying mirror:', altServer);
+        currentActiveBase = altServer;
+        return apiFetch(endpoint, options, retries - 1);
+      }
+      await new Promise((r) => setTimeout(r, 1000));
       return apiFetch(endpoint, options, retries - 1);
     }
 
@@ -123,4 +143,4 @@ export async function apiFetch(endpoint, options = {}, retries = 1) {
   }
 }
 
-export const API_BASE = PRIMARY_SERVER;
+export const API_BASE = currentActiveBase;
