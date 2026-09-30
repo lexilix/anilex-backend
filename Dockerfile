@@ -1,20 +1,20 @@
-# Base Node.js image (Node 22 is required for node:sqlite)
-FROM node:22-slim
+# syntax=docker/dockerfile:1
+FROM node:22-alpine
 
 WORKDIR /app
 
-# Copy dependency definitions
+# Install dependencies
 COPY package*.json ./
-
-# Install production dependencies
 RUN npm install --omit=dev
 
-# Copy server code and database
+# Copy application files and persistent database/backups
 COPY server/ ./server/
 COPY data/ ./data/
 
-# Port for cloud container
-ENV PORT=10000
-EXPOSE 10000
+# Environment variables
+ENV PORT=3001
+ENV NODE_ENV=production
+
+EXPOSE 3001
 
 CMD ["node", "--experimental-sqlite", "server/index.js"]

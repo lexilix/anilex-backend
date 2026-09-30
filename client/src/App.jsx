@@ -104,6 +104,16 @@ export default function App() {
   const [user, setUser] = useState(() => getCachedUserProfile());
   const [token, setToken] = useState(() => localStorage.getItem('anime_auth_token') || '');
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [isServerOffline, setIsServerOffline] = useState(false);
+
+  // Listen to global server offline/online events from api.js
+  useEffect(() => {
+    const handleServerStatus = (e) => {
+      setIsServerOffline(Boolean(e.detail?.offline));
+    };
+    window.addEventListener('server-status-change', handleServerStatus);
+    return () => window.removeEventListener('server-status-change', handleServerStatus);
+  }, []);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -325,25 +335,47 @@ export default function App() {
     }
   }, [darkMode]);
 
-  // Check auth on mount
+  // Check auth on mount with offline resilience
   useEffect(() => {
     if (token) {
       fetch(apiUrl('/api/auth/me'), {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then((res) => {
-          if (res.ok) return res.json();
-          throw new Error('Unauthorized');
+          if (res.ok) {
+            setIsServerOffline(false);
+            return res.json();
+          }
+          if (res.status === 401 || res.status === 403) {
+            const err = new Error('Unauthorized');
+            err.isAuthError = true;
+            throw err;
+          }
+          // Server error 502/503: preserve session
+          throw new Error('ServerOffline');
         })
         .then((data) => {
-          setUser(data.user);
-          setCachedUserProfile(data.user);
+          if (data?.user) {
+            setUser(data.user);
+            setCachedUserProfile(data.user);
+          }
         })
-        .catch(() => {
-          localStorage.removeItem('anime_auth_token');
-          clearCachedUserProfile();
-          setToken('');
-          setUser(null);
+        .catch((err) => {
+          if (err.isAuthError) {
+            // Truly invalid or expired token
+            localStorage.removeItem('anime_auth_token');
+            clearCachedUserProfile();
+            setToken('');
+            setUser(null);
+          } else {
+            // Temporary network/server offline error: preserve login from cache!
+            console.warn('Backend server temporarily offline/suspended. Preserving session from local cache:', err);
+            setIsServerOffline(true);
+            const cached = getCachedUserProfile();
+            if (cached) {
+              setUser(cached);
+            }
+          }
         });
     } else {
       clearCachedUserProfile();
@@ -1307,6 +1339,20 @@ export default function App() {
     navigateTo('profile');
   };
 
+  // Server connection check
+  const handleCheckServerConnection = async () => {
+    try {
+      const res = await fetch(apiUrl('/api/genres'));
+      if (res.ok) {
+        setIsServerOffline(false);
+        fetchMetadata();
+        fetchAnime(1, false);
+      }
+    } catch (e) {
+      // still offline
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col transition-colors">
       
@@ -1331,6 +1377,27 @@ export default function App() {
         onRejectFriendNotification={handleRejectFriendNotification}
         onNavigateAnimeNotification={handleNavigateAnimeNotification}
       />
+
+      {/* Offline / Sleeping Server Banner */}
+      {isServerOffline && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-700 dark:text-amber-300 px-4 py-2.5 text-xs sm:text-sm">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>
+                <strong>Сервер бэкенда временно «спит» или недоступен (Render 503).</strong> Все ваши профили и оценки сохранены в безопасности. Пробуем переподключиться...
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCheckServerConnection}
+              className="px-3 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-800 dark:text-amber-200 text-xs font-semibold transition-colors shrink-0"
+            >
+              Проверить связь
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">

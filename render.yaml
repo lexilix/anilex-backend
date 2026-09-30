@@ -1,16 +1,15 @@
 services:
   - type: web
     name: anilex-backend
-    runtime: node
+    env: node
     plan: free
     region: frankfurt
-    autoDeploy: true
     buildCommand: npm install
     startCommand: node --experimental-sqlite server/index.js
     envVars:
-      - key: NODE_VERSION
-        value: 22.14.0
-      - key: NODE_OPTIONS
-        value: "--experimental-sqlite"
+      - key: NODE_ENV
+        value: production
       - key: PORT
-        value: 10000
+        value: 3001
+      - key: JWT_SECRET
+        value: anime-friends-secret-key-2026-minimalism

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, User, Mail, Lock } from 'lucide-react';
-import { apiUrl } from '../api';
+import { X, User, Mail, Lock, RefreshCw, AlertCircle } from 'lucide-react';
+import { apiUrl, apiFetch, getFriendlyErrorMessage } from '../api';
 
 export default function AuthModal({
   isOpen,
@@ -17,31 +17,37 @@ export default function AuthModal({
   if (!isOpen) return null;
 
   async function handleSubmit(e) {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      const endpoint = apiUrl(mode === 'register' ? '/api/auth/register' : '/api/auth/login');
+      const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
       const body = mode === 'register'
         ? { email, nickname, password }
         : { email, password };
 
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
-      });
+      }, 2);
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        throw new Error('Сервер временно недоступен (Render 503). Пожалуйста, подождите или повторите попытку через минуту.');
+      }
+
       if (!res.ok) {
-        throw new Error(data.error || 'Произошла ошибка');
+        throw new Error(data.error || 'Произошла ошибка входа');
       }
 
       onLoginSuccess(data.user, data.token);
       onClose();
     } catch (err) {
-      setError(err.message);
+      setError(getFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -101,8 +107,24 @@ export default function AuthModal({
 
         {/* Error message */}
         {error && (
-          <div className="mb-4 p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-medium">
-            {error}
+          <div className="mb-4 p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300 text-xs">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1">
+                <p className="font-medium leading-relaxed">{error}</p>
+                {(error.includes('Render') || error.includes('Сервер')) && (
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-amber-600/10 hover:bg-amber-600/20 text-amber-700 dark:text-amber-200 font-semibold transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                    Повторить попытку
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
