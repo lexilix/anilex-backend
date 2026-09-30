@@ -6,7 +6,7 @@ const PRIMARY_SERVER = (
 ).replace(/\/+$/, '');
 
 // Live tunnel mirror running locally as backup instance for today
-const LIVE_MIRROR = 'https://anilex-backend-live.loca.lt';
+const LIVE_MIRROR = 'https://tame-eel-84.loca.lt';
 
 const CUSTOM_MIRROR = (
   (typeof window !== 'undefined' && localStorage.getItem('anilex_backend_mirror')) ||
