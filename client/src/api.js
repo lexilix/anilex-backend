@@ -5,13 +5,16 @@ const PRIMARY_SERVER = (
   (import.meta.env.PROD ? 'https://anilex-backend.onrender.com' : '')
 ).replace(/\/+$/, '');
 
+// Live Cloudflare edge tunnel running on host PC
+const LIVE_MIRROR = 'https://lone-restricted-aircraft-packing.trycloudflare.com';
+
 const CUSTOM_MIRROR = (
   (typeof window !== 'undefined' && localStorage.getItem('anilex_backend_mirror')) ||
   import.meta.env.VITE_MIRROR_API_URL ||
-  ''
+  LIVE_MIRROR
 ).replace(/\/+$/, '');
 
-// Default to primary Render backend server
+// Default to live mirror right now, auto-fails over to primary Render server if mirror unreachable
 let currentActiveBase = CUSTOM_MIRROR || PRIMARY_SERVER;
 let isServerCurrentlyOffline = false;
 
@@ -79,7 +82,6 @@ export async function apiFetch(endpoint, options = {}, retries = 1) {
   const fetchOptions = {
     ...options,
     headers: {
-      'Bypass-Tunnel-Reminder': 'true',
       ...(options.headers || {})
     }
   };
@@ -90,7 +92,7 @@ export async function apiFetch(endpoint, options = {}, retries = 1) {
     // If server returned 503 / 502 / Service Suspended
     if (res.status === 503 || res.status === 502) {
       // Try alternate mirror server if available
-      const altServer = currentActiveBase === PRIMARY_SERVER ? (CUSTOM_MIRROR || null) : PRIMARY_SERVER;
+      const altServer = currentActiveBase === PRIMARY_SERVER ? (CUSTOM_MIRROR || LIVE_MIRROR) : PRIMARY_SERVER;
       if (altServer && currentActiveBase !== altServer) {
         console.warn(`Server returned ${res.status}. Failing over to backup instance:`, altServer);
         currentActiveBase = altServer;
@@ -119,9 +121,9 @@ export async function apiFetch(endpoint, options = {}, retries = 1) {
   } catch (err) {
     // If it was a network error and we have retries left
     if (retries > 0 && (err.name === 'TypeError' || err.message?.includes('Failed to fetch'))) {
-      const altServer = currentActiveBase === PRIMARY_SERVER ? (CUSTOM_MIRROR || null) : PRIMARY_SERVER;
+      const altServer = currentActiveBase === PRIMARY_SERVER ? (CUSTOM_MIRROR || LIVE_MIRROR) : PRIMARY_SERVER;
       if (altServer && currentActiveBase !== altServer) {
-        console.warn('Network error on primary. Trying mirror:', altServer);
+        console.warn('Network error. Trying alternate instance:', altServer);
         currentActiveBase = altServer;
         return apiFetch(endpoint, options, retries - 1);
       }

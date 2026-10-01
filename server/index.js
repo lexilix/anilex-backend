@@ -50,7 +50,7 @@ const PORT = process.env.PORT || 3001;
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Bypass-Tunnel-Reminder', 'bypass-tunnel-reminder']
 }));
 // Allow up to 25mb for custom avatar and banner image uploads
 app.use(express.json({ limit: '25mb' }));
