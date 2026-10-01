@@ -94,24 +94,47 @@ export default function AnimeCard({
     setLocalHidden(Boolean(anime.isHidden) || isAnimeHiddenLocally(anime.id, user?.id));
   }, [anime.isHidden, anime.id, user?.id]);
 
-  // Resolve current score with fallback to local cached ratings
+  // Resolve current score with fallback to friendsRatings and local cached ratings
   const resolveCurrentScore = () => {
     if (anime.myScore !== null && anime.myScore !== undefined) {
       return Number(anime.myScore);
     }
     const currentUserId = user?.id || getCachedUserProfile()?.id;
+
+    // 1. Direct check in friendsRatings or fetchedRatings!
+    const allRatings = fetchedRatings || anime.friendsRatings || [];
+    if (Array.isArray(allRatings) && allRatings.length > 0) {
+      const myInRatings = allRatings.find(
+        (f) =>
+          (currentUserId && Number(f.userId) === Number(currentUserId)) ||
+          (user?.nickname && f.nickname?.toLowerCase() === user.nickname?.toLowerCase()) ||
+          f.isMe
+      );
+      if (myInRatings && myInRatings.score !== null && myInRatings.score !== undefined) {
+        return Number(myInRatings.score);
+      }
+    }
+
     if (!currentUserId) return null;
     const cachedRatings = getCachedUserRatings(currentUserId);
     if (!Array.isArray(cachedRatings) || cachedRatings.length === 0) return null;
     const numId = Number(anime.id);
-    const match = cachedRatings.find(
-      (r) =>
-        Number(r.id) === numId ||
-        (Array.isArray(anime.aliasIds) && anime.aliasIds.map(Number).includes(Number(r.id))) ||
-        (Array.isArray(r.aliasIds) && r.aliasIds.map(Number).includes(numId)) ||
-        (anime.title && r.title && anime.title.trim().toLowerCase() === r.title.trim().toLowerCase()) ||
-        ((anime.originalTitle || anime.original_title) && (r.originalTitle || r.original_title) && (anime.originalTitle || anime.original_title).trim().toLowerCase() === (r.originalTitle || r.original_title).trim().toLowerCase())
-    );
+    const normTitle = (anime.title || '').trim().toLowerCase();
+    const normOriginal = (anime.originalTitle || anime.original_title || '').trim().toLowerCase();
+
+    const match = cachedRatings.find((r) => {
+      const rId = Number(r.id);
+      if (rId === numId) return true;
+      if (Array.isArray(anime.aliasIds) && anime.aliasIds.map(Number).includes(rId)) return true;
+      if (Array.isArray(r.aliasIds) && r.aliasIds.map(Number).includes(numId)) return true;
+
+      const rTitle = (r.title || '').trim().toLowerCase();
+      const rOrig = (r.originalTitle || r.original_title || '').trim().toLowerCase();
+      if (normTitle && rTitle && (normTitle === rTitle || normTitle.startsWith(rTitle) || rTitle.startsWith(normTitle))) return true;
+      if (normOriginal && rOrig && (normOriginal === rOrig || normOriginal.startsWith(rOrig) || rOrig.startsWith(normOriginal))) return true;
+      return false;
+    });
+
     return match && match.myScore !== null && match.myScore !== undefined ? Number(match.myScore) : null;
   };
 
@@ -120,7 +143,7 @@ export default function AnimeCard({
 
   useEffect(() => {
     setLocalScore(resolveCurrentScore());
-  }, [anime.myScore, anime.id, anime.title, user?.id]);
+  }, [anime.myScore, anime.id, anime.title, user?.id, user?.nickname, anime.friendsRatings, fetchedRatings]);
 
   // Live listener for real-time rating sync across main page, search, and profile
   useEffect(() => {
@@ -440,9 +463,20 @@ export default function AnimeCard({
               </span>
               {user ? (
                 myScore !== null && myScore !== undefined ? (
-                  <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${getScoreBadgeClass(myScore)}`}>
-                    {myScore} / 10
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded-lg text-xs font-bold ${getScoreBadgeClass(myScore)} shadow-xs`}>
+                      {myScore} / 10
+                    </span>
+                    <button
+                      type="button"
+                      disabled={ratingLoading}
+                      onClick={(e) => handleScoreClick(e, myScore)}
+                      title="Убрать мою оценку"
+                      className="text-[11px] text-neutral-400 hover:text-rose-500 hover:bg-rose-500/10 px-2 py-0.5 rounded-md transition-colors cursor-pointer flex items-center gap-1 font-medium border border-neutral-200/50 dark:border-neutral-800 hover:border-rose-500/20"
+                    >
+                      ✕ <span>Убрать оценку</span>
+                    </button>
+                  </div>
                 ) : (
                   <span className="text-xs text-neutral-400 font-medium">тут будут ваши оценки</span>
                 )
@@ -531,14 +565,14 @@ export default function AnimeCard({
             })}
 
             {/* Clear rating button */}
-            {user && myScore !== null && (
+            {user && myScore !== null && myScore !== undefined && (
               <button
                 type="button"
                 onClick={(e) => handleScoreClick(e, myScore)}
                 title="Сбросить оценку"
-                className="px-2 h-8 rounded-xl text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors shrink-0"
+                className="px-2.5 h-8 rounded-xl text-xs font-semibold text-rose-500 bg-rose-500/10 hover:bg-rose-500/20 transition-colors shrink-0 flex items-center gap-1 border border-rose-500/20"
               >
-                ✕
+                ✕ <span>Сброс</span>
               </button>
             )}
           </div>

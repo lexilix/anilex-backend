@@ -78,11 +78,28 @@ function overlayUserRatings(items, userId) {
     if (!matched && (item.originalTitle || item.original_title)) {
       matched = titleMap.get((item.originalTitle || item.original_title).trim().toLowerCase());
     }
+    if (!matched && Array.isArray(item.friendsRatings) && item.friendsRatings.length > 0) {
+      const myInFriends = item.friendsRatings.find(
+        (f) =>
+          Number(f.userId) === Number(targetUserId) ||
+          f.isMe ||
+          (getCachedUserProfile()?.nickname && f.nickname === getCachedUserProfile().nickname)
+      );
+      if (myInFriends && myInFriends.score !== null && myInFriends.score !== undefined) {
+        matched = { myScore: myInFriends.score };
+      }
+    }
 
     if (matched && matched.myScore !== null && matched.myScore !== undefined) {
       return {
         ...item,
         myScore: Number(matched.myScore)
+      };
+    }
+    if (item.myScore !== null && item.myScore !== undefined) {
+      return {
+        ...item,
+        myScore: Number(item.myScore)
       };
     }
     return item;

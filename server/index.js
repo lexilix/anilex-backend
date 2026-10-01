@@ -1694,8 +1694,11 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         ROUND(AVG(r.score), 1) as avg_score,
         COUNT(r.id) as rating_count,
         (
-          SELECT score FROM ratings
-          WHERE anime_id = a.id AND user_id = ?
+          SELECT r.score FROM ratings r
+          WHERE (r.anime_id = a.id OR r.anime_id IN (
+            SELECT a2.id FROM anime a2 WHERE LOWER(TRIM(a2.title)) = LOWER(TRIM(a.title))
+          )) AND r.user_id = ?
+          ORDER BY r.updated_at DESC LIMIT 1
         ) as my_score,
         (
           SELECT COUNT(id) FROM favorites
@@ -1821,7 +1824,9 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
           }
         })(),
         related_json: item.related_json || '[]',
-        myScore: item.my_score !== null && item.my_score !== undefined ? item.my_score : null,
+        myScore: (item.my_score !== null && item.my_score !== undefined)
+          ? item.my_score
+          : (friendsMap[item.id]?.find(f => currentUserId && (Number(f.userId) === Number(currentUserId) || (req.user?.nickname && f.nickname === req.user.nickname)))?.score ?? null),
         isFavorite: Boolean(item.is_favorite),
         isHidden: Boolean(item.is_hidden),
         averageScore: item.rating_count > 0 && item.avg_score !== null ? Number(item.avg_score) : null,
@@ -3329,7 +3334,13 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
     }
 
     if (score === null || score === undefined || score === '') {
-      db.prepare('DELETE FROM ratings WHERE user_id = ? AND anime_id = ?').run(userId, targetId);
+      db.prepare(`
+        DELETE FROM ratings
+        WHERE user_id = ? AND (
+          anime_id = ? OR
+          anime_id IN (SELECT a2.id FROM anime a2 WHERE LOWER(TRIM(a2.title)) = LOWER(TRIM(?)))
+        )
+      `).run(userId, targetId, anime.title || '');
     } else {
       const numScore = parseInt(score, 10);
       if (isNaN(numScore) || numScore < 0 || numScore > 10) {
