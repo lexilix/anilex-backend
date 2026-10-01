@@ -5,17 +5,14 @@ const PRIMARY_SERVER = (
   (import.meta.env.PROD ? 'https://anilex-backend.onrender.com' : '')
 ).replace(/\/+$/, '');
 
-// Live tunnel mirror running locally as backup instance for today
-const LIVE_MIRROR = 'https://tame-eel-84.loca.lt';
-
 const CUSTOM_MIRROR = (
   (typeof window !== 'undefined' && localStorage.getItem('anilex_backend_mirror')) ||
   import.meta.env.VITE_MIRROR_API_URL ||
   ''
 ).replace(/\/+$/, '');
 
-// Default to live mirror right now if primary is currently suspended (September 30th)
-let currentActiveBase = LIVE_MIRROR || PRIMARY_SERVER;
+// Default to primary Render backend server
+let currentActiveBase = CUSTOM_MIRROR || PRIMARY_SERVER;
 let isServerCurrentlyOffline = false;
 
 export function getActiveApiBase() {
@@ -93,7 +90,7 @@ export async function apiFetch(endpoint, options = {}, retries = 1) {
     // If server returned 503 / 502 / Service Suspended
     if (res.status === 503 || res.status === 502) {
       // Try alternate mirror server if available
-      const altServer = currentActiveBase === PRIMARY_SERVER ? LIVE_MIRROR : (CUSTOM_MIRROR || PRIMARY_SERVER);
+      const altServer = currentActiveBase === PRIMARY_SERVER ? (CUSTOM_MIRROR || null) : PRIMARY_SERVER;
       if (altServer && currentActiveBase !== altServer) {
         console.warn(`Server returned ${res.status}. Failing over to backup instance:`, altServer);
         currentActiveBase = altServer;
@@ -122,7 +119,7 @@ export async function apiFetch(endpoint, options = {}, retries = 1) {
   } catch (err) {
     // If it was a network error and we have retries left
     if (retries > 0 && (err.name === 'TypeError' || err.message?.includes('Failed to fetch'))) {
-      const altServer = currentActiveBase === PRIMARY_SERVER ? LIVE_MIRROR : (CUSTOM_MIRROR || PRIMARY_SERVER);
+      const altServer = currentActiveBase === PRIMARY_SERVER ? (CUSTOM_MIRROR || null) : PRIMARY_SERVER;
       if (altServer && currentActiveBase !== altServer) {
         console.warn('Network error on primary. Trying mirror:', altServer);
         currentActiveBase = altServer;

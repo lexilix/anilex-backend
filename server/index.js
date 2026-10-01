@@ -1723,6 +1723,7 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
     `;
 
     let items = db.prepare(querySql).all(currentUserId || -1, currentUserId || -1, currentUserId || -1, ...params, ...searchRankParams, limitNum, offset);
+    const totalRow = db.prepare(countSql).get(...params);
     let currentTotal = totalRow ? totalRow.total : items.length;
 
     // If searching and 0 results found in local database, fetch from AnimeGO / Shikimori reserve and save to backup
