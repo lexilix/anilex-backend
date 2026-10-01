@@ -60,7 +60,7 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.get('/api/version', (req, res) => {
   res.json({
     status: 'ok',
-    version: '1.0.10',
+    version: '1.0.12',
     nodeVersion: process.version,
     hasLowerUtf8: Boolean(db.hasLowerUtf8)
   });
@@ -1845,7 +1845,7 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching anime:', err);
-    return res.status(500).json({ error: 'Ошибка получения каталога аниме' });
+    return res.status(500).json({ error: 'Ошибка получения каталога аниме', details: err.message });
   }
 });
 
