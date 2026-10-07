@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Moon, Sun, User, LogOut, Settings, Bookmark, Bell, Loader2, ShieldAlert } from 'lucide-react';
 import NotificationDropdown from './NotificationDropdown';
+import CachedUserImage from './CachedUserImage';
 
 export default function Header({
   user,
@@ -217,7 +218,7 @@ export default function Header({
               >
                 <div className="w-8 h-8 rounded-lg bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-bold text-xs flex items-center justify-center overflow-hidden shrink-0">
                   {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.nickname} className="w-full h-full object-cover" />
+                    <CachedUserImage src={user.avatarUrl} alt={user.nickname} className="w-full h-full object-cover" />
                   ) : (
                     <span>{user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}</span>
                   )}

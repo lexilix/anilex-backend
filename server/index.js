@@ -102,8 +102,22 @@ const UPLOADS_DIR = path.join(__dirname, '../data/uploads');
 if (!fs.existsSync(UPLOADS_DIR)) {
   try { fs.mkdirSync(UPLOADS_DIR, { recursive: true }); } catch (e) {}
 }
-app.use('/api/uploads', express.static(UPLOADS_DIR, { maxAge: '7d' }));
-app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '7d' }));
+app.use('/api/uploads', express.static(UPLOADS_DIR, {
+  maxAge: '1y',
+  immutable: true,
+  setHeaders: (res, path, stat) => {
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
+app.use('/uploads', express.static(UPLOADS_DIR, {
+  maxAge: '1y',
+  immutable: true,
+  setHeaders: (res, path, stat) => {
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
 
 function processUploadDataUrl(dataUrl, prefix) {
   if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) return dataUrl;

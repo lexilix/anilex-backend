@@ -38,6 +38,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { apiUrl } from '../api';
+import CachedUserImage from './CachedUserImage';
 import {
   updateCachedAnimeItem,
   removeCachedAnimeItem,
@@ -2744,7 +2745,7 @@ export default function DevConsolePage({
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-2xl overflow-hidden bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-bold text-base flex items-center justify-center shrink-0 shadow-sm">
                       {u.avatarUrl ? (
-                        <img src={u.avatarUrl} alt={u.nickname} className="w-full h-full object-cover" />
+                        <CachedUserImage src={u.avatarUrl} alt={u.nickname} className="w-full h-full object-cover" />
                       ) : (
                         <span>{u.nickname ? u.nickname.charAt(0).toUpperCase() : 'U'}</span>
                       )}
@@ -4452,7 +4453,7 @@ export default function DevConsolePage({
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-8 h-8 rounded-xl bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center font-bold text-xs overflow-hidden shrink-0">
                           {fr.avatar_url || fr.avatarUrl ? (
-                            <img src={fr.avatar_url || fr.avatarUrl} alt={fr.nickname} className="w-full h-full object-cover" />
+                            <CachedUserImage src={fr.avatar_url || fr.avatarUrl} alt={fr.nickname} className="w-full h-full object-cover" />
                           ) : (
                             <span>{fr.nickname ? fr.nickname.charAt(0).toUpperCase() : 'U'}</span>
                           )}

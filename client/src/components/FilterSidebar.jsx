@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Filter, X, Film, Star, Users, Calendar, RotateCcw, RefreshCw, Lock, Plus } from 'lucide-react';
 import { getCustomGenres, saveCustomGenre, mergeGenresWithCustom } from '../utils/genresStorage';
+import CachedUserImage from './CachedUserImage';
 
 export default function FilterSidebar({
   genres = [],
@@ -370,7 +371,7 @@ export default function FilterSidebar({
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-full overflow-hidden bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-bold flex items-center justify-center shrink-0">
                         {friend.avatarUrl ? (
-                          <img src={friend.avatarUrl} alt={friend.nickname} className="w-full h-full object-cover" />
+                          <CachedUserImage src={friend.avatarUrl} alt={friend.nickname} className="w-full h-full object-cover" />
                         ) : (
                           <span>{friend.nickname ? friend.nickname.charAt(0).toUpperCase() : 'U'}</span>
                         )}

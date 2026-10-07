@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { ArrowLeft, User, Mail, Lock, Check, AlertCircle, Camera, Image, Trash2 } from 'lucide-react';
 import { apiUrl } from '../api';
+import { invalidateMediaCache } from '../utils/userMediaCache';
 
 export default function ProfileEditPage({
   user,
@@ -110,6 +111,12 @@ export default function ProfileEditPage({
       setSuccess('Профиль успешно обновлен!');
       setCurrentPassword('');
       setNewPassword('');
+      if (user?.avatarUrl && user.avatarUrl !== data.user?.avatarUrl) {
+        invalidateMediaCache(user.avatarUrl);
+      }
+      if (user?.bannerUrl && user.bannerUrl !== data.user?.bannerUrl) {
+        invalidateMediaCache(user.bannerUrl);
+      }
       if (onUserUpdated) {
         onUserUpdated(data.user, data.token);
       }

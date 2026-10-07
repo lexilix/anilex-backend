@@ -8,6 +8,7 @@ import { getCachedUserRatings, setCachedUserRatings, updateCachedUserRating } fr
 import { executeImportWorkflow } from '../utils/importer';
 import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 import { applyCustomUserEdits } from '../utils/customEditsStorage';
+import CachedUserImage from './CachedUserImage';
 
 function LevelIcon({ iconName, className = 'w-5 h-5' }) {
   switch (iconName) {
@@ -1376,7 +1377,7 @@ export default function ProfilePage({
         {/* Banner */}
         <div className="relative h-44 sm:h-56 w-full bg-neutral-200 dark:bg-neutral-800">
           {user.bannerUrl ? (
-            <img
+            <CachedUserImage
               src={user.bannerUrl.split('#top5=')[0]}
               alt="Баннер"
               className="w-full h-full object-cover"
@@ -1398,7 +1399,7 @@ export default function ProfilePage({
               {/* Avatar */}
               <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-3xl font-bold flex items-center justify-center shrink-0 shadow-2xl ring-4 ring-white dark:ring-[#151518] relative z-20">
                 {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user.nickname} className="w-full h-full object-cover" />
+                  <CachedUserImage src={user.avatarUrl} alt={user.nickname} className="w-full h-full object-cover" />
                 ) : (
                   <span>{user.nickname ? user.nickname.charAt(0).toUpperCase() : 'U'}</span>
                 )}
@@ -2292,7 +2293,7 @@ export default function ProfilePage({
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-11 h-11 rounded-2xl overflow-hidden bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-bold text-base flex items-center justify-center shrink-0">
                         {req.user.avatarUrl ? (
-                          <img src={req.user.avatarUrl} alt={req.user.nickname} className="w-full h-full object-cover" />
+                          <CachedUserImage src={req.user.avatarUrl} alt={req.user.nickname} className="w-full h-full object-cover" />
                         ) : (
                           <span>{req.user.nickname ? req.user.nickname.charAt(0).toUpperCase() : 'U'}</span>
                         )}
@@ -2357,7 +2358,7 @@ export default function ProfilePage({
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-2xl overflow-hidden bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-bold text-sm flex items-center justify-center shrink-0">
                         {fr.avatarUrl ? (
-                          <img src={fr.avatarUrl} alt={fr.nickname} className="w-full h-full object-cover" />
+                          <CachedUserImage src={fr.avatarUrl} alt={fr.nickname} className="w-full h-full object-cover" />
                         ) : (
                           <span>{fr.nickname ? fr.nickname.charAt(0).toUpperCase() : 'U'}</span>
                         )}
@@ -2432,7 +2433,7 @@ export default function ProfilePage({
                       <div className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-2xl overflow-hidden bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-bold text-base flex items-center justify-center shrink-0">
                           {fr.avatarUrl ? (
-                            <img src={fr.avatarUrl} alt={fr.nickname} className="w-full h-full object-cover" />
+                            <CachedUserImage src={fr.avatarUrl} alt={fr.nickname} className="w-full h-full object-cover" />
                           ) : (
                             <span>{fr.nickname ? fr.nickname.charAt(0).toUpperCase() : 'U'}</span>
                           )}
@@ -2534,7 +2535,7 @@ export default function ProfilePage({
                 {/* Friend Custom Banner */}
                 <div className="relative h-36 sm:h-48 w-full bg-neutral-200 dark:bg-neutral-800 shrink-0 overflow-hidden">
                   {selectedFriend.bannerUrl ? (
-                    <img
+                    <CachedUserImage
                       src={selectedFriend.bannerUrl.split('#top5=')[0]}
                       alt="Баннер профиля"
                       className="w-full h-full object-cover"
@@ -2565,7 +2566,7 @@ export default function ProfilePage({
                     <div className="flex items-end gap-4">
                       <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-bold text-2xl sm:text-3xl flex items-center justify-center shrink-0 shadow-2xl ring-4 ring-white dark:ring-[#151518] relative z-20">
                         {selectedFriend.avatarUrl ? (
-                          <img src={selectedFriend.avatarUrl} alt={selectedFriend.nickname} className="w-full h-full object-cover" />
+                          <CachedUserImage src={selectedFriend.avatarUrl} alt={selectedFriend.nickname} className="w-full h-full object-cover" />
                         ) : (
                           <span>{selectedFriend.nickname ? selectedFriend.nickname.charAt(0).toUpperCase() : 'U'}</span>
                         )}
