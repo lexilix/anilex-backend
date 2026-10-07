@@ -1,21 +1,20 @@
 // Centralized API configuration with Multi-Host Failover and Server Offline Resilience
 
+const PRODUCTION_SERVER = 'https://anilex-backend.onrender.com';
 const PRIMARY_SERVER = (
   import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD ? 'https://anilex-backend.onrender.com' : '')
+  PRODUCTION_SERVER
 ).replace(/\/+$/, '');
 
-// Live Cloudflare edge tunnel running on host PC
-const LIVE_MIRROR = 'https://lone-restricted-aircraft-packing.trycloudflare.com';
+// Clean up any stale mirror from localStorage
+if (typeof window !== 'undefined') {
+  try {
+    localStorage.removeItem('anilex_backend_mirror');
+  } catch (e) {}
+}
 
-const CUSTOM_MIRROR = (
-  (typeof window !== 'undefined' && localStorage.getItem('anilex_backend_mirror')) ||
-  import.meta.env.VITE_MIRROR_API_URL ||
-  LIVE_MIRROR
-).replace(/\/+$/, '');
-
-// Default to live mirror right now, auto-fails over to primary Render server if mirror unreachable
-let currentActiveBase = CUSTOM_MIRROR || PRIMARY_SERVER;
+// Always use the robust production Render server by default
+let currentActiveBase = PRIMARY_SERVER;
 let isServerCurrentlyOffline = false;
 
 export function getActiveApiBase() {
@@ -55,6 +54,16 @@ export const getImageUrl = (url) => {
 };
 
 /**
+ * Returns proxy image URL for images blocked by ISP / hotlinking
+ */
+export const getImageProxyUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+  if (url.startsWith('/') && !url.startsWith('//')) return url;
+  return apiUrl(`/api/proxy-image?url=${encodeURIComponent(url)}`);
+};
+
+/**
  * Human-friendly error translation for network/503/cold-start issues.
  */
 export function getFriendlyErrorMessage(err) {
@@ -91,12 +100,9 @@ export async function apiFetch(endpoint, options = {}, retries = 1) {
 
     // If server returned 503 / 502 / Service Suspended
     if (res.status === 503 || res.status === 502) {
-      // Try alternate mirror server if available
-      const altServer = currentActiveBase === PRIMARY_SERVER ? (CUSTOM_MIRROR || LIVE_MIRROR) : PRIMARY_SERVER;
-      if (altServer && currentActiveBase !== altServer) {
-        console.warn(`Server returned ${res.status}. Failing over to backup instance:`, altServer);
-        currentActiveBase = altServer;
-        return apiFetch(endpoint, options, 0);
+      if (retries > 0) {
+        await new Promise((r) => setTimeout(r, 800));
+        return apiFetch(endpoint, options, retries - 1);
       }
 
       if (!isServerCurrentlyOffline) {
@@ -119,15 +125,10 @@ export async function apiFetch(endpoint, options = {}, retries = 1) {
 
     return res;
   } catch (err) {
+
     // If it was a network error and we have retries left
-    if (retries > 0 && (err.name === 'TypeError' || err.message?.includes('Failed to fetch'))) {
-      const altServer = currentActiveBase === PRIMARY_SERVER ? (CUSTOM_MIRROR || LIVE_MIRROR) : PRIMARY_SERVER;
-      if (altServer && currentActiveBase !== altServer) {
-        console.warn('Network error. Trying alternate instance:', altServer);
-        currentActiveBase = altServer;
-        return apiFetch(endpoint, options, retries - 1);
-      }
-      await new Promise((r) => setTimeout(r, 1000));
+    if (retries > 0 && (err.name === 'TypeError' || err.message?.includes('Failed to fetch') || err.name === 'AbortError')) {
+      await new Promise((r) => setTimeout(r, 600));
       return apiFetch(endpoint, options, retries - 1);
     }
 

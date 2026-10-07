@@ -1,8 +1,43 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getScoreBadgeClass } from '../utils/scoreColors';
-import { apiUrl, getImageUrl } from '../api';
+import { apiUrl, getImageUrl, getImageProxyUrl } from '../api';
 import { getHiddenAnimeIds } from '../utils/hiddenStorage';
 import { deduplicateAnimeList } from '../utils/animeDeduplicator';
+import { getCachedAnime } from '../utils/catalogCache';
+import { prefetchAnimeImages, resolveImageSrc } from '../utils/imageCache';
+
+function getCachedFeatured(tab) {
+  try {
+    const raw = localStorage.getItem(`anilex_cached_featured_${tab}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setCachedFeatured(tab, list) {
+  try {
+    if (Array.isArray(list) && list.length > 0) {
+      localStorage.setItem(`anilex_cached_featured_${tab}`, JSON.stringify(list.slice(0, 20)));
+    }
+  } catch (e) {}
+}
+
+function getFallbackTopAnime() {
+  try {
+    const all = getCachedAnime() || [];
+    const rated = all.filter(a => Number(a.averageScore) > 0 || Number(a.ratingCount) > 0);
+    rated.sort((a, b) => {
+      const sa = Number(a.averageScore) || 0;
+      const sb = Number(b.averageScore) || 0;
+      if (sb !== sa) return sb - sa;
+      return (b.ratingCount || 0) - (a.ratingCount || 0);
+    });
+    return rated.slice(0, 15);
+  } catch (e) {
+    return [];
+  }
+}
 
 export default function FeaturedCarousel({
   onSelectAnime,
@@ -12,13 +47,35 @@ export default function FeaturedCarousel({
   onRequireAuth
 }) {
   const [activeTab, setActiveTab] = useState('top'); // 'top' | 'my' | 'newest'
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState(() => {
+    const cached = getCachedFeatured('top');
+    if (Array.isArray(cached) && cached.length > 0) return cached;
+    const fallback = getFallbackTopAnime();
+    return fallback.length > 0 ? fallback : [];
+  });
+  const [loading, setLoading] = useState(() => items.length === 0);
   const scrollRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
-    setLoading(true);
+    let retryTimer = null;
+
+    // Immediately load cached items if switching tabs so UI never flashes empty
+    const cached = getCachedFeatured(activeTab);
+    if (Array.isArray(cached) && cached.length > 0) {
+      setItems(cached);
+      setLoading(false);
+    } else if (activeTab === 'top') {
+      const fallback = getFallbackTopAnime();
+      if (fallback.length > 0) {
+        setItems(fallback);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+    } else {
+      setLoading(true);
+    }
 
     if (activeTab === 'my') {
       if (!user || !token) {
@@ -36,11 +93,13 @@ export default function FeaturedCarousel({
             const hiddenIds = getHiddenAnimeIds(user?.id);
             const filtered = deduplicateAnimeList((data.items || []).filter(it => !hiddenIds.has(it.id)));
             setItems(filtered);
+            setCachedFeatured('my', filtered);
+            prefetchAnimeImages(filtered);
             setLoading(false);
           }
         })
         .catch(err => {
-          console.error('Error fetching my rated anime for carousel:', err);
+          console.warn('Error fetching my rated anime for carousel:', err);
           if (isMounted) setLoading(false);
         });
 
@@ -49,26 +108,56 @@ export default function FeaturedCarousel({
       };
     }
 
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    fetch(apiUrl(`/api/anime/featured?tab=${activeTab}&limit=15`), { headers })
-      .then(res => res.json())
-      .then(data => {
-        if (isMounted) {
-          const hiddenIds = getHiddenAnimeIds(user?.id);
-          const filtered = deduplicateAnimeList((data.items || []).filter(it => !hiddenIds.has(it.id)));
-          setItems(filtered);
-          setLoading(false);
-        }
-      })
-      .catch(err => {
-        console.error('Error fetching featured anime:', err);
-        if (isMounted) {
-          setLoading(false);
-        }
-      });
+    const loadFeatured = (attempt = 0) => {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      fetch(apiUrl(`/api/anime/featured?tab=${activeTab}&limit=15`), { headers })
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then(data => {
+          if (isMounted) {
+            const hiddenIds = getHiddenAnimeIds(user?.id);
+            let filtered = deduplicateAnimeList((data.items || []).filter(it => !hiddenIds.has(it.id)));
+            if (filtered.length > 0) {
+              setItems(filtered);
+              setCachedFeatured(activeTab, filtered);
+              prefetchAnimeImages(filtered);
+            } else if (activeTab === 'top') {
+              const fallback = getFallbackTopAnime();
+              if (fallback.length > 0) {
+                setItems(fallback);
+              }
+            }
+            setLoading(false);
+          }
+        })
+        .catch(err => {
+          console.warn(`Featured anime fetch attempt ${attempt + 1} failed:`, err.message);
+          if (isMounted) {
+            if (attempt < 2) {
+              retryTimer = setTimeout(() => {
+                if (isMounted) loadFeatured(attempt + 1);
+              }, 1200 * (attempt + 1));
+            } else {
+              setLoading(false);
+              setItems(prev => {
+                if (prev.length > 0) return prev;
+                const cachedFallback = getCachedFeatured(activeTab);
+                if (cachedFallback && cachedFallback.length > 0) return cachedFallback;
+                if (activeTab === 'top') return getFallbackTopAnime();
+                return [];
+              });
+            }
+          }
+        });
+    };
+
+    loadFeatured(0);
 
     return () => {
       isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [activeTab, user, token]);
 
@@ -195,15 +284,28 @@ export default function FeaturedCarousel({
                 {/* Poster */}
                 <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-neutral-800 mb-2 transition-transform duration-200 group-hover:scale-[1.02]">
                   <img
-                    src={getImageUrl(anime.imageUrl)}
-                    alt={anime.title}
+                    src={resolveImageSrc(anime.imageUrl)}
+                    alt=""
                     loading="lazy"
                     decoding="async"
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      e.target.style.display = 'none';
+                      const target = e.target;
+                      const raw = anime.imageUrl;
+                      if (raw && raw.startsWith('http') && !target.src.includes('/api/proxy-image') && !raw.includes('missing_original')) {
+                        target.src = getImageProxyUrl(raw);
+                      } else {
+                        target.style.display = 'none';
+                        const fallback = target.parentElement.querySelector('.carousel-fallback');
+                        if (fallback) fallback.style.display = 'flex';
+                      }
                     }}
                   />
+                  <div className="carousel-fallback absolute inset-0 hidden flex-col items-center justify-center p-3 text-center bg-neutral-800 text-neutral-400">
+                    <span className="text-2xl mb-1 opacity-60">🎬</span>
+                    <span className="text-[11px] font-bold line-clamp-2 text-neutral-200">{anime.title}</span>
+                  </div>
 
                   {/* Rank badge for Top tab */}
                   {activeTab === 'top' && (

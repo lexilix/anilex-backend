@@ -11,7 +11,7 @@ import FeaturedCarousel from './components/FeaturedCarousel';
 import NotificationToast from './components/NotificationToast';
 import DevConsolePage from './components/DevConsolePage';
 import { Sparkles, Film, Loader2, ChevronLeft, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react';
-import { apiUrl } from './api';
+import { apiUrl, apiFetch } from './api';
 import {
   getCachedCatalog,
   setCachedCatalog,
@@ -30,6 +30,7 @@ import { getHiddenAnimeIds, toggleHiddenAnime } from './utils/hiddenStorage';
 import { getCachedUserProfile, setCachedUserProfile, clearCachedUserProfile, updateCachedUserRating, getCachedUserRatings } from './utils/profileCache';
 import { deduplicateAnimeList } from './utils/animeDeduplicator';
 import { getCustomAnimeEdits, saveCustomAnimeEdit, applyCustomAnimeEdits } from './utils/customEditsStorage';
+import { prefetchAnimeImages } from './utils/imageCache';
 import initialCatalog from './data/initialCatalog.json';
 
 function overlayUserRatings(items, userId) {
@@ -143,12 +144,9 @@ export default function App() {
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'friends_rated' | 'my_rated' | 'my_unrated'
   const [page, setPage] = useState(1);
 
-  // Debounce search query input to smoothly fetch as user types
+  // Set search query immediately (Header already isolates and debounces user typing)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 250);
-    return () => clearTimeout(timer);
+    setDebouncedSearch(searchQuery);
   }, [searchQuery]);
 
   // Live listener for ratings updated anywhere in the app (detail page, profile, dev console)
@@ -355,43 +353,52 @@ export default function App() {
   // Check auth on mount with offline resilience
   useEffect(() => {
     if (token) {
-      fetch(apiUrl('/api/auth/me'), {
+      // Always immediately load from cached user profile so UI never shows "Войти" button while checking!
+      const cached = getCachedUserProfile();
+      if (cached && !user) {
+        setUser(cached);
+      }
+
+      apiFetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       })
-        .then((res) => {
-          if (res.ok) {
+        .then(async (res) => {
+          if (res && res.ok) {
             setIsServerOffline(false);
-            return res.json();
+            const data = await res.json();
+            if (data?.user) {
+              setUser(data.user);
+              setCachedUserProfile(data.user);
+            }
+            return;
           }
-          if (res.status === 401 || res.status === 403) {
-            const err = new Error('Unauthorized');
-            err.isAuthError = true;
-            throw err;
+
+          // Only invalidate token if backend explicitly responded with 401 and invalid token error
+          if (res && res.status === 401) {
+            try {
+              const errData = await res.json();
+              if (errData?.error && (errData.error.includes('токен') || errData.error.includes('авторизац'))) {
+                localStorage.removeItem('anime_auth_token');
+                clearCachedUserProfile();
+                setToken('');
+                setUser(null);
+                return;
+              }
+            } catch (e) {}
           }
-          // Server error 502/503: preserve session
-          throw new Error('ServerOffline');
-        })
-        .then((data) => {
-          if (data?.user) {
-            setUser(data.user);
-            setCachedUserProfile(data.user);
+
+          // In all other cases (cold start, 503, 502, network latency): preserve user session!
+          const cachedUser = getCachedUserProfile();
+          if (cachedUser) {
+            setUser(cachedUser);
           }
         })
         .catch((err) => {
-          if (err.isAuthError) {
-            // Truly invalid or expired token
-            localStorage.removeItem('anime_auth_token');
-            clearCachedUserProfile();
-            setToken('');
-            setUser(null);
-          } else {
-            // Temporary network/server offline error: preserve login from cache!
-            console.warn('Backend server temporarily offline/suspended. Preserving session from local cache:', err);
-            setIsServerOffline(true);
-            const cached = getCachedUserProfile();
-            if (cached) {
-              setUser(cached);
-            }
+          // Network errors should NEVER log out the user!
+          console.warn('Backend server temporarily unreachable. Preserving session from local cache:', err);
+          const cachedUser = getCachedUserProfile();
+          if (cachedUser) {
+            setUser(cachedUser);
           }
         });
     } else {
@@ -948,6 +955,7 @@ export default function App() {
         });
 
         setAnimeList(displayPageItems);
+        prefetchAnimeImages(displayPageItems);
         setTotalCount(resolvedTotal);
         setTotalPages(resolvedPages);
         setPage(targetPage);
@@ -957,7 +965,7 @@ export default function App() {
         console.error('Error loading anime catalog:', err);
         // If search failed due to timeout or network, search local cache first, then external fallback
         if (isSearching) {
-          const cached = searchCachedAnime(debouncedSearch.trim());
+          const cached = deduplicateAnimeList(searchCachedAnime(debouncedSearch.trim()));
           if (cached.length > 0) {
             setAnimeList(overlayUserRatings(cached, user?.id));
             setTotalCount(cached.length);
@@ -967,8 +975,9 @@ export default function App() {
             try {
               const externalFound = await searchExternalAnimeFallback(debouncedSearch.trim());
               if (externalFound.length > 0) {
-                setAnimeList(overlayUserRatings(externalFound, user?.id));
-                setTotalCount(externalFound.length);
+                const dedupedExternal = deduplicateAnimeList(externalFound);
+                setAnimeList(overlayUserRatings(dedupedExternal, user?.id));
+                setTotalCount(dedupedExternal.length);
                 setTotalPages(1);
                 setCatalogError(null);
                 externalFound.forEach((item) => {

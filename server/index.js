@@ -16,6 +16,8 @@ try {
 const express = require('express');
 const cors = require('cors');
 const path = require('node:path');
+const fs = require('node:fs');
+const crypto = require('node:crypto');
 const db = require('./db');
 const {
   hashPassword,
@@ -67,21 +69,146 @@ app.get('/api/version', (req, res) => {
 });
 
 // ----------------------------------------------------
-// IMAGE PROXY (Bypasses Referer & hotlink restrictions)
+// IMAGE PROXY WITH PERSISTENT DISK CACHING & STALE-WHILE-REVALIDATE
 // ----------------------------------------------------
+const IMAGE_CACHE_DIR = path.join(__dirname, '../data/image_cache');
+if (!fs.existsSync(IMAGE_CACHE_DIR)) {
+  try {
+    fs.mkdirSync(IMAGE_CACHE_DIR, { recursive: true });
+  } catch (e) {}
+}
+
+// Check for updates on upstream (Shikimori / AnimeGo) every 3 days in the background
+const REVALIDATION_INTERVAL_MS = 3 * 24 * 60 * 60 * 1000;
+const activeRevalidations = new Set();
+
+function getUpstreamReferer(url) {
+  if (!url || typeof url !== 'string') return '';
+  if (url.includes('shikimori')) return 'https://shikimori.one/';
+  if (url.includes('animego') || url.includes('cdngos')) return 'https://animego.me/';
+  if (url.includes('desu')) return 'https://desu.me/';
+  if (url.includes('anilist')) return 'https://anilist.co/';
+  return '';
+}
+
+async function revalidateImageInBackground(imageUrl, cacheKey, currentMeta) {
+  if (activeRevalidations.has(cacheKey)) return;
+  activeRevalidations.add(cacheKey);
+
+  try {
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Referer': getUpstreamReferer(imageUrl),
+      'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+    };
+
+    if (currentMeta.etag) {
+      headers['If-None-Match'] = currentMeta.etag;
+    }
+    if (currentMeta.lastModified) {
+      headers['If-Modified-Since'] = currentMeta.lastModified;
+    }
+
+    const upstreamRes = await fetch(imageUrl, {
+      headers,
+      signal: AbortSignal.timeout(10000)
+    });
+
+    const cacheMetaFile = path.join(IMAGE_CACHE_DIR, `${cacheKey}.json`);
+    const cacheDataFile = path.join(IMAGE_CACHE_DIR, `${cacheKey}.bin`);
+
+    // 304 Not Modified -> Cover has not changed on AnimeGo / Shikimori
+    if (upstreamRes.status === 304) {
+      currentMeta.savedAt = Date.now();
+      fs.writeFileSync(cacheMetaFile, JSON.stringify(currentMeta));
+      return;
+    }
+
+    // 200 OK -> New image or upstream doesn't support 304
+    if (upstreamRes.ok) {
+      const newEtag = upstreamRes.headers.get('etag');
+      const newLastModified = upstreamRes.headers.get('last-modified');
+      const contentType = upstreamRes.headers.get('content-type') || currentMeta.contentType || 'image/jpeg';
+      const buffer = await upstreamRes.arrayBuffer();
+
+      // Only update if it is a valid image and not a placeholder
+      if (buffer.byteLength > 1000 && buffer.byteLength !== 16876) {
+        // If content length or etag changed, replace cached files!
+        if (buffer.byteLength !== currentMeta.byteLength || (newEtag && newEtag !== currentMeta.etag)) {
+          fs.writeFileSync(cacheDataFile, Buffer.from(buffer));
+          console.log(`[ImageCache] Updated cover for: ${imageUrl.slice(0, 60)} (${buffer.byteLength} bytes)`);
+        }
+        currentMeta.savedAt = Date.now();
+        currentMeta.etag = newEtag || currentMeta.etag;
+        currentMeta.lastModified = newLastModified || currentMeta.lastModified;
+        currentMeta.byteLength = buffer.byteLength;
+        currentMeta.contentType = contentType;
+        fs.writeFileSync(cacheMetaFile, JSON.stringify(currentMeta));
+      }
+    }
+  } catch (err) {
+    // Background revalidation failures should silently fail and not affect the existing cache
+  } finally {
+    activeRevalidations.delete(cacheKey);
+  }
+}
+
 app.get('/api/proxy-image', async (req, res) => {
   const imageUrl = req.query.url;
-  if (!imageUrl) {
+  if (!imageUrl || typeof imageUrl !== 'string') {
     return res.status(400).send('Image URL required');
   }
+
+  // Handle local files (e.g. /mugen_gacha_poster.jpg)
+  if (imageUrl.startsWith('/') && !imageUrl.startsWith('//')) {
+    const localPath = path.join(__dirname, '../client/public', imageUrl.replace(/^\/+/, ''));
+    if (fs.existsSync(localPath)) {
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+      res.setHeader('X-Cache', 'LOCAL');
+      return res.sendFile(localPath);
+    }
+  }
+
+  // Check persistent disk cache first!
+  const cacheKey = crypto.createHash('sha256').update(imageUrl).digest('hex');
+  const cacheMetaFile = path.join(IMAGE_CACHE_DIR, `${cacheKey}.json`);
+  const cacheDataFile = path.join(IMAGE_CACHE_DIR, `${cacheKey}.bin`);
+
+  if (fs.existsSync(cacheMetaFile) && fs.existsSync(cacheDataFile)) {
+    try {
+      const meta = JSON.parse(fs.readFileSync(cacheMetaFile, 'utf8'));
+      const isStale = Date.now() - (meta.savedAt || 0) > REVALIDATION_INTERVAL_MS;
+      const forceRefresh = req.query.refresh === '1';
+
+      if (isStale || forceRefresh) {
+        // Asynchronously check Shikimori / AnimeGo for cover updates
+        revalidateImageInBackground(imageUrl, cacheKey, meta);
+      }
+
+      res.setHeader('Content-Type', meta.contentType || 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+      if (meta.etag) res.setHeader('ETag', meta.etag);
+      res.setHeader('X-Cache', isStale ? 'STALE' : 'HIT');
+      return res.sendFile(cacheDataFile);
+    } catch (e) {
+      // Fallback to fetch if corrupted
+    }
+  }
+
+  const controller = new AbortController();
+  req.on('close', () => {
+    try { controller.abort(); } catch (e) {}
+  });
 
   try {
     const upstreamRes = await fetch(imageUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Referer': 'https://animego.me/',
+        'Referer': getUpstreamReferer(imageUrl),
         'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-      }
+      },
+      signal: AbortSignal.any ? AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]) : controller.signal
     });
 
     if (!upstreamRes.ok) {
@@ -89,10 +216,37 @@ app.get('/api/proxy-image', async (req, res) => {
     }
 
     const contentType = upstreamRes.headers.get('content-type') || 'image/jpeg';
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
-
+    const etag = upstreamRes.headers.get('etag');
+    const lastModified = upstreamRes.headers.get('last-modified');
     const buffer = await upstreamRes.arrayBuffer();
+
+    // Detect CDNgOS 404 placeholder image or missing images
+    if (buffer.byteLength === 16876 || imageUrl.includes('missing_original')) {
+      return res.status(404).send('Placeholder 404 image detected');
+    }
+
+    // Save to disk cache
+    try {
+      fs.writeFileSync(cacheDataFile, Buffer.from(buffer));
+      fs.writeFileSync(
+        cacheMetaFile,
+        JSON.stringify({
+          contentType,
+          url: imageUrl,
+          savedAt: Date.now(),
+          etag,
+          lastModified,
+          byteLength: buffer.byteLength
+        })
+      );
+    } catch (e) {
+      console.warn('Failed to write image cache:', e.message);
+    }
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    if (etag) res.setHeader('ETag', etag);
+    res.setHeader('X-Cache', 'MISS');
     return res.send(Buffer.from(buffer));
   } catch (err) {
     console.error('Image proxy error:', err.message);
@@ -545,17 +699,10 @@ function createNotification(userId, type, title, message, data = {}) {
   }
 }
 
-// Search users by nickname (Strictly for authenticated users; strangers cannot see ratings)
+// Search users by nickname (Always returns registered club members)
 app.get('/api/users/search', optionalAuthMiddleware, (req, res) => {
   try {
     const currentUserId = req.user ? req.user.id : null;
-    if (!currentUserId) {
-      return res.status(401).json({
-        error: 'Для просмотра аккаунтов и поиска друзей необходимо войти в аккаунт',
-        users: []
-      });
-    }
-
     const { q = '' } = req.query;
     const term = `%${q.trim().toLowerCase()}%`;
     const nickCol = db.lowerSql ? db.lowerSql('u.nickname') : 'LOWER(u.nickname)';
@@ -939,9 +1086,9 @@ app.get('/api/friends/requests', authMiddleware, (req, res) => {
 });
 
 // Get list of accepted friends for the user
-app.get('/api/friends/my', authMiddleware, (req, res) => {
+app.get('/api/friends/my', optionalAuthMiddleware, (req, res) => {
   try {
-    const currentUserId = req.user.id;
+    const currentUserId = req.user ? req.user.id : 0;
     const allUsers = db.prepare(`
       SELECT u.id as friendship_id, u.created_at as accepted_at,
              u.id as user_id, u.nickname, u.avatar_url,
@@ -1472,10 +1619,96 @@ app.get('/api/anime/featured', optionalAuthMiddleware, async (req, res) => {
 // Helper for Russian word stemming to match grammatical forms (e.g. "безработный" -> "безработн" -> matches "безработного")
 function stemRussianWord(word) {
   if (!word) return '';
-  const w = word.toLowerCase().replace(/ё/g, 'е').trim();
+  let w = word.toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z0-9]/gi, '').trim();
   if (w.length <= 3) return w;
+  if (/^дит[ея]$/.test(w)) return 'дит';
+  if (/^звезд/i.test(w)) return 'звезд';
   return w.replace(/(?:[ое]го|[ое]му|[ыи]ми|[ыи]х|[ыи]е|[ое]й|[ыи]м|[ая]я|[ую]ю|ом|ем|ах|ях|ам|ям|ов|ев|ей|ий|ый|ой|а|я|у|ю|е|о|ы|и|ь)$/i, '');
 }
+
+const ANIME_SYNONYMS = [
+  {
+    patterns: [/звездн.*дит/i, /звёздн.*дит/i, /реб[её]нок.*идол/i, /oshi\s*no\s*ko/i, /my\s*star/i, /реб[её]нок.*айдол/i],
+    canonical: ['Звёздное дитя', 'Ребёнок идола', 'Oshi no Ko'],
+    targetIds: [5779, 5781]
+  },
+  {
+    patterns: [/клинок.*рассекающ.*демон/i, /истребител.*демон/i, /kimetsu\s*no\s*yaiba/i, /demon\s*slayer/i],
+    canonical: ['Клинок, рассекающий демонов', 'Истребитель демонов', 'Kimetsu no Yaiba']
+  },
+  {
+    patterns: [/атак.*титан/i, /вторжен.*гигант/i, /shingeki\s*no\s*kyojin/i, /attack\s*on\s*titan/i],
+    canonical: ['Атака титанов', 'Вторжение гигантов', 'Shingeki no Kyojin']
+  },
+  {
+    patterns: [/магическ.*битв/i, /jujutsu\s*kaisen/i, /магическая\s*битва/i],
+    canonical: ['Магическая битва', 'Jujutsu Kaisen']
+  },
+  {
+    patterns: [/человек.*бензопил/i, /chainsaw\s*man/i, /бензопил/i],
+    canonical: ['Человек-бензопила', 'Chainsaw Man']
+  },
+  {
+    patterns: [/поднят.*уровн.*одиночк/i, /solo\s*leveling/i, /только\s*я\s*возьму\s*новый\s*уровень/i],
+    canonical: ['Поднятие уровня в одиночку', 'Solo Leveling']
+  },
+  {
+    patterns: [/семь.*шпион/i, /spy\s*x?\s*family/i],
+    canonical: ['Семья шпиона', 'Spy x Family']
+  },
+  {
+    patterns: [/мо.*геройск.*академи/i, /boku\s*no\s*hero/i, /my\s*hero\s*academia/i],
+    canonical: ['Моя геройская академия', 'Boku no Hero Academia']
+  },
+  {
+    patterns: [/ван\s*пис/i, /one\s*piece/i, /больш.*куш/i],
+    canonical: ['Ван Пис', 'One Piece', 'Большой куш']
+  },
+  {
+    patterns: [/тетрад.*смерт/i, /death\s*note/i],
+    canonical: ['Тетрадь смерти', 'Death Note']
+  },
+  {
+    patterns: [/токийск.*гул/i, /tokyo\s*ghoul/i],
+    canonical: ['Токийский гуль', 'Tokyo Ghoul']
+  },
+  {
+    patterns: [/коносуб/i, /этот\s*замечательн.*мир/i, /konosuba/i, /богиня\s*благословляет/i],
+    canonical: ['Этот замечательный мир!', 'Коносуба', 'KonoSuba']
+  },
+  {
+    patterns: [/мастер.*меч.*онлайн/i, /sword\s*art\s*online/i, /^sao$/i, /^сао$/i],
+    canonical: ['Мастера Меча Онлайн', 'Sword Art Online']
+  },
+  {
+    patterns: [/re:?zero/i, /жизнь.*нул.*друг.*мир/i],
+    canonical: ['Re:Zero', 'Жизнь с нуля в другом мире']
+  },
+  {
+    patterns: [/перерожден.*слиз/i, /tensei.*slime/i],
+    canonical: ['О моём перерождении в слизь', 'Перерождение в слизь']
+  },
+  {
+    patterns: [/фрирен/i, /frieren/i, /провожающ.*последн.*путь/i],
+    canonical: ['Провожающая в последний путь Фрирен', 'Sousou no Frieren']
+  },
+  {
+    patterns: [/джоджо/i, /jojo/i, /невероятн.*приключен.*джоджо/i],
+    canonical: ['Невероятное приключение ДжоДжо', "JoJo's Bizarre Adventure"]
+  },
+  {
+    patterns: [/врат.*штейн/i, /steins;?gate/i],
+    canonical: ['Врата Штейна', 'Steins;Gate']
+  },
+  {
+    patterns: [/блич/i, /bleach/i],
+    canonical: ['Блич', 'Bleach']
+  },
+  {
+    patterns: [/наруто/i, /naruto/i],
+    canonical: ['Наруто', 'Naruto']
+  }
+];
 
 app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
   try {
@@ -1515,16 +1748,58 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         }
       }
 
-      // Add WHERE condition: meaningful words or their stems must match in title_lower, original_title_lower, or season!
+      // Check if query matches known synonyms
+      const matchedSynonyms = ANIME_SYNONYMS.filter(rule =>
+        rule.patterns.some(p => p.test(cleanSearch) || p.test(normSearch))
+      );
+
+      const synonymIds = [];
+      const synonymWords = [];
+      for (const s of matchedSynonyms) {
+        if (Array.isArray(s.targetIds)) synonymIds.push(...s.targetIds);
+        for (const c of s.canonical) {
+          synonymWords.push(normalize(c));
+        }
+      }
+
+      // Word matching clauses: meaningful words or their stems
+      const wordClauses = [];
+      const wordParams = [];
       for (const w of meaningfulWords) {
         const stem = stemRussianWord(w);
         if (stem && stem.length >= 3 && stem !== w) {
-          whereClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ? OR a.title_lower LIKE ? OR a.original_title_lower LIKE ? OR a.season LIKE ? OR a.season LIKE ?)');
-          params.push(`%${w}%`, `%${w}%`, `%${stem}%`, `%${stem}%`, `%${w}%`, `%${stem}%`);
+          wordClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ? OR a.title_lower LIKE ? OR a.original_title_lower LIKE ? OR a.season LIKE ?)');
+          wordParams.push(`%${w}%`, `%${w}%`, `%${stem}%`, `%${stem}%`, `%${w}%`);
         } else {
-          whereClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ? OR a.season LIKE ?)');
-          params.push(`%${w}%`, `%${w}%`, `%${w}%`);
+          wordClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ? OR a.season LIKE ?)');
+          wordParams.push(`%${w}%`, `%${w}%`, `%${w}%`);
         }
+      }
+
+      if (synonymIds.length > 0 || synonymWords.length > 0) {
+        const synOrClauses = [];
+        const synOrParams = [];
+        if (synonymIds.length > 0) {
+          synOrClauses.push(`a.id IN (${synonymIds.map(() => '?').join(',')})`);
+          synOrParams.push(...synonymIds);
+        }
+        for (const sw of synonymWords) {
+          synOrClauses.push('(a.title_lower LIKE ? OR a.original_title_lower LIKE ?)');
+          synOrParams.push(`%${sw}%`, `%${sw}%`);
+        }
+
+        if (wordClauses.length > 0) {
+          whereClauses.push(`( (${wordClauses.join(' AND ')}) OR ${synOrClauses.join(' OR ')} )`);
+          params.push(...wordParams, ...synOrParams);
+        } else {
+          whereClauses.push(`( ${synOrClauses.join(' OR ')} )`);
+          params.push(...synOrParams);
+        }
+      } else {
+        for (let i = 0; i < wordClauses.length; i++) {
+          whereClauses.push(wordClauses[i]);
+        }
+        params.push(...wordParams);
       }
 
       // Relevance rank cases:
@@ -1534,6 +1809,14 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         '(CASE WHEN a.title_lower LIKE ? THEN 30 WHEN a.original_title_lower LIKE ? THEN 20 ELSE 0 END)'
       ];
       searchRankParams.push(normSearch, normSearch, `${normSearch}%`, `${normSearch}%`, `%${normSearch}%`, `%${normSearch}%`);
+
+      if (synonymIds.length > 0) {
+        rankCases.push(`(CASE WHEN a.id IN (${synonymIds.join(',')}) THEN 300 ELSE 0 END)`);
+      }
+      for (const sw of synonymWords) {
+        rankCases.push('(CASE WHEN a.title_lower LIKE ? THEN 180 WHEN a.original_title_lower LIKE ? THEN 140 ELSE 0 END)');
+        searchRankParams.push(`%${sw}%`, `%${sw}%`);
+      }
 
       for (const w of meaningfulWords) {
         const stem = stemRussianWord(w);
@@ -1745,6 +2028,55 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
           items = db.prepare(querySql).all(currentUserId || -1, currentUserId || -1, currentUserId || -1, ...params, ...searchRankParams, limitNum, offset);
           const totalAfter = db.prepare(countSql).get(...params);
           if (totalAfter) currentTotal = totalAfter.total;
+        }
+
+        // Direct Shikimori alias linker if still 0 items
+        if (items.length === 0) {
+          try {
+            const shikiRes = await fetch(`https://shikimori.one/api/animes?search=${encodeURIComponent(cleanSearch)}&limit=5`, {
+              headers: { 'User-Agent': 'Mozilla/5.0' },
+              signal: AbortSignal.timeout(5000)
+            });
+            if (shikiRes.ok) {
+              const shikiData = await shikiRes.json();
+              if (Array.isArray(shikiData) && shikiData.length > 0) {
+                let linkedAny = false;
+                for (const sd of shikiData) {
+                  const sRussian = sd.russian ? sd.russian.trim() : '';
+                  const sName = sd.name ? sd.name.trim() : '';
+                  if (sRussian || sName) {
+                    const foundRow = db.prepare(`
+                      SELECT id, original_title FROM anime 
+                      WHERE (title_lower = ? OR original_title_lower LIKE ?) 
+                         OR (title_lower = ? OR original_title_lower LIKE ?)
+                      LIMIT 1
+                    `).get(
+                      (sRussian || '').toLowerCase(), `%${(sRussian || '').toLowerCase()}%`,
+                      (sName || '').toLowerCase(), `%${(sName || '').toLowerCase()}%`
+                    );
+                    if (foundRow) {
+                      const curOrig = foundRow.original_title || '';
+                      if (!curOrig.toLowerCase().includes(cleanSearch.toLowerCase())) {
+                        const newOrig = curOrig ? `${curOrig} / ${cleanSearch}` : cleanSearch;
+                        db.prepare('UPDATE anime SET original_title = ?, original_title_lower = lower_utf8(?) WHERE id = ?')
+                          .run(newOrig, newOrig, foundRow.id);
+                        linkedAny = true;
+                        console.log(`[Search] Linked alias "${cleanSearch}" to anime #${foundRow.id}`);
+                      }
+                    }
+                  }
+                }
+                if (linkedAny) {
+                  if (typeof db.saveAccountsBackup === 'function') db.saveAccountsBackup();
+                  items = db.prepare(querySql).all(currentUserId || -1, currentUserId || -1, currentUserId || -1, ...params, ...searchRankParams, limitNum, offset);
+                  const totalAfter = db.prepare(countSql).get(...params);
+                  if (totalAfter) currentTotal = totalAfter.total;
+                }
+              }
+            }
+          } catch (se) {
+            console.error('[Search] Shikimori alias lookup error:', se.message);
+          }
         }
       } catch (err) {
         console.error('[Search] External search error:', err.message);
@@ -2154,33 +2486,6 @@ app.get('/api/anime/:id/ratings', optionalAuthMiddleware, (req, res) => {
       );
       for (const a of aliasRows) {
         if (!allAnimeIds.includes(a.id)) allAnimeIds.push(a.id);
-      }
-
-      // Also check if title has a prefix before colon (e.g. "Судьба/Странная подделка: Шёпот рассвета" -> "Судьба/Странная подделка")
-      const titleParts = (targetAnime.title || '').split(/[:—–]/);
-      if (titleParts.length > 1 && titleParts[0].trim().length > 4) {
-        const prefix = titleParts[0].trim().toLowerCase();
-        const prefixRows = db.prepare(`
-          SELECT id FROM anime
-          WHERE title_lower = ? OR title_lower LIKE ?
-        `).all(prefix, prefix + '%');
-        for (const pr of prefixRows) {
-          if (!allAnimeIds.includes(pr.id)) allAnimeIds.push(pr.id);
-        }
-      }
-
-      if (targetAnime.related_json) {
-        try {
-          const related = JSON.parse(targetAnime.related_json);
-          if (Array.isArray(related)) {
-            for (const rel of related) {
-              const rId = Number(rel.id);
-              if (rId && !allAnimeIds.includes(rId)) {
-                allAnimeIds.push(rId);
-              }
-            }
-          }
-        } catch (e) {}
       }
     }
 
@@ -3106,7 +3411,7 @@ app.get('/api/user/rated-anime', authMiddleware, (req, res) => {
     let whereClauses = ['r.user_id = ?', "a.title != 'Лимонные девочки'"];
 
     if (userId === 5 || req.user.nickname === 'Just') {
-      whereClauses.push('r.anime_id NOT IN (1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234)');
+      whereClauses.push('r.anime_id NOT IN (1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234, 7186)');
     }
 
     if (score !== undefined && score !== null && score !== 'all' && score !== 'top5') {
@@ -4927,9 +5232,12 @@ if (require.main === module) {
 
     await seedInitialData();
 
-    app.listen(PORT, '0.0.0.0', () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`[Server] Anime Rating server running at http://0.0.0.0:${PORT}`);
     });
+    server.keepAliveTimeout = 65000;
+    server.headersTimeout = 66000;
+    server.requestTimeout = 30000;
 
     // ----------------------------------------------------
     // 5-HOUR BACKGROUND CATALOG UPDATER

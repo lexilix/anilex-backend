@@ -4,7 +4,7 @@
     "slug": "shiki-62877",
     "title": "Бесконечная чистота",
     "originalTitle": "Tomedo Naki Hakujou / Never Ending Story",
-    "imageUrl": "https://shikimori.one/assets/globals/missing_original.jpg",
+    "imageUrl": "https://shikimori.io/system/screenshots/original/ffed064cbda5d1881fa0ab423c73c0434f0a2c50.jpg",
     "type": "Клип",
     "year": "2020",
     "genres": [],
@@ -38,7 +38,7 @@
     "slug": "hellsing-ultimate",
     "title": "Хеллсинг Ultimate",
     "originalTitle": "Hellsing Ultimate",
-    "imageUrl": "https://shikimori.one/system/animes/original/49877.jpg?1709524281",
+    "imageUrl": "https://shikimori.io/system/animes/original/777.jpg",
     "type": "OVA",
     "year": "2006",
     "genres": [
@@ -52,73 +52,49 @@
     "myScore": null,
     "averageScore": null,
     "ratingCount": 0,
-    "season": "Фильм 1",
+    "season": "OVA",
     "linkedAnime": [
       {
-        "id": 7191,
-        "title": "О моём перерождении в слизь",
-        "imageUrl": "https://shikimori.one/system/animes/original/37430.jpg?1711977107",
+        "id": 2891,
+        "title": "Хеллсинг: Война с нечистью",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/5c/5c582a88434fc645416514",
         "type": "Сериал",
-        "year": "2018",
-        "relation": "1-й сезон"
+        "year": "2001",
+        "relation": "Альтернативная версия"
       },
       {
-        "id": 7192,
-        "title": "О моём перерождении в слизь 2",
-        "imageUrl": "https://shikimori.one/system/animes/original/39551.jpg?1711977070",
-        "type": "Сериал",
-        "year": "2021",
-        "relation": "2-й сезон"
+        "id": 2889,
+        "title": "Хеллсинг: Рассвет",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/5c/5c5854e76b714688867388",
+        "type": "Спешл",
+        "year": "2011",
+        "relation": "Предыстория"
       },
       {
-        "id": 7193,
-        "title": "О моём перерождении в слизь 2. Часть 2",
-        "imageUrl": "https://shikimori.one/system/animes/original/41487.jpg?1711977051",
-        "type": "Сериал",
-        "year": "2021",
-        "relation": "2-й сезон часть 2"
-      },
-      {
-        "id": 7195,
-        "title": "О моём перерождении в слизь: Мечта Колеуса",
-        "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
-        "type": "ONA",
-        "year": "2023",
+        "id": 2890,
+        "title": "Хеллсинг: Обзор для фриков",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/5c/5c5852c4198e6328329801",
+        "type": "OVA",
+        "year": "2006",
         "relation": "Спешл"
       },
       {
-        "id": 1446,
-        "title": "О моём перерождении в слизь 3",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/66/66732cd781462452350534",
-        "type": "Сериал",
-        "year": "2024",
-        "relation": "3-й сезон"
-      },
-      {
-        "id": 650,
-        "title": "О моём перерождении в слизь: Слёзы синего моря",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168",
-        "type": "Фильм",
-        "year": "2026",
-        "relation": "Фильм 2"
-      },
-      {
-        "id": 914,
-        "title": "О моём перерождении в слизь 4",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569",
-        "type": "Сериал",
-        "year": "2026",
-        "relation": "4-й сезон"
+        "id": 583,
+        "title": "Хеллсинг: Псалом Тьмы",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6a7920b5e14aa821032544",
+        "type": "Спешл",
+        "year": "2001",
+        "relation": "Спешл"
       }
     ],
-    "related_json": "[{\"id\":7191,\"title\":\"О моём перерождении в слизь\",\"imageUrl\":\"https://shikimori.one/system/animes/original/37430.jpg?1711977107\",\"type\":\"Сериал\",\"year\":\"2018\",\"relation\":\"1-й сезон\"},{\"id\":7192,\"title\":\"О моём перерождении в слизь 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39551.jpg?1711977070\",\"type\":\"Сериал\",\"year\":\"2021\",\"relation\":\"2-й сезон\"},{\"id\":7193,\"title\":\"О моём перерождении в слизь 2. Часть 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/41487.jpg?1711977051\",\"type\":\"Сериал\",\"year\":\"2021\",\"relation\":\"2-й сезон часть 2\"},{\"id\":7195,\"title\":\"О моём перерождении в слизь: Мечта Колеуса\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54565.jpg?1716771883\",\"type\":\"ONA\",\"year\":\"2023\",\"relation\":\"Спешл\"},{\"id\":1446,\"title\":\"О моём перерождении в слизь 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/66/66732cd781462452350534\",\"type\":\"Сериал\",\"year\":\"2024\",\"relation\":\"3-й сезон\"},{\"id\":650,\"title\":\"О моём перерождении в слизь: Слёзы синего моря\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168\",\"type\":\"Фильм\",\"year\":\"2026\",\"relation\":\"Фильм 2\"},{\"id\":914,\"title\":\"О моём перерождении в слизь 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569\",\"type\":\"Сериал\",\"year\":\"2026\",\"relation\":\"4-й сезон\"}]"
+    "related_json": "[{\"id\":2891,\"title\":\"Хеллсинг: Война с нечистью\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c582a88434fc645416514\",\"type\":\"Сериал\",\"year\":\"2001\",\"relation\":\"Альтернативная версия\"},{\"id\":2889,\"title\":\"Хеллсинг: Рассвет\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5854e76b714688867388\",\"type\":\"Спешл\",\"year\":\"2011\",\"relation\":\"Предыстория\"},{\"id\":2890,\"title\":\"Хеллсинг: Обзор для фриков\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5852c4198e6328329801\",\"type\":\"OVA\",\"year\":\"2006\",\"relation\":\"Спешл\"},{\"id\":583,\"title\":\"Хеллсинг: Псалом Тьмы\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a7920b5e14aa821032544\",\"type\":\"Спешл\",\"year\":\"2001\",\"relation\":\"Спешл\"}]"
   },
   {
     "id": 7193,
     "slug": "kono-subarashii-sekai-ni-shukufuku-wo-2",
     "title": "Этот замечательный мир! 2",
     "originalTitle": "Kono Subarashii Sekai ni Shukufuku wo! 2",
-    "imageUrl": "https://shikimori.one/system/animes/original/41487.jpg?1711977051",
+    "imageUrl": "https://shikimori.io/system/animes/original/32937.jpg",
     "type": "Сериал",
     "year": "2017",
     "genres": [
@@ -131,66 +107,18 @@
     "myScore": null,
     "averageScore": null,
     "ratingCount": 0,
-    "season": "2-й сезон часть 2",
+    "season": "2-й сезон",
     "linkedAnime": [
       {
-        "id": 7191,
-        "title": "О моём перерождении в слизь",
-        "imageUrl": "https://shikimori.one/system/animes/original/37430.jpg?1711977107",
+        "id": 6020,
+        "title": "Этот замечательный мир!",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/67/676402b1ea605973697291",
         "type": "Сериал",
-        "year": "2018",
+        "year": "2016",
         "relation": "1-й сезон"
-      },
-      {
-        "id": 7192,
-        "title": "О моём перерождении в слизь 2",
-        "imageUrl": "https://shikimori.one/system/animes/original/39551.jpg?1711977070",
-        "type": "Сериал",
-        "year": "2021",
-        "relation": "2-й сезон"
-      },
-      {
-        "id": 7194,
-        "title": "О моём перерождении в слизь: Алые узы",
-        "imageUrl": "https://shikimori.one/system/animes/original/49877.jpg?1709524281",
-        "type": "Фильм",
-        "year": "2022",
-        "relation": "Фильм 1"
-      },
-      {
-        "id": 7195,
-        "title": "О моём перерождении в слизь: Мечта Колеуса",
-        "imageUrl": "https://shikimori.one/system/animes/original/54565.jpg?1716771883",
-        "type": "ONA",
-        "year": "2023",
-        "relation": "Спешл"
-      },
-      {
-        "id": 1446,
-        "title": "О моём перерождении в слизь 3",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/66/66732cd781462452350534",
-        "type": "Сериал",
-        "year": "2024",
-        "relation": "3-й сезон"
-      },
-      {
-        "id": 650,
-        "title": "О моём перерождении в слизь: Слёзы синего моря",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168",
-        "type": "Фильм",
-        "year": "2026",
-        "relation": "Фильм 2"
-      },
-      {
-        "id": 914,
-        "title": "О моём перерождении в слизь 4",
-        "imageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569",
-        "type": "Сериал",
-        "year": "2026",
-        "relation": "4-й сезон"
       }
     ],
-    "related_json": "[{\"id\":7191,\"title\":\"О моём перерождении в слизь\",\"imageUrl\":\"https://shikimori.one/system/animes/original/37430.jpg?1711977107\",\"type\":\"Сериал\",\"year\":\"2018\",\"relation\":\"1-й сезон\"},{\"id\":7192,\"title\":\"О моём перерождении в слизь 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39551.jpg?1711977070\",\"type\":\"Сериал\",\"year\":\"2021\",\"relation\":\"2-й сезон\"},{\"id\":7194,\"title\":\"О моём перерождении в слизь: Алые узы\",\"imageUrl\":\"https://shikimori.one/system/animes/original/49877.jpg?1709524281\",\"type\":\"Фильм\",\"year\":\"2022\",\"relation\":\"Фильм 1\"},{\"id\":7195,\"title\":\"О моём перерождении в слизь: Мечта Колеуса\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54565.jpg?1716771883\",\"type\":\"ONA\",\"year\":\"2023\",\"relation\":\"Спешл\"},{\"id\":1446,\"title\":\"О моём перерождении в слизь 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/66/66732cd781462452350534\",\"type\":\"Сериал\",\"year\":\"2024\",\"relation\":\"3-й сезон\"},{\"id\":650,\"title\":\"О моём перерождении в слизь: Слёзы синего моря\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a46479ee4c2c213407168\",\"type\":\"Фильм\",\"year\":\"2026\",\"relation\":\"Фильм 2\"},{\"id\":914,\"title\":\"О моём перерождении в слизь 4\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a3a42979381c559599569\",\"type\":\"Сериал\",\"year\":\"2026\",\"relation\":\"4-й сезон\"}]"
+    "related_json": "[{\"id\":6020,\"title\":\"Этот замечательный мир!\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/676402b1ea605973697291\",\"type\":\"Сериал\",\"year\":\"2016\",\"relation\":\"1-й сезон\"}]"
   },
   {
     "id": 7192,
@@ -5765,13 +5693,13 @@
       {
         "id": 7193,
         "title": "Этот замечательный мир! 2",
-        "imageUrl": "https://shikimori.one/system/animes/original/32937.jpg",
+        "imageUrl": "https://shikimori.io/system/animes/original/32937.jpg",
         "year": "2017",
         "type": "Сериал",
         "relation": "2-й сезон"
       }
     ],
-    "related_json": "[{\"id\":7193,\"title\":\"Этот замечательный мир! 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/32937.jpg\",\"year\":\"2017\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"}]",
+    "related_json": "[{\"id\":7193,\"title\":\"Этот замечательный мир! 2\",\"imageUrl\":\"https://shikimori.io/system/animes/original/32937.jpg\",\"year\":\"2017\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"}]",
     "season": "1-й сезон"
   },
   {
@@ -43440,9 +43368,17 @@
         "year": "2011",
         "type": "Спешл",
         "relation": "Спешл"
+      },
+      {
+        "id": 7194,
+        "title": "Хеллсинг Ultimate",
+        "imageUrl": "https://shikimori.io/system/animes/original/777.jpg",
+        "type": "OVA",
+        "year": "2006",
+        "relation": "OVA"
       }
     ],
-    "related_json": "[{\"id\":583,\"title\":\"Хеллсинг: Псалом Тьмы\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a7920b5e14aa821032544\",\"year\":\"2001\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":2890,\"title\":\"Хеллсинг: Обзор для фриков\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5852c4198e6328329801\",\"year\":\"2006\",\"type\":\"OVA\",\"relation\":\"OVA\"},{\"id\":2889,\"title\":\"Хеллсинг: Рассвет\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5854e76b714688867388\",\"year\":\"2011\",\"type\":\"Спешл\",\"relation\":\"Спешл\"}]"
+    "related_json": "[{\"id\":583,\"title\":\"Хеллсинг: Псалом Тьмы\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a7920b5e14aa821032544\",\"year\":\"2001\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":2890,\"title\":\"Хеллсинг: Обзор для фриков\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5852c4198e6328329801\",\"year\":\"2006\",\"type\":\"OVA\",\"relation\":\"OVA\"},{\"id\":2889,\"title\":\"Хеллсинг: Рассвет\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5854e76b714688867388\",\"year\":\"2011\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":7194,\"title\":\"Хеллсинг Ultimate\",\"imageUrl\":\"https://shikimori.io/system/animes/original/777.jpg\",\"type\":\"OVA\",\"year\":\"2006\",\"relation\":\"OVA\"}]"
   },
   {
     "id": 2890,
@@ -43487,9 +43423,17 @@
         "year": "2011",
         "type": "Спешл",
         "relation": "Спешл"
+      },
+      {
+        "id": 7194,
+        "title": "Хеллсинг Ultimate",
+        "imageUrl": "https://shikimori.io/system/animes/original/777.jpg",
+        "type": "OVA",
+        "year": "2006",
+        "relation": "OVA"
       }
     ],
-    "related_json": "[{\"id\":583,\"title\":\"Хеллсинг: Псалом Тьмы\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a7920b5e14aa821032544\",\"year\":\"2001\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":2891,\"title\":\"Хеллсинг: Война с нечистью\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c582a88434fc645416514\",\"year\":\"2001\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":2889,\"title\":\"Хеллсинг: Рассвет\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5854e76b714688867388\",\"year\":\"2011\",\"type\":\"Спешл\",\"relation\":\"Спешл\"}]"
+    "related_json": "[{\"id\":583,\"title\":\"Хеллсинг: Псалом Тьмы\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a7920b5e14aa821032544\",\"year\":\"2001\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":2891,\"title\":\"Хеллсинг: Война с нечистью\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c582a88434fc645416514\",\"year\":\"2001\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":2889,\"title\":\"Хеллсинг: Рассвет\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5854e76b714688867388\",\"year\":\"2011\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":7194,\"title\":\"Хеллсинг Ultimate\",\"imageUrl\":\"https://shikimori.io/system/animes/original/777.jpg\",\"type\":\"OVA\",\"year\":\"2006\",\"relation\":\"OVA\"}]"
   },
   {
     "id": 2889,
@@ -43534,9 +43478,17 @@
         "year": "2006",
         "type": "OVA",
         "relation": "OVA"
+      },
+      {
+        "id": 7194,
+        "title": "Хеллсинг Ultimate",
+        "imageUrl": "https://shikimori.io/system/animes/original/777.jpg",
+        "type": "OVA",
+        "year": "2006",
+        "relation": "OVA"
       }
     ],
-    "related_json": "[{\"id\":583,\"title\":\"Хеллсинг: Псалом Тьмы\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a7920b5e14aa821032544\",\"year\":\"2001\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":2891,\"title\":\"Хеллсинг: Война с нечистью\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c582a88434fc645416514\",\"year\":\"2001\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":2890,\"title\":\"Хеллсинг: Обзор для фриков\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5852c4198e6328329801\",\"year\":\"2006\",\"type\":\"OVA\",\"relation\":\"OVA\"}]"
+    "related_json": "[{\"id\":583,\"title\":\"Хеллсинг: Псалом Тьмы\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/6a/6a7920b5e14aa821032544\",\"year\":\"2001\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":2891,\"title\":\"Хеллсинг: Война с нечистью\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c582a88434fc645416514\",\"year\":\"2001\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":2890,\"title\":\"Хеллсинг: Обзор для фриков\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5852c4198e6328329801\",\"year\":\"2006\",\"type\":\"OVA\",\"relation\":\"OVA\"},{\"id\":7194,\"title\":\"Хеллсинг Ultimate\",\"imageUrl\":\"https://shikimori.io/system/animes/original/777.jpg\",\"type\":\"OVA\",\"year\":\"2006\",\"relation\":\"OVA\"}]"
   },
   {
     "id": 2888,
@@ -136017,9 +135969,17 @@
         "year": "2011",
         "type": "Спешл",
         "relation": "Спешл"
+      },
+      {
+        "id": 7194,
+        "title": "Хеллсинг Ultimate",
+        "imageUrl": "https://shikimori.io/system/animes/original/777.jpg",
+        "type": "OVA",
+        "year": "2006",
+        "relation": "OVA"
       }
     ],
-    "related_json": "[{\"id\":2891,\"title\":\"Хеллсинг: Война с нечистью\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c582a88434fc645416514\",\"year\":\"2001\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":2890,\"title\":\"Хеллсинг: Обзор для фриков\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5852c4198e6328329801\",\"year\":\"2006\",\"type\":\"OVA\",\"relation\":\"OVA\"},{\"id\":2889,\"title\":\"Хеллсинг: Рассвет\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5854e76b714688867388\",\"year\":\"2011\",\"type\":\"Спешл\",\"relation\":\"Спешл\"}]"
+    "related_json": "[{\"id\":2891,\"title\":\"Хеллсинг: Война с нечистью\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c582a88434fc645416514\",\"year\":\"2001\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":2890,\"title\":\"Хеллсинг: Обзор для фриков\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5852c4198e6328329801\",\"year\":\"2006\",\"type\":\"OVA\",\"relation\":\"OVA\"},{\"id\":2889,\"title\":\"Хеллсинг: Рассвет\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5c/5c5854e76b714688867388\",\"year\":\"2011\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":7194,\"title\":\"Хеллсинг Ultimate\",\"imageUrl\":\"https://shikimori.io/system/animes/original/777.jpg\",\"type\":\"OVA\",\"year\":\"2006\",\"relation\":\"OVA\"}]"
   },
   {
     "id": 582,
