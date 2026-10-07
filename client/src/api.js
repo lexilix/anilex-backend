@@ -48,7 +48,8 @@ export const getImageUrl = (url) => {
     return url;
   }
   if (url.startsWith('/api/uploads') || url.startsWith('/uploads')) {
-    return apiUrl(url);
+    // Hosted directly on the fast Firebase Hosting global CDN for instant 0ms delivery
+    return url;
   }
   if (url.startsWith('/') && !url.startsWith('//')) {
     return url;
