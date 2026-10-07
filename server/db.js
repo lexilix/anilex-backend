@@ -417,12 +417,12 @@ function restoreAccountsFromBackup() {
           if (existingByEmail) {
             db.prepare(`
               UPDATE users SET
-                avatar_url = CASE WHEN users.avatar_url IS NOT NULL AND length(users.avatar_url) > 10 THEN users.avatar_url ELSE ? END,
-                banner_url = CASE WHEN users.banner_url IS NOT NULL AND length(users.banner_url) > 10 THEN users.banner_url ELSE ? END,
+                avatar_url = CASE WHEN users.avatar_url LIKE 'data:image/%' THEN ? WHEN users.avatar_url IS NOT NULL AND length(users.avatar_url) > 5 THEN users.avatar_url ELSE ? END,
+                banner_url = CASE WHEN users.banner_url LIKE 'data:image/%' THEN ? WHEN users.banner_url IS NOT NULL AND length(users.banner_url) > 5 THEN users.banner_url ELSE ? END,
                 nickname = COALESCE(users.nickname, ?),
                 is_blocked = COALESCE(users.is_blocked, ?)
               WHERE id = ?
-            `).run(u.avatar_url || null, u.banner_url || null, u.nickname, u.is_blocked ? 1 : 0, existingByEmail.id);
+            `).run(u.avatar_url || null, u.avatar_url || null, u.banner_url || null, u.banner_url || null, u.nickname, u.is_blocked ? 1 : 0, existingByEmail.id);
           } else {
             insertUserStmt.run(
               u.id,

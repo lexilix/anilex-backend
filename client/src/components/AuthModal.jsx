@@ -63,7 +63,11 @@ export default function AuthModal({
       onLoginSuccess(data.user, data.token);
       onClose();
     } catch (err) {
-      setError(err.message || 'Не удалось выполнить вход. Пожалуйста, проверьте данные.');
+      if (err.name === 'TimeoutError' || err.message?.includes('timed out') || err.message?.includes('Failed to fetch')) {
+        setError('Сервер не успел ответить вовремя. Пожалуйста, нажмите «Войти» еще раз.');
+      } else {
+        setError(err.message || 'Не удалось выполнить вход. Пожалуйста, проверьте данные.');
+      }
     } finally {
       setLoading(false);
     }

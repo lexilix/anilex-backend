@@ -47,6 +47,9 @@ export const getImageUrl = (url) => {
   if (url.startsWith('data:') || url.startsWith('blob:')) {
     return url;
   }
+  if (url.startsWith('/api/uploads') || url.startsWith('/uploads')) {
+    return apiUrl(url);
+  }
   if (url.startsWith('/') && !url.startsWith('//')) {
     return url;
   }

@@ -457,10 +457,17 @@ export default function DevConsolePage({
       user.id === 5)
   );
 
-  // Session unlock state
+  // Session unlock state (auto-unlocked if already logged in as Just)
   const [isUnlocked, setIsUnlocked] = useState(() => {
-    return isJustAccount && sessionStorage.getItem('anilex_dev_unlocked') === 'true';
+    return isJustAccount || sessionStorage.getItem('anilex_dev_unlocked') === 'true';
   });
+
+  useEffect(() => {
+    if (isJustAccount) {
+      setIsUnlocked(true);
+      sessionStorage.setItem('anilex_dev_unlocked', 'true');
+    }
+  }, [isJustAccount]);
 
   // Login form state (if not logged in as Just)
   const [loginInput, setLoginInput] = useState(isJustAccount ? user.email || 'just9jeeet@gmail.com' : 'just9jeeet@gmail.com');
@@ -612,7 +619,8 @@ export default function DevConsolePage({
       let res = await fetch(apiUrl('/api/dev/auth'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginInput.trim(), password: passwordInput })
+        body: JSON.stringify({ email: loginInput.trim(), password: passwordInput }),
+        signal: AbortSignal.timeout(12000)
       }).catch(() => null);
 
       // 2. Fallback to /api/auth/login
@@ -620,7 +628,8 @@ export default function DevConsolePage({
         res = await fetch(apiUrl('/api/auth/login'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: loginInput.trim(), password: passwordInput })
+          body: JSON.stringify({ email: loginInput.trim(), password: passwordInput }),
+          signal: AbortSignal.timeout(12000)
         });
       }
 
