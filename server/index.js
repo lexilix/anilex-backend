@@ -88,9 +88,11 @@ app.use((req, res, next) => {
 app.get('/api/version', (req, res) => {
   res.json({
     status: 'ok',
-    version: '1.0.12',
+    version: '1.0.13',
     nodeVersion: process.version,
-    hasLowerUtf8: Boolean(db.hasLowerUtf8)
+    hasLowerUtf8: Boolean(db.hasLowerUtf8),
+    uploadsExists: fs.existsSync(UPLOADS_DIR),
+    uploadsFiles: fs.existsSync(UPLOADS_DIR) ? fs.readdirSync(UPLOADS_DIR) : []
   });
 });
 
