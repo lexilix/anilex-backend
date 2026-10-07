@@ -13,6 +13,22 @@ export default function AuthModal({
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingSeconds, setLoadingSeconds] = useState(0);
+
+  React.useEffect(() => {
+    let timer = null;
+    if (loading) {
+      setLoadingSeconds(0);
+      timer = setInterval(() => {
+        setLoadingSeconds((s) => s + 1);
+      }, 1000);
+    } else {
+      setLoadingSeconds(0);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [loading]);
 
   if (!isOpen) return null;
 
@@ -30,14 +46,15 @@ export default function AuthModal({
       const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(45000)
       }, 2);
 
       let data;
       try {
         data = await res.json();
       } catch (jsonErr) {
-        throw new Error('Сервер временно недоступен (Render 503). Пожалуйста, подождите или повторите попытку через минуту.');
+        throw new Error('Сервер бэкенда ещё прогревается. Подождите несколько секунд и нажмите «Повторить».');
       }
 
       if (!res.ok) {
@@ -47,7 +64,11 @@ export default function AuthModal({
       onLoginSuccess(data.user, data.token);
       onClose();
     } catch (err) {
-      setError(getFriendlyErrorMessage(err));
+      if (err.name === 'TimeoutError' || err.message?.includes('timeout') || err.message?.includes('aborted')) {
+        setError('Сервер Render просыпается после паузы (холодный старт Render Free Tier). Нажмите кнопку «Повторить попытку» — контейнер уже активен.');
+      } else {
+        setError(getFriendlyErrorMessage(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -186,10 +207,29 @@ export default function AuthModal({
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all mt-4 disabled:opacity-50"
+            className="w-full py-3 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all mt-4 disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            {loading ? 'Загрузка...' : mode === 'register' ? 'Зарегистрироваться' : 'Войти'}
+            {loading ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin text-neutral-400" />
+                <span>
+                  {loadingSeconds >= 2
+                    ? `Подключение (${loadingSeconds}с)...`
+                    : 'Загрузка...'}
+                </span>
+              </>
+            ) : mode === 'register' ? (
+              'Зарегистрироваться'
+            ) : (
+              'Войти'
+            )}
           </button>
+
+          {loading && loadingSeconds >= 3 && (
+            <p className="text-[11px] text-center text-amber-600/90 dark:text-amber-400/90 mt-2.5 animate-pulse font-medium">
+              Сервер Render просыпается после паузы (~20–30 сек). Пожалуйста, не закрывайте окно...
+            </p>
+          )}
         </form>
       </div>
     </div>

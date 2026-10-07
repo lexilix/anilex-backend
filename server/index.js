@@ -4,14 +4,27 @@ try {
 } catch (err) {
   if (err.code === 'ERR_UNKNOWN_BUILTIN_MODULE' && !process.execArgv.includes('--experimental-sqlite')) {
     console.log('[Server] Auto-relaunching with --experimental-sqlite flag...');
-    const { spawnSync } = require('node:child_process');
-    const result = spawnSync(process.execPath, ['--experimental-sqlite', ...process.argv.slice(1)], {
+    const { spawn } = require('node:child_process');
+    const child = spawn(process.execPath, ['--experimental-sqlite', ...process.argv.slice(1)], {
       stdio: 'inherit',
       env: process.env
     });
-    process.exit(result.status ?? 0);
+    child.on('exit', (code, signal) => {
+      process.exit(code ?? (signal ? 1 : 0));
+    });
+    child.on('error', (spawnErr) => {
+      console.error('[Server] Failed to spawn child process:', spawnErr);
+      process.exit(1);
+    });
+    ['SIGTERM', 'SIGINT', 'SIGHUP'].forEach((sig) => {
+      process.on(sig, () => {
+        try { child.kill(sig); } catch (e) {}
+      });
+    });
+    return;
   }
 }
+
 
 const express = require('express');
 const cors = require('cors');
@@ -47,7 +60,12 @@ const { scrapeShikimoriUserRates } = require('./shikimori_importer');
 const { parseAnimeLibContent, scrapeAnimeLibUserList } = require('./animelib_importer');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
+
+// Lightweight root health endpoint for Render and pingers
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
 
 app.use(cors({
   origin: '*',
@@ -58,6 +76,14 @@ app.use(cors({
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
+// Logging for authentication and health requests
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/auth') || req.path === '/api/version' || req.path === '/health') {
+    console.log(`[HTTP] ${req.method} ${req.path}`);
+  }
+  next();
+});
+
 // Health & Version check
 app.get('/api/version', (req, res) => {
   res.json({
@@ -67,6 +93,7 @@ app.get('/api/version', (req, res) => {
     hasLowerUtf8: Boolean(db.hasLowerUtf8)
   });
 });
+
 
 // ----------------------------------------------------
 // IMAGE PROXY WITH PERSISTENT DISK CACHING & STALE-WHILE-REVALIDATE
@@ -2250,7 +2277,8 @@ app.get('/api/anime/:id', optionalAuthMiddleware, async (req, res) => {
                 'User-Agent': USER_AGENT,
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                 'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7'
-              }
+              },
+              signal: AbortSignal.timeout(4000)
             });
             if (agRes.ok) {
               const html = await agRes.text();
@@ -2280,7 +2308,8 @@ app.get('/api/anime/:id', optionalAuthMiddleware, async (req, res) => {
           try {
             const cleanSearch = anime.title.replace(/\s+(?:2-й|3-й|4-й)?\s*сезон.*$/i, '').trim();
             const sRes = await fetch(`https://animego.me/search/anime?q=${encodeURIComponent(cleanSearch)}`, {
-              headers: { 'User-Agent': USER_AGENT }
+              headers: { 'User-Agent': USER_AGENT },
+              signal: AbortSignal.timeout(4000)
             });
             if (sRes.ok) {
               const html = await sRes.text();
@@ -2289,7 +2318,8 @@ app.get('/api/anime/:id', optionalAuthMiddleware, async (req, res) => {
                 const linkMatch = parts[1].match(/href="\/anime\/([a-zA-Z0-9\-]+)"/);
                 if (linkMatch && linkMatch[1]) {
                   const dRes = await fetch(`https://animego.me/anime/${linkMatch[1]}`, {
-                    headers: { 'User-Agent': USER_AGENT }
+                    headers: { 'User-Agent': USER_AGENT },
+                    signal: AbortSignal.timeout(4000)
                   });
                   if (dRes.ok) {
                     const dHtml = await dRes.text();
@@ -2322,19 +2352,22 @@ app.get('/api/anime/:id', optionalAuthMiddleware, async (req, res) => {
           let shikiDetails = null;
           if (anime.slug && anime.slug.startsWith('shiki-')) {
             const sRes = await fetch(`https://shikimori.one/api/animes/${anime.slug.replace('shiki-', '')}`, {
-              headers: { 'User-Agent': USER_AGENT }
+              headers: { 'User-Agent': USER_AGENT },
+              signal: AbortSignal.timeout(4000)
             });
             if (sRes.ok) shikiDetails = await sRes.json();
           }
           if (!shikiDetails) {
             const sRes = await fetch(`https://shikimori.one/api/animes?search=${encodeURIComponent(anime.title)}&limit=3`, {
-              headers: { 'User-Agent': USER_AGENT }
+              headers: { 'User-Agent': USER_AGENT },
+              signal: AbortSignal.timeout(4000)
             });
             if (sRes.ok) {
               const list = await sRes.json();
               if (Array.isArray(list) && list[0]) {
                 const dRes = await fetch(`https://shikimori.one/api/animes/${list[0].id}`, {
-                  headers: { 'User-Agent': USER_AGENT }
+                  headers: { 'User-Agent': USER_AGENT },
+                  signal: AbortSignal.timeout(4000)
                 });
                 if (dRes.ok) shikiDetails = await dRes.json();
               }
@@ -5334,7 +5367,8 @@ if (require.main === module) {
           const shikiRes = await fetch('https://shikimori.one/api/animes?order=popularity&status=ongoing&limit=25', {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-            }
+            },
+            signal: AbortSignal.timeout(8000)
           });
           if (shikiRes.ok) {
             const shikiList = await shikiRes.json();
@@ -5370,7 +5404,8 @@ if (require.main === module) {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
               'Accept': 'application/json'
-            }
+            },
+            signal: AbortSignal.timeout(8000)
           });
           if (libRes.ok) {
             const libData = await libRes.json();

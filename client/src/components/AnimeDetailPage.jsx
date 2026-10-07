@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Star, MessageSquare, Send, Trash2, Calendar, Film, User, Bookmark, EyeOff, ThumbsUp, ThumbsDown, CornerDownRight, Lock } from 'lucide-react';
 import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
-import { apiUrl, getImageUrl } from '../api';
+import { apiUrl, getImageUrl, getImageProxyUrl } from '../api';
 import SimilarAnimeFeed from './SimilarAnimeFeed';
 import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 import { applyCustomAnimeEdits, getCustomAnimeEdits } from '../utils/customEditsStorage';
@@ -43,6 +43,7 @@ export default function AnimeDetailPage({
     }
   });
   const [imageFailed, setImageFailed] = useState(false);
+  const [triedProxy, setTriedProxy] = useState(false);
 
   // Top-5 state (max 5 allowed - Photo 1 & 2)
   const [myTop5Ids, setMyTop5Ids] = useState(() => {
@@ -542,20 +543,38 @@ export default function AnimeDetailPage({
 
       const currentUserId = user?.id || getCachedUserProfile()?.id;
       if (currentUserId && (data.myScore === null || data.myScore === undefined)) {
-        const cachedRatings = getCachedUserRatings(currentUserId) || [];
-        const match = cachedRatings.find((r) => {
-          if (Number(r.id) === Number(data.id)) return true;
-          if (Array.isArray(data.aliasIds) && data.aliasIds.map(Number).includes(Number(r.id))) return true;
-          if (data.title && r.title && data.title.trim().toLowerCase() === r.title.trim().toLowerCase()) return true;
-          return false;
-        });
-        if (match && match.myScore !== null && match.myScore !== undefined) {
-          data.myScore = Number(match.myScore);
+        // 1. Check if user's own rating is present in friendsRatings list returned by server
+        if (Array.isArray(data.friendsRatings) && data.friendsRatings.length > 0) {
+          const myInRatings = data.friendsRatings.find(
+            (f) =>
+              (currentUserId && Number(f.userId) === Number(currentUserId)) ||
+              (user?.nickname && f.nickname?.toLowerCase() === user.nickname?.toLowerCase()) ||
+              f.isMe
+          );
+          if (myInRatings && myInRatings.score !== null && myInRatings.score !== undefined) {
+            data.myScore = Number(myInRatings.score);
+          }
+        }
+
+        // 2. Fallback to cached ratings strictly by ID or exact title
+        if (data.myScore === null || data.myScore === undefined) {
+          const cachedRatings = getCachedUserRatings(currentUserId) || [];
+          const match = cachedRatings.find((r) => {
+            if (Number(r.id) === Number(data.id)) return true;
+            if (Array.isArray(data.aliasIds) && data.aliasIds.map(Number).includes(Number(r.id))) return true;
+            if (data.title && r.title && data.title.trim().toLowerCase() === r.title.trim().toLowerCase()) return true;
+            return false;
+          });
+          if (match && match.myScore !== null && match.myScore !== undefined) {
+            data.myScore = Number(match.myScore);
+          }
         }
       }
 
       setAnime(data);
       setImgSrc(data.imageUrl || data.image_url);
+      setImageFailed(false);
+      setTriedProxy(false);
     } catch (err) {
       console.error('Error loading anime details:', err);
       try {
@@ -636,8 +655,9 @@ export default function AnimeDetailPage({
 
   const handleImageError = () => {
     const raw = anime?.imageUrl || anime?.image_url;
-    if (anime && imgSrc === raw && raw) {
-      setImgSrc(getImageUrl(raw));
+    if (!triedProxy && raw && !imgSrc?.includes('/api/proxy-image')) {
+      setTriedProxy(true);
+      setImgSrc(getImageProxyUrl(raw));
     } else {
       setImageFailed(true);
     }
@@ -1063,7 +1083,7 @@ export default function AnimeDetailPage({
                 <span className="text-sm font-semibold text-neutral-900 dark:text-white">
                   Ваша оценка:
                 </span>
-                {anime.myScore !== null ? (
+                {anime.myScore !== null && anime.myScore !== undefined ? (
                   <span className={`px-2.5 py-0.5 rounded-xl text-xs font-bold ${getScoreBadgeClass(anime.myScore)}`}>
                     {anime.myScore} / 10
                   </span>
@@ -1072,7 +1092,7 @@ export default function AnimeDetailPage({
                 )}
 
                 {/* Top-5 Pin Button (Photo 1 & 2) */}
-                {anime.myScore !== null && user && (() => {
+                {anime.myScore !== null && anime.myScore !== undefined && user && (() => {
                   const aId = anime.id || animeId;
                   const isInTop5 = myTop5Ids.includes(aId);
                   const isMrTechPermanent = (user?.nickname === 'MrTech' || user?.id === 20) && (aId === 7170 || anime.title === 'Лимонные девочки');
@@ -1135,10 +1155,10 @@ export default function AnimeDetailPage({
                 );
               })}
 
-              {anime.myScore !== null && (
+              {anime.myScore !== null && anime.myScore !== undefined && (
                 <button
                   type="button"
-                  onClick={() => handleRate(anime.myScore)}
+                  onClick={() => handleRate(null)}
                   title="Сбросить оценку"
                   className="px-2.5 h-9 rounded-xl text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors shrink-0"
                 >

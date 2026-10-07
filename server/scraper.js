@@ -213,7 +213,8 @@ async function scrapeAnimeGoPage(page = 1) {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
       'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7'
-    }
+    },
+    signal: AbortSignal.timeout(7000)
   });
 
   if (!res.ok) {
@@ -339,7 +340,8 @@ async function searchAnimeGo(query) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7'
-      }
+      },
+      signal: AbortSignal.timeout(6000)
     });
 
     if (!res.ok) {
@@ -405,7 +407,8 @@ async function searchAnimeGo(query) {
           const dRes = await fetch(detailUrl, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-            }
+            },
+            signal: AbortSignal.timeout(5000)
           });
           if (dRes.ok) {
             const dHtml = await dRes.text();
@@ -477,7 +480,8 @@ async function searchShikimori(query) {
     const res = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-      }
+      },
+      signal: AbortSignal.timeout(6000)
     });
 
     if (!res.ok) {
@@ -528,7 +532,8 @@ async function searchShikimori(query) {
         try {
           const detailId = item.slug.replace('shiki-', '');
           const dRes = await fetch(`https://shikimori.one/api/animes/${detailId}`, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+            signal: AbortSignal.timeout(4000)
           });
           if (dRes.ok) {
             const detailData = await dRes.json();
@@ -564,7 +569,8 @@ async function searchShikimori(query) {
             // Also check related anime for prequels / first parts
             try {
               const relRes = await fetch(`https://shikimori.one/api/animes/${detailId}/related`, {
-                headers: { 'User-Agent': 'Mozilla/5.0' }
+                headers: { 'User-Agent': 'Mozilla/5.0' },
+                signal: AbortSignal.timeout(3000)
               });
               if (relRes.ok) {
                 const relData = await relRes.json();
@@ -602,11 +608,12 @@ async function searchShikimori(query) {
       })
     );
 
-    const isQueryAscii = /^[a-zA-Z0-9\s':\-!]+$/.test(cleanQuery);
     for (const item of items) {
-      if (isQueryAscii && cleanQuery.length > 2) {
+      if (cleanQuery.length > 2) {
         const normItemOrig = (item.originalTitle || '').toLowerCase();
-        if (!normItemOrig.includes(cleanQuery.toLowerCase())) {
+        const normItemTitle = (item.title || '').toLowerCase();
+        const normClean = cleanQuery.toLowerCase();
+        if (!normItemOrig.includes(normClean) && !normItemTitle.includes(normClean)) {
           item.originalTitle = item.originalTitle ? `${item.originalTitle} / ${cleanQuery}` : cleanQuery;
         }
       }
@@ -644,7 +651,8 @@ async function fetchOngoingAnime(limit = 15) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7'
-      }
+      },
+      signal: AbortSignal.timeout(6000)
     });
 
     if (!res.ok) {

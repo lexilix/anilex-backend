@@ -37,8 +37,6 @@ export function clearCachedUserProfile() {
   }
 }
 
-const UNWANTED_JUST_ZERO_IDS = new Set([1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234]);
-
 export function getCachedUserRatings(userId) {
   try {
     const key = `${RATINGS_PREFIX}${userId || 'guest'}`;
@@ -46,19 +44,6 @@ export function getCachedUserRatings(userId) {
     if (!raw) return [];
     let list = JSON.parse(raw);
     if (!Array.isArray(list)) return [];
-
-    const isJustUser = Number(userId) === 5 || userId === '5';
-    if (isJustUser) {
-      const originalLen = list.length;
-      list = list.filter((r) => {
-        const idNum = Number(r.id);
-        if (UNWANTED_JUST_ZERO_IDS.has(idNum)) return false;
-        return true;
-      });
-      if (list.length !== originalLen) {
-        localStorage.setItem(key, JSON.stringify(list));
-      }
-    }
     return list;
   } catch (e) {
     return [];
@@ -69,16 +54,7 @@ export function setCachedUserRatings(userId, ratings) {
   try {
     if (!userId) return;
     const key = `${RATINGS_PREFIX}${userId}`;
-    const isJustUser = Number(userId) === 5 || userId === '5';
-    let filteredRatings = ratings || [];
-    if (isJustUser) {
-      filteredRatings = filteredRatings.filter((r) => {
-        const idNum = Number(r.id);
-        if (UNWANTED_JUST_ZERO_IDS.has(idNum)) return false;
-        return true;
-      });
-    }
-    const cleanList = filteredRatings.map((r) => ({
+    const cleanList = (ratings || []).map((r) => ({
       id: r.id,
       title: r.title,
       originalTitle: r.originalTitle,
@@ -106,9 +82,6 @@ export function updateCachedUserRating(userId, animeId, score, animeData = null)
     const numId = Number(animeId);
     const animeTitle = (animeData?.title || '').trim().toLowerCase();
 
-    const isJustUser = Number(targetUserId) === 5 || targetUserId === '5';
-    const isUnwantedBlacklist = isJustUser && UNWANTED_JUST_ZERO_IDS.has(numId);
-
     const existingIdx = list.findIndex(
       (it) =>
         Number(it.id) === numId ||
@@ -118,12 +91,11 @@ export function updateCachedUserRating(userId, animeId, score, animeData = null)
     const hadRatingBefore = existingIdx >= 0;
     const previousScore = hadRatingBefore ? list[existingIdx].myScore : null;
 
-    if (score === null || score === undefined || score === '' || isUnwantedBlacklist) {
+    if (score === null || score === undefined || score === '') {
       // Remove rating
       list = list.filter((it) => {
         if (Number(it.id) === numId) return false;
         if (animeTitle && it.title && it.title.trim().toLowerCase() === animeTitle) return false;
-        if (isJustUser && UNWANTED_JUST_ZERO_IDS.has(Number(it.id))) return false;
         return true;
       });
     } else {

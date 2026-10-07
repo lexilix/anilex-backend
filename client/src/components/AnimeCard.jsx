@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Star, MessageSquare, ChevronDown, ChevronUp, Calendar, Film, Lock, Bookmark, EyeOff, Loader2 } from 'lucide-react';
 import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
-import { getImageUrl, apiUrl } from '../api';
+import { getImageUrl, getImageProxyUrl, apiUrl } from '../api';
+import { resolveImageSrc, getCachedImageUrl } from '../utils/imageCache';
 import { isAnimeHiddenLocally } from '../utils/hiddenStorage';
 import { getCachedUserRatings, getCachedUserProfile, updateCachedUserRating } from '../utils/profileCache';
 
@@ -21,9 +22,12 @@ export default function AnimeCard({
   const [showFriendsScores, setShowFriendsScores] = useState(false);
   const [fetchedRatings, setFetchedRatings] = useState(null);
   const [scoresFetchLoading, setScoresFetchLoading] = useState(false);
-  const currentImage = anime.imageUrl || anime.image_url;
-  const [imgSrc, setImgSrc] = useState(currentImage);
-  const [imageFailed, setImageFailed] = useState(false);
+  const rawImage = anime.imageUrl || anime.image_url;
+  const initialImg = resolveImageSrc(rawImage);
+  const [imgSrc, setImgSrc] = useState(initialImg);
+  const [imageFailed, setImageFailed] = useState(() => !rawImage || rawImage.includes('missing_original'));
+  const [triedProxy, setTriedProxy] = useState(() => Boolean(initialImg && initialImg.includes('/api/proxy-image')));
+  const [retryCount, setRetryCount] = useState(0);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [hideLoading, setHideLoading] = useState(false);
@@ -81,8 +85,16 @@ export default function AnimeCard({
   };
 
   useEffect(() => {
-    setImgSrc(anime.imageUrl || anime.image_url);
+    const raw = anime.imageUrl || anime.image_url;
+    if (!raw || raw.includes('missing_original')) {
+      setImageFailed(true);
+      return;
+    }
+    const resolved = resolveImageSrc(raw);
+    setImgSrc(resolved);
     setImageFailed(false);
+    setTriedProxy(Boolean(resolved && resolved.includes('/api/proxy-image')));
+    setRetryCount(0);
   }, [anime.imageUrl, anime.image_url]);
 
   // Optimistic hidden state synced with anime prop and local storage
@@ -130,8 +142,8 @@ export default function AnimeCard({
 
       const rTitle = (r.title || '').trim().toLowerCase();
       const rOrig = (r.originalTitle || r.original_title || '').trim().toLowerCase();
-      if (normTitle && rTitle && (normTitle === rTitle || normTitle.startsWith(rTitle) || rTitle.startsWith(normTitle))) return true;
-      if (normOriginal && rOrig && (normOriginal === rOrig || normOriginal.startsWith(rOrig) || rOrig.startsWith(normOriginal))) return true;
+      if (normTitle && rTitle && normTitle === rTitle) return true;
+      if (normOriginal && rOrig && normOriginal === rOrig) return true;
       return false;
     });
 
@@ -165,7 +177,7 @@ export default function AnimeCard({
   }, [anime.id, anime.aliasIds, anime.title]);
 
   // User's rating and community stats
-  const myScore = localScore !== undefined && localScore !== null ? localScore : (anime.myScore !== undefined && anime.myScore !== null ? anime.myScore : null);
+  const myScore = localScore !== undefined ? localScore : (anime.myScore !== undefined ? anime.myScore : null);
   const isFavorite = anime.isFavorite;
   const isHidden = localHidden;
   const averageScore = anime.averageScore;
@@ -183,8 +195,25 @@ export default function AnimeCard({
 
   const handleImageError = () => {
     const raw = anime.imageUrl || anime.image_url;
-    if (imgSrc === raw && raw) {
-      setImgSrc(getImageUrl(raw));
+    if (!raw || raw.includes('missing_original')) {
+      setImageFailed(true);
+      return;
+    }
+    const proxyUrl = getImageProxyUrl(raw);
+    if (!triedProxy && proxyUrl && imgSrc !== proxyUrl) {
+      setTriedProxy(true);
+      setImgSrc(proxyUrl);
+      return;
+    }
+
+    // Server may still be downloading the image in background; retry up to 3 times
+    if (retryCount < 3) {
+      const nextRetry = retryCount + 1;
+      setRetryCount(nextRetry);
+      setTimeout(() => {
+        const sep = proxyUrl.includes('?') ? '&' : '?';
+        setImgSrc(`${proxyUrl}${sep}r=${nextRetry}`);
+      }, nextRetry * 1000);
     } else {
       setImageFailed(true);
     }

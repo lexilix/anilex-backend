@@ -193,6 +193,8 @@ export function getAllCachedAnime() {
   return memoizedAllAnime;
 }
 
+export const getCachedAnime = getAllCachedAnime;
+
 /**
  * Fallback to provide immediate items from any cached page if target page is not yet cached.
  */
@@ -324,6 +326,19 @@ export async function searchExternalAnimeFallback(query) {
       const year = d.aired_on ? d.aired_on.slice(0, 4) : '';
 
       if (title && slug && img) {
+        // Prevent duplicate cards if this anime already exists in catalog cache or DB
+        const cached = getCachedAnime();
+        const existing = cached.find((it) => 
+          it.slug === slug || 
+          it.id === Number(d.id) ||
+          it.id === numericId ||
+          (it.title && title && it.title.trim().toLowerCase() === title.trim().toLowerCase())
+        );
+        if (existing) {
+          newItems.push(existing);
+          continue;
+        }
+
         const itemObj = {
           id: numericId,
           slug,
@@ -345,7 +360,7 @@ export async function searchExternalAnimeFallback(query) {
         appendCachedAnimeItem(itemObj);
       }
     }
-    return newItems;
+    return deduplicateAnimeList(newItems);
   } catch (err) {
     console.warn('External search fallback warning:', err);
     return [];

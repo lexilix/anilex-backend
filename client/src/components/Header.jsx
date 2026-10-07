@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Moon, Sun, User, LogOut, Settings, Bookmark, Bell, Loader2, ShieldAlert } from 'lucide-react';
 import NotificationDropdown from './NotificationDropdown';
 
@@ -24,6 +24,58 @@ export default function Header({
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [localQuery, setLocalQuery] = useState(searchQuery || '');
+  const debounceRef = useRef(null);
+  const isInputFocusedRef = useRef(false);
+
+  // Sync if parent clears or changes search externally (never clobber while typing)
+  useEffect(() => {
+    if (!isInputFocusedRef.current || !searchQuery) {
+      setLocalQuery(searchQuery || '');
+    }
+  }, [searchQuery]);
+
+  const triggerSearch = (val) => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    onSearchChange(val);
+    if (onNavigate && val.trim() && window.location.hash !== '#/' && window.location.hash !== '') {
+      onNavigate('catalog');
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setLocalQuery(val);
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
+      onSearchChange(val);
+      if (onNavigate && val.trim() && window.location.hash !== '#/' && window.location.hash !== '') {
+        onNavigate('catalog');
+      }
+    }, 280);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      triggerSearch(localQuery);
+    }
+  };
+
+  const handleClear = () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    setLocalQuery('');
+    onSearchChange('');
+  };
 
   return (
     <header className="sticky top-0 z-30 bg-[#f5f5f7]/90 dark:bg-[#0e0e11]/90 backdrop-blur-md transition-colors">
@@ -67,21 +119,23 @@ export default function Header({
           <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              onSearchChange(e.target.value);
-              if (onNavigate && e.target.value.trim() && window.location.hash !== '#/' && window.location.hash !== '') {
-                onNavigate('catalog');
-              }
+            value={localQuery}
+            onFocus={() => {
+              isInputFocusedRef.current = true;
             }}
+            onBlur={() => {
+              isInputFocusedRef.current = false;
+            }}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
             placeholder="Поиск по названию аниме..."
             className="w-full pl-10 pr-9 py-2 text-sm rounded-xl bg-neutral-200/70 dark:bg-neutral-800/80 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:bg-white dark:focus:bg-neutral-800 transition-colors"
           />
           {isSearching ? (
             <Loader2 className="w-4 h-4 text-neutral-400 animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          ) : searchQuery ? (
+          ) : localQuery ? (
             <button
-              onClick={() => onSearchChange('')}
+              onClick={handleClear}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
             >
               ✕
@@ -273,21 +327,17 @@ export default function Header({
           <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              onSearchChange(e.target.value);
-              if (onNavigate && e.target.value.trim()) {
-                onNavigate('catalog');
-              }
-            }}
+            value={localQuery}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
             placeholder="Поиск аниме..."
             className="w-full pl-9 pr-8 py-2 text-sm rounded-xl bg-neutral-200/70 dark:bg-neutral-800/80 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400"
           />
           {isSearching ? (
             <Loader2 className="w-4 h-4 text-neutral-400 animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          ) : searchQuery ? (
+          ) : localQuery ? (
             <button
-              onClick={() => onSearchChange('')}
+              onClick={handleClear}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
             >
               ✕

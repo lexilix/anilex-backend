@@ -4,14 +4,27 @@ try {
 } catch (err) {
   if (err.code === 'ERR_UNKNOWN_BUILTIN_MODULE' && !process.execArgv.includes('--experimental-sqlite')) {
     console.log('[Database] Auto-relaunching with --experimental-sqlite flag...');
-    const { spawnSync } = require('node:child_process');
-    const result = spawnSync(process.execPath, ['--experimental-sqlite', ...process.argv.slice(1)], {
+    const { spawn } = require('node:child_process');
+    const child = spawn(process.execPath, ['--experimental-sqlite', ...process.argv.slice(1)], {
       stdio: 'inherit',
       env: process.env
     });
-    process.exit(result.status ?? 0);
+    child.on('exit', (code, signal) => {
+      process.exit(code ?? (signal ? 1 : 0));
+    });
+    child.on('error', (spawnErr) => {
+      console.error('[Database] Failed to spawn child process:', spawnErr);
+      process.exit(1);
+    });
+    ['SIGTERM', 'SIGINT', 'SIGHUP'].forEach((sig) => {
+      process.on(sig, () => {
+        try { child.kill(sig); } catch (e) {}
+      });
+    });
+    return;
   }
 }
+
 
 const { DatabaseSync } = require('node:sqlite');
 const path = require('node:path');
