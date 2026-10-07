@@ -122,12 +122,23 @@ export async function getCachedMediaUrl(rawUrl) {
       }
 
       // 3. Network fetch (with HTTP cache force-cache)
-      const res = await fetch(cleanUrl, {
+      let res = await fetch(cleanUrl, {
         cache: 'force-cache',
         mode: 'cors'
-      });
+      }).catch(() => null);
 
-      if (!res.ok) {
+      // If remote Render /api/uploads returned 404 or network failed, try current host /api/uploads
+      if ((!res || !res.ok) && cleanUrl.includes('/api/uploads/')) {
+        const localPath = '/api/uploads/' + cleanUrl.split('/api/uploads/')[1];
+        if (cleanUrl !== localPath) {
+          const fallbackRes = await fetch(localPath, { cache: 'force-cache' }).catch(() => null);
+          if (fallbackRes && fallbackRes.ok) {
+            res = fallbackRes;
+          }
+        }
+      }
+
+      if (!res || !res.ok) {
         // Fallback to original URL on network/HTTP error
         return cleanUrl;
       }
