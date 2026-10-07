@@ -64,11 +64,7 @@ export default function AuthModal({
       onLoginSuccess(data.user, data.token);
       onClose();
     } catch (err) {
-      if (err.name === 'TimeoutError' || err.message?.includes('timeout') || err.message?.includes('aborted')) {
-        setError('Сервер Render просыпается после паузы (холодный старт Render Free Tier). Нажмите кнопку «Повторить попытку» — контейнер уже активен.');
-      } else {
-        setError(getFriendlyErrorMessage(err));
-      }
+      setError(err.message || 'Не удалось выполнить вход. Пожалуйста, проверьте данные.');
     } finally {
       setLoading(false);
     }
@@ -128,22 +124,11 @@ export default function AuthModal({
 
         {/* Error message */}
         {error && (
-          <div className="mb-4 p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300 text-xs">
+          <div className="mb-4 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/40 text-rose-800 dark:text-rose-300 text-xs">
             <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               <div className="flex-1 space-y-1">
                 <p className="font-medium leading-relaxed">{error}</p>
-                {(error.includes('Render') || error.includes('Сервер')) && (
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={loading}
-                    className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-amber-600/10 hover:bg-amber-600/20 text-amber-700 dark:text-amber-200 font-semibold transition-colors disabled:opacity-50"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-                    Повторить попытку
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -161,7 +146,10 @@ export default function AuthModal({
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (error) setError('');
+                }}
                 placeholder="ваша_почта@example.com"
                 className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-sm placeholder-neutral-400 focus:bg-neutral-200/80 dark:focus:bg-neutral-700/70 transition-colors"
               />
@@ -179,7 +167,10 @@ export default function AuthModal({
                   type="text"
                   required
                   value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
+                  onChange={(e) => {
+                    setNickname(e.target.value);
+                    if (error) setError('');
+                  }}
                   placeholder="Например: Just, Alex, Maria..."
                   className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-sm placeholder-neutral-400 focus:bg-neutral-200/80 dark:focus:bg-neutral-700/70 transition-colors"
                 />
@@ -197,7 +188,10 @@ export default function AuthModal({
                 type="password"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError('');
+                }}
                 placeholder="Минимум 3 символа"
                 className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white text-sm placeholder-neutral-400 focus:bg-neutral-200/80 dark:focus:bg-neutral-700/70 transition-colors"
               />
@@ -212,11 +206,7 @@ export default function AuthModal({
             {loading ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin text-neutral-400" />
-                <span>
-                  {loadingSeconds >= 2
-                    ? `Подключение (${loadingSeconds}с)...`
-                    : 'Загрузка...'}
-                </span>
+                <span>Загрузка...</span>
               </>
             ) : mode === 'register' ? (
               'Зарегистрироваться'
@@ -224,12 +214,6 @@ export default function AuthModal({
               'Войти'
             )}
           </button>
-
-          {loading && loadingSeconds >= 3 && (
-            <p className="text-[11px] text-center text-amber-600/90 dark:text-amber-400/90 mt-2.5 animate-pulse font-medium">
-              Сервер Render просыпается после паузы (~20–30 сек). Пожалуйста, не закрывайте окно...
-            </p>
-          )}
         </form>
       </div>
     </div>

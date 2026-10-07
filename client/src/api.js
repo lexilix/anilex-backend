@@ -98,45 +98,21 @@ export async function apiFetch(endpoint, options = {}, retries = 1) {
   try {
     const res = await fetch(url, fetchOptions);
 
-    // If server returned 503 / 502 / Service Suspended
+    // If server returned 503 / 502
     if (res.status === 503 || res.status === 502) {
       if (retries > 0) {
         await new Promise((r) => setTimeout(r, 800));
         return apiFetch(endpoint, options, retries - 1);
       }
-
-      if (!isServerCurrentlyOffline) {
-        isServerCurrentlyOffline = true;
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('server-status-change', { detail: { offline: true, status: res.status } }));
-        }
-      }
-
-      throw new Error(`Сервер временно недоступен (${res.status}). Все ваши аккаунты сохранены.`);
-    }
-
-    // Success response: restore server status
-    if (isServerCurrentlyOffline) {
-      isServerCurrentlyOffline = false;
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('server-status-change', { detail: { offline: false } }));
-      }
+      throw new Error(`Сервер бэкенда занят или обновляется (${res.status}). Пожалуйста, повторите попытку.`);
     }
 
     return res;
   } catch (err) {
-
     // If it was a network error and we have retries left
     if (retries > 0 && (err.name === 'TypeError' || err.message?.includes('Failed to fetch') || err.name === 'AbortError')) {
       await new Promise((r) => setTimeout(r, 600));
       return apiFetch(endpoint, options, retries - 1);
-    }
-
-    if (!isServerCurrentlyOffline) {
-      isServerCurrentlyOffline = true;
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('server-status-change', { detail: { offline: true, error: err.message } }));
-      }
     }
 
     throw err;

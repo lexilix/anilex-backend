@@ -122,16 +122,7 @@ export default function App() {
   const [user, setUser] = useState(() => getCachedUserProfile());
   const [token, setToken] = useState(() => localStorage.getItem('anime_auth_token') || '');
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [isServerOffline, setIsServerOffline] = useState(false);
 
-  // Listen to global server offline/online events from api.js
-  useEffect(() => {
-    const handleServerStatus = (e) => {
-      setIsServerOffline(Boolean(e.detail?.offline));
-    };
-    window.addEventListener('server-status-change', handleServerStatus);
-    return () => window.removeEventListener('server-status-change', handleServerStatus);
-  }, []);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -1403,37 +1394,6 @@ export default function App() {
         onRejectFriendNotification={handleRejectFriendNotification}
         onNavigateAnimeNotification={handleNavigateAnimeNotification}
       />
-
-      {/* Offline / Sleeping Server Banner */}
-      {isServerOffline && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-700 dark:text-amber-300 px-4 py-2 text-xs sm:text-sm">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              <span>
-                <strong>Сервер бэкенда прогревается (Render).</strong> Все ваши данные сохранены. Связь восстановится автоматически.
-              </span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleCheckServerConnection}
-                className="px-3 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-800 dark:text-amber-200 text-xs font-semibold transition-colors"
-              >
-                Проверить
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsServerOffline(false)}
-                className="px-2 py-1 rounded-xl text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 text-xs transition-colors"
-                title="Скрыть"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
