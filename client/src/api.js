@@ -77,13 +77,13 @@ export function getFriendlyErrorMessage(err) {
     msg.includes('Unexpected token') ||
     msg.includes('Service Suspended')
   ) {
-    return 'Сервер бэкенда временно «спит» или переподключается. Все ваши аккаунты и оценки сохранены в безопасности. Подождите 15–30 секунд и повторите попытку.';
+    return 'Не удалось связаться с сервером. Пожалуйста, повторите попытку.';
   }
   return msg || 'Произошла непредвиденная ошибка';
 }
 
 /**
- * Resilient fetch with mirror failover and server status notification
+ * Resilient fetch with automatic timeout and retry handling
  */
 export async function apiFetch(endpoint, options = {}, retries = 1) {
   const url = apiUrl(endpoint);
@@ -92,7 +92,8 @@ export async function apiFetch(endpoint, options = {}, retries = 1) {
     ...options,
     headers: {
       ...(options.headers || {})
-    }
+    },
+    signal: options.signal || AbortSignal.timeout(15000)
   };
 
   try {
@@ -101,18 +102,20 @@ export async function apiFetch(endpoint, options = {}, retries = 1) {
     // If server returned 503 / 502
     if (res.status === 503 || res.status === 502) {
       if (retries > 0) {
-        await new Promise((r) => setTimeout(r, 800));
-        return apiFetch(endpoint, options, retries - 1);
+        await new Promise((r) => setTimeout(r, 600));
+        const { signal, ...restOptions } = options;
+        return apiFetch(endpoint, restOptions, retries - 1);
       }
       throw new Error(`Сервер бэкенда занят или обновляется (${res.status}). Пожалуйста, повторите попытку.`);
     }
 
     return res;
   } catch (err) {
-    // If it was a network error and we have retries left
-    if (retries > 0 && (err.name === 'TypeError' || err.message?.includes('Failed to fetch') || err.name === 'AbortError')) {
+    // If it was a network/timeout error and we have retries left
+    if (retries > 0 && (err.name === 'TypeError' || err.message?.includes('Failed to fetch') || err.name === 'AbortError' || err.name === 'TimeoutError')) {
       await new Promise((r) => setTimeout(r, 600));
-      return apiFetch(endpoint, options, retries - 1);
+      const { signal, ...restOptions } = options;
+      return apiFetch(endpoint, restOptions, retries - 1);
     }
 
     throw err;

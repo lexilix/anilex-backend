@@ -46,15 +46,14 @@ export default function AuthModal({
       const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(45000)
-      }, 2);
+        body: JSON.stringify(body)
+      }, 1);
 
       let data;
       try {
         data = await res.json();
       } catch (jsonErr) {
-        throw new Error('Сервер бэкенда ещё прогревается. Подождите несколько секунд и нажмите «Повторить».');
+        throw new Error('Сервер обрабатывает запрос. Пожалуйста, повторите попытку через пару секунд.');
       }
 
       if (!res.ok) {

