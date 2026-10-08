@@ -17,12 +17,58 @@ export default function AnimeDetailPage({
   onGenreClick,
   onRequireAuth,
   onSelectAnime,
-  onRateAnime
+  onRateAnime,
+  initialAnime = null
 }) {
   const [anime, setAnime] = useState(() => {
     try {
-      const edits = getCustomAnimeEdits();
-      return edits[Number(animeId)] || null;
+      const numId = Number(animeId);
+      let found = initialAnime ? { ...initialAnime } : null;
+
+      if (!found) {
+        const edits = getCustomAnimeEdits();
+        if (edits[numId]) found = { ...edits[numId] };
+      }
+
+      if (!found && Array.isArray(initialCatalog)) {
+        const fromCat = initialCatalog.find(
+          (a) =>
+            Number(a.id) === numId ||
+            a.slug === String(animeId) ||
+            (Array.isArray(a.aliasIds) && a.aliasIds.map(Number).includes(numId))
+        );
+        if (fromCat) found = { ...fromCat };
+      }
+
+      if (!found) {
+        const allCached = getAllCachedAnime();
+        const fromCached = allCached.find(
+          (a) =>
+            Number(a.id) === numId ||
+            a.slug === String(animeId) ||
+            (Array.isArray(a.aliasIds) && a.aliasIds.map(Number).includes(numId))
+        );
+        if (fromCached) found = { ...fromCached };
+      }
+
+      if (found) {
+        found = applyCustomAnimeEdits(found);
+        const currentUserId = user?.id || getCachedUserProfile()?.id;
+        if (currentUserId) {
+          const cachedRatings = getCachedUserRatings(currentUserId);
+          if (Array.isArray(cachedRatings)) {
+            const match = cachedRatings.find((r) =>
+              Number(r.id) === Number(found.id) ||
+              (Array.isArray(found.aliasIds) && found.aliasIds.map(Number).includes(Number(r.id))) ||
+              (found.title && r.title && found.title.trim().toLowerCase() === r.title.trim().toLowerCase())
+            );
+            found.myScore = match ? Number(match.myScore) : null;
+          }
+        }
+        found.isFavorite = isAnimeFavoritedLocally(found.id || animeId, user?.id);
+        return found;
+      }
+      return null;
     } catch (e) {
       return null;
     }
@@ -35,13 +81,7 @@ export default function AnimeDetailPage({
   const [ratingLoading, setRatingLoading] = useState(false);
   const [hideLoading, setHideLoading] = useState(false);
   const [imgSrc, setImgSrc] = useState(() => {
-    try {
-      const edits = getCustomAnimeEdits();
-      const custom = edits[Number(animeId)];
-      return custom ? (custom.imageUrl || custom.image_url || '') : '';
-    } catch (e) {
-      return '';
-    }
+    return anime ? (anime.imageUrl || anime.image_url || '') : '';
   });
   const [imageFailed, setImageFailed] = useState(false);
   const [triedProxy, setTriedProxy] = useState(false);
@@ -497,7 +537,10 @@ export default function AnimeDetailPage({
     try {
       const token = localStorage.getItem('anime_auth_token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(apiUrl(`/api/anime/${animeId}`), { headers });
+      const res = await fetch(apiUrl(`/api/anime/${animeId}`), {
+        headers,
+        signal: AbortSignal.timeout(3500)
+      });
       let data;
       if (res.ok) {
         data = await res.json();
@@ -554,32 +597,25 @@ export default function AnimeDetailPage({
       }
 
       const currentUserId = user?.id || getCachedUserProfile()?.id;
-      if (currentUserId && (data.myScore === null || data.myScore === undefined)) {
-        // 1. Check if user's own rating is present in friendsRatings list returned by server
-        if (Array.isArray(data.friendsRatings) && data.friendsRatings.length > 0) {
+      if (currentUserId) {
+        if (data.myScore !== null && data.myScore !== undefined) {
+          data.myScore = Number(data.myScore);
+        } else if (Array.isArray(data.friendsRatings) && data.friendsRatings.length > 0) {
+          // If server didn't set myScore directly, check friendsRatings list for user's entry
           const myInRatings = data.friendsRatings.find(
             (f) =>
-              (currentUserId && Number(f.userId) === Number(currentUserId)) ||
+              (Number(f.userId) === Number(currentUserId)) ||
               (user?.nickname && f.nickname?.toLowerCase() === user.nickname?.toLowerCase()) ||
               f.isMe
           );
           if (myInRatings && myInRatings.score !== null && myInRatings.score !== undefined) {
             data.myScore = Number(myInRatings.score);
+          } else {
+            data.myScore = null;
           }
-        }
-
-        // 2. Fallback to cached ratings strictly by ID or exact title
-        if (data.myScore === null || data.myScore === undefined) {
-          const cachedRatings = getCachedUserRatings(currentUserId) || [];
-          const match = cachedRatings.find((r) => {
-            if (Number(r.id) === Number(data.id)) return true;
-            if (Array.isArray(data.aliasIds) && data.aliasIds.map(Number).includes(Number(r.id))) return true;
-            if (data.title && r.title && data.title.trim().toLowerCase() === r.title.trim().toLowerCase()) return true;
-            return false;
-          });
-          if (match && match.myScore !== null && match.myScore !== undefined) {
-            data.myScore = Number(match.myScore);
-          }
+        } else {
+          // Explicit null score from server means user has no rating
+          data.myScore = null;
         }
       }
 
@@ -598,15 +634,22 @@ export default function AnimeDetailPage({
             (a) => Number(a.id) === numId || a.slug === animeId || (Array.isArray(a.aliasIds) && a.aliasIds.map(Number).includes(numId))
           );
         }
+        if (!custom) {
+          const allCached = getAllCachedAnime();
+          custom = allCached.find(
+            (a) => Number(a.id) === Number(animeId) || a.slug === animeId
+          );
+        }
         if (custom) {
-          if (custom.myScore === null || custom.myScore === undefined) {
-            const currentUserId = user?.id || getCachedUserProfile()?.id;
-            if (currentUserId) {
-              const cachedRatings = getCachedUserRatings(currentUserId);
-              const match = (cachedRatings || []).find((r) => Number(r.id) === Number(custom.id));
-              if (match && match.myScore !== null && match.myScore !== undefined) {
-                custom.myScore = Number(match.myScore);
-              }
+          const currentUserId = user?.id || getCachedUserProfile()?.id;
+          if (currentUserId && (custom.myScore === null || custom.myScore === undefined)) {
+            const cachedRatings = getCachedUserRatings(currentUserId);
+            const match = (cachedRatings || []).find((r) =>
+              Number(r.id) === Number(custom.id) ||
+              (custom.title && r.title && custom.title.trim().toLowerCase() === r.title.trim().toLowerCase())
+            );
+            if (match && match.myScore !== null && match.myScore !== undefined) {
+              custom.myScore = Number(match.myScore);
             }
           }
           setAnime(custom);
@@ -627,7 +670,10 @@ export default function AnimeDetailPage({
     try {
       const token = localStorage.getItem('anime_auth_token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(apiUrl(`/api/anime/${animeId}/comments`), { headers });
+      const res = await fetch(apiUrl(`/api/anime/${animeId}/comments`), {
+        headers,
+        signal: AbortSignal.timeout(3500)
+      });
       if (res.ok) {
         const data = await res.json();
         setComments(data.comments || []);

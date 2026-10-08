@@ -373,7 +373,8 @@ export default function ProfilePage({
       if (!token) return;
 
       const res = await fetch(apiUrl('/api/user/rated-anime'), {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(4000)
       });
       if (res.ok) {
         const data = await res.json();
@@ -383,33 +384,6 @@ export default function ProfilePage({
 
         if (isJust) {
           allItems = allItems.filter(it => !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)));
-        }
-
-        // Merge with locally cached user ratings (excluding any unwanted blacklist items)
-        const cachedRatings = (getCachedUserRatings(user?.id) || []).filter(it => {
-          if (isJust) {
-            return !UNWANTED_JUST_ZERO_IDS.has(Number(it.id));
-          }
-          return true;
-        });
-
-        if (cachedRatings.length > 0) {
-          const allMap = new Map();
-          allItems.forEach((it) => allMap.set(Number(it.id), it));
-
-          cachedRatings.forEach((cached) => {
-            const cId = Number(cached.id);
-            if (!allMap.has(cId)) {
-              allMap.set(cId, cached);
-            } else {
-              const existing = allMap.get(cId);
-              // Server is source of truth: only use cached score if server score is missing
-              if ((existing.myScore === null || existing.myScore === undefined) && cached.myScore !== null && cached.myScore !== undefined) {
-                existing.myScore = cached.myScore;
-              }
-            }
-          });
-          allItems = deduplicateAnimeList(Array.from(allMap.values()));
         }
 
         if (isJust) {
@@ -426,7 +400,7 @@ export default function ProfilePage({
           });
         }
 
-        // Always update totalRatedCount and save complete cached ratings
+        // Always update totalRatedCount and save complete authoritative ratings
         setTotalRatedCount(allItems.length);
         setCachedUserRatings(user?.id, allItems);
 
@@ -821,15 +795,24 @@ export default function ProfilePage({
   const handleDeleteRating = async (e, animeId) => {
     e.stopPropagation();
     const numId = Number(animeId);
+    const targetAnime = ratedAnime.find((it) =>
+      Number(it.id) === numId ||
+      (Array.isArray(it.aliasIds) && it.aliasIds.map(Number).includes(numId))
+    );
     try {
       // Optimistically remove from state and decrement total count
-      setRatedAnime((prev) => prev.filter((it) => Number(it.id) !== numId));
+      setRatedAnime((prev) =>
+        prev.filter((it) =>
+          Number(it.id) !== numId &&
+          !(Array.isArray(it.aliasIds) && it.aliasIds.map(Number).includes(numId))
+        )
+      );
       setTotalRatedCount((prev) => Math.max(0, prev - 1));
 
       if (onRateAnime) {
-        await onRateAnime(animeId, null);
+        await onRateAnime(animeId, null, targetAnime);
       } else {
-        const cacheResult = updateCachedUserRating(user?.id, animeId, null);
+        const cacheResult = updateCachedUserRating(user?.id, animeId, null, targetAnime);
         if (cacheResult?.count !== undefined) {
           setTotalRatedCount(cacheResult.count);
         }

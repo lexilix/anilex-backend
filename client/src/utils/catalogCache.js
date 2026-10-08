@@ -390,7 +390,8 @@ export function updateCachedAnimeItem(animeIdOrItem, updates = null) {
           if (data && Array.isArray(data.items)) {
             let modified = false;
             data.items = data.items.map((item) => {
-              const matchesId = Number(item.id) === numId || (Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId));
+              const matchesTitle = patch.title && item.title && item.title.trim().toLowerCase() === patch.title.trim().toLowerCase();
+              const matchesId = Number(item.id) === numId || (Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId)) || matchesTitle;
               if (matchesId) {
                 modified = true;
                 return { ...item, ...patch };

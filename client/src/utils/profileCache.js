@@ -95,7 +95,9 @@ export function updateCachedUserRating(userId, animeId, score, animeData = null)
       // Remove rating
       list = list.filter((it) => {
         if (Number(it.id) === numId) return false;
+        if (Array.isArray(it.aliasIds) && it.aliasIds.map(Number).includes(numId)) return false;
         if (animeTitle && it.title && it.title.trim().toLowerCase() === animeTitle) return false;
+        if (Array.isArray(animeData?.aliasIds) && animeData.aliasIds.map(Number).includes(Number(it.id))) return false;
         return true;
       });
     } else {

@@ -101,10 +101,10 @@ function overlayUserRatings(items, userId) {
         ...item,
         myScore: Number(matched.myScore)
       };
-    } else if (item.myScore !== null && item.myScore !== undefined) {
+    } else {
       updated = {
         ...item,
-        myScore: Number(item.myScore)
+        myScore: null
       };
     }
     return {
@@ -1402,6 +1402,11 @@ export default function App() {
         {view === 'anime-detail' && selectedAnimeId && (
           <AnimeDetailPage
             animeId={selectedAnimeId}
+            initialAnime={
+              animeList.find((a) => Number(a.id) === Number(selectedAnimeId) || a.slug === selectedAnimeId || (Array.isArray(a.aliasIds) && a.aliasIds.map(Number).includes(Number(selectedAnimeId)))) ||
+              getAllCachedAnime().find((a) => Number(a.id) === Number(selectedAnimeId) || a.slug === selectedAnimeId) ||
+              (Array.isArray(initialCatalog) ? initialCatalog.find((a) => Number(a.id) === Number(selectedAnimeId) || a.slug === selectedAnimeId) : null)
+            }
             user={user}
             onBack={() => navigateTo('catalog')}
             onGenreClick={handleGenreClick}
