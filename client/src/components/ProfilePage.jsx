@@ -4,6 +4,7 @@ import { getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, apiFetch, getImageUrl } from '../api';
 import { getUserLevel, LEVELS_CONFIG } from '../utils/levels';
 import { getStoredHiddenAnimeList, setAnimeHiddenLocally, toggleHiddenAnime } from '../utils/hiddenStorage';
+import { getStoredFavoriteAnimeList, toggleFavoriteAnime, isAnimeFavoritedLocally } from '../utils/favoritesStorage';
 import { getCachedUserRatings, setCachedUserRatings, updateCachedUserRating } from '../utils/profileCache';
 import { executeImportWorkflow } from '../utils/importer';
 import { deduplicateAnimeList } from '../utils/animeDeduplicator';
@@ -191,8 +192,8 @@ export default function ProfilePage({
 
 
   // Favorites state
-  const [favoritesList, setFavoritesList] = useState([]);
-  const [favLoading, setFavLoading] = useState(true);
+  const [favoritesList, setFavoritesList] = useState(() => getStoredFavoriteAnimeList(user?.id));
+  const [favLoading, setFavLoading] = useState(false);
   const [favSearchQuery, setFavSearchQuery] = useState('');
   const [favType, setFavType] = useState('all');
   const [activeFavGenres, setActiveFavGenres] = useState([]);
@@ -635,7 +636,12 @@ export default function ProfilePage({
 
   // Fetch favorites
   const fetchFavorites = useCallback(async () => {
-    setFavLoading(true);
+    // 1. Immediately read latest local stored favorites
+    const localStored = getStoredFavoriteAnimeList(user?.id);
+    if (localStored.length > 0) {
+      setFavoritesList(deduplicateAnimeList(localStored));
+    }
+
     try {
       const token = localStorage.getItem('anime_auth_token');
       if (!token) return;
@@ -650,14 +656,16 @@ export default function ProfilePage({
       });
       if (res.ok) {
         const data = await res.json();
-        setFavoritesList(deduplicateAnimeList(data.items || []));
+        if (Array.isArray(data.items) && data.items.length > 0) {
+          setFavoritesList(deduplicateAnimeList(data.items));
+        }
       }
     } catch (err) {
-      console.error('Error fetching favorites:', err);
+      console.warn('Network fetch for favorites failed, using local list:', err);
     } finally {
       setFavLoading(false);
     }
-  }, [favSearchQuery, favType, activeFavGenres]);
+  }, [favSearchQuery, favType, activeFavGenres, user?.id]);
 
   useEffect(() => {
     if (activeTab === 'favorites') {
@@ -665,24 +673,37 @@ export default function ProfilePage({
     }
   }, [activeTab, fetchFavorites]);
 
+  // Listen for favorite updates anywhere in the app to keep ProfilePage in sync
+  useEffect(() => {
+    const handleFavUpdated = (e) => {
+      const { animeId, isFavorite: nextFav, anime: updatedAnime } = e.detail || {};
+      if (!animeId) return;
+      const numId = Number(animeId);
+      if (!nextFav) {
+        setFavoritesList((prev) => prev.filter((it) => Number(it.id) !== numId && !(Array.isArray(it.aliasIds) && it.aliasIds.map(Number).includes(numId))));
+      } else if (updatedAnime) {
+        setFavoritesList((prev) => {
+          const exists = prev.some((it) => Number(it.id) === numId || (Array.isArray(it.aliasIds) && it.aliasIds.map(Number).includes(numId)));
+          if (exists) return prev;
+          return [{ ...updatedAnime, isFavorite: true }, ...prev];
+        });
+      }
+    };
+    window.addEventListener('anilex:favorite-updated', handleFavUpdated);
+    return () => window.removeEventListener('anilex:favorite-updated', handleFavUpdated);
+  }, []);
+
   // Quick remove from favorites
   const handleRemoveFavorite = async (e, animeId) => {
     e.stopPropagation();
-    try {
-      const token = localStorage.getItem('anime_auth_token');
-      if (!token) return;
-
-      const res = await fetch(apiUrl(`/api/anime/${animeId}/favorite`), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setFavoritesList((prev) => prev.filter((it) => it.id !== animeId));
-        if (onToggleFavorite) onToggleFavorite(animeId);
-      }
-    } catch (err) {
-      console.error('Error removing favorite:', err);
-    }
+    const numId = Number(animeId);
+    const animeObj = favoritesList.find((it) => Number(it.id) === numId) || { id: numId };
+    const token = localStorage.getItem('anime_auth_token');
+    
+    // Optimistic removal (0ms)
+    setFavoritesList((prev) => prev.filter((it) => Number(it.id) !== numId));
+    await toggleFavoriteAnime(animeObj, token, user?.id, false);
+    if (onToggleFavorite) onToggleFavorite(numId);
   };
 
   // Fetch hidden anime ('Не интересует')
@@ -2073,9 +2094,9 @@ export default function ProfilePage({
                           type="button"
                           onClick={(e) => handleRemoveFavorite(e, anime.id)}
                           title="Удалить из избранного"
-                          className="p-1 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                          className="p-1 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all active-bounce cursor-pointer"
                         >
-                          <Bookmark className="w-3.5 h-3.5 fill-current text-neutral-900 dark:text-white hover:text-red-500" />
+                          <Bookmark className="w-3.5 h-3.5 fill-current text-neutral-900 dark:text-white hover:text-red-500 transition-transform duration-200" />
                         </button>
                       </div>
 

@@ -4,6 +4,7 @@ import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
 import { getImageUrl, getImageProxyUrl, apiUrl } from '../api';
 import { resolveImageSrc, getCachedImageUrl } from '../utils/imageCache';
 import { isAnimeHiddenLocally } from '../utils/hiddenStorage';
+import { isAnimeFavoritedLocally, toggleFavoriteAnime } from '../utils/favoritesStorage';
 import { getCachedUserRatings, getCachedUserProfile, updateCachedUserRating } from '../utils/profileCache';
 
 export default function AnimeCard({
@@ -176,9 +177,40 @@ export default function AnimeCard({
     return () => window.removeEventListener('anilex:rating-updated', handleRatingUpdated);
   }, [anime.id, anime.aliasIds, anime.title]);
 
+  // Optimistic favorite state synced with props and persistent local storage
+  const [localFavorite, setLocalFavorite] = useState(() => {
+    return Boolean(anime.isFavorite) || isAnimeFavoritedLocally(anime.id, user?.id);
+  });
+  const [favoriteAnimate, setFavoriteAnimate] = useState(false);
+
+  useEffect(() => {
+    setLocalFavorite(Boolean(anime.isFavorite) || isAnimeFavoritedLocally(anime.id, user?.id));
+  }, [anime.isFavorite, anime.id, user?.id]);
+
+  // Live listener for real-time favorite toggle across catalog, search, and profile
+  useEffect(() => {
+    const handleFavoriteUpdated = (e) => {
+      const { animeId, isFavorite: nextFav } = e.detail || {};
+      if (!animeId) return;
+      const numId = Number(animeId);
+      const isMatch =
+        Number(anime.id) === numId ||
+        (Array.isArray(anime.aliasIds) && anime.aliasIds.map(Number).includes(numId));
+      if (isMatch) {
+        setLocalFavorite(Boolean(nextFav));
+        if (nextFav) {
+          setFavoriteAnimate(true);
+          setTimeout(() => setFavoriteAnimate(false), 500);
+        }
+      }
+    };
+    window.addEventListener('anilex:favorite-updated', handleFavoriteUpdated);
+    return () => window.removeEventListener('anilex:favorite-updated', handleFavoriteUpdated);
+  }, [anime.id, anime.aliasIds]);
+
   // User's rating and community stats
   const myScore = localScore !== undefined ? localScore : (anime.myScore !== undefined ? anime.myScore : null);
-  const isFavorite = anime.isFavorite;
+  const isFavorite = localFavorite;
   const isHidden = localHidden;
   const averageScore = anime.averageScore;
   const ratingCount = anime.ratingCount || 0;
@@ -397,13 +429,13 @@ export default function AnimeCard({
                 onClick={handleFavoriteClick}
                 disabled={favLoading}
                 title={isFavorite ? 'В избранном' : 'Добавить в избранное'}
-                className={`p-1.5 rounded-xl transition-all flex items-center justify-center shrink-0 ${
+                className={`p-1.5 rounded-xl transition-all flex items-center justify-center shrink-0 active-bounce cursor-pointer ${
                   isFavorite
-                    ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
+                    ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 shadow-sm'
                     : 'text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800/80'
                 }`}
               >
-                <Bookmark className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+                <Bookmark className={`w-4 h-4 transition-transform duration-200 ${isFavorite ? 'fill-current' : ''} ${favoriteAnimate ? 'animate-bookmark-pop' : ''}`} />
               </button>
             </div>
           </div>

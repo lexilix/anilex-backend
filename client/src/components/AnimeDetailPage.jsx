@@ -7,6 +7,7 @@ import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 import { applyCustomAnimeEdits, getCustomAnimeEdits } from '../utils/customEditsStorage';
 import { getAllCachedAnime, updateCachedAnimeItem } from '../utils/catalogCache';
 import { getCachedUserRatings, getCachedUserProfile, updateCachedUserRating } from '../utils/profileCache';
+import { isAnimeFavoritedLocally, toggleFavoriteAnime } from '../utils/favoritesStorage';
 import initialCatalog from '../data/initialCatalog.json';
 
 export default function AnimeDetailPage({
@@ -44,6 +45,27 @@ export default function AnimeDetailPage({
   });
   const [imageFailed, setImageFailed] = useState(false);
   const [triedProxy, setTriedProxy] = useState(false);
+  const [favoriteAnimate, setFavoriteAnimate] = useState(false);
+
+  // Sync favorite with local storage and listen for updates
+  useEffect(() => {
+    if (animeId) {
+      const isFav = isAnimeFavoritedLocally(animeId, user?.id);
+      setAnime((prev) => (prev ? { ...prev, isFavorite: isFav || Boolean(prev.isFavorite) } : prev));
+    }
+    const handleFavUpdated = (e) => {
+      const { animeId: evId, isFavorite: nextFav } = e.detail || {};
+      if (Number(evId) === Number(animeId)) {
+        setAnime((prev) => (prev ? { ...prev, isFavorite: Boolean(nextFav) } : prev));
+        if (nextFav) {
+          setFavoriteAnimate(true);
+          setTimeout(() => setFavoriteAnimate(false), 500);
+        }
+      }
+    };
+    window.addEventListener('anilex:favorite-updated', handleFavUpdated);
+    return () => window.removeEventListener('anilex:favorite-updated', handleFavUpdated);
+  }, [animeId, user?.id]);
 
   // Top-5 state (max 5 allowed - Photo 1 & 2)
   const [myTop5Ids, setMyTop5Ids] = useState(() => {
@@ -442,19 +464,9 @@ export default function AnimeDetailPage({
       onRequireAuth();
       return;
     }
-    try {
-      const token = localStorage.getItem('anime_auth_token');
-      const res = await fetch(apiUrl(`/api/anime/${animeId}/favorite`), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAnime((prev) => ({ ...prev, isFavorite: data.isFavorite }));
-      }
-    } catch (err) {
-      console.error('Toggle favorite error:', err);
-    }
+    const token = localStorage.getItem('anime_auth_token');
+    const nextState = await toggleFavoriteAnime(anime || { id: animeId }, token, user?.id);
+    setAnime((prev) => (prev ? { ...prev, isFavorite: nextState } : prev));
   };
 
   const handleToggleHide = async () => {
@@ -975,13 +987,13 @@ export default function AnimeDetailPage({
 
           <button
             onClick={handleToggleFavorite}
-            className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold transition-colors shadow-sm ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold transition-all shadow-sm active-bounce cursor-pointer ${
               anime.isFavorite
                 ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
                 : 'bg-white dark:bg-[#151518] text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
             }`}
           >
-            <Bookmark className={`w-4 h-4 ${anime.isFavorite ? 'fill-current' : ''}`} />
+            <Bookmark className={`w-4 h-4 transition-transform duration-200 ${anime.isFavorite ? 'fill-current' : ''} ${favoriteAnimate ? 'animate-bookmark-pop' : ''}`} />
             <span>{anime.isFavorite ? 'В избранном' : 'В избранное'}</span>
           </button>
         </div>

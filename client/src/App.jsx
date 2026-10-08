@@ -27,6 +27,7 @@ import {
   removeCachedAnimeItem
 } from './utils/catalogCache';
 import { getHiddenAnimeIds, toggleHiddenAnime } from './utils/hiddenStorage';
+import { getFavoriteAnimeIds, toggleFavoriteAnime, isAnimeFavoritedLocally } from './utils/favoritesStorage';
 import { getCachedUserProfile, setCachedUserProfile, clearCachedUserProfile, updateCachedUserRating, getCachedUserRatings } from './utils/profileCache';
 import { deduplicateAnimeList } from './utils/animeDeduplicator';
 import { getCustomAnimeEdits, saveCustomAnimeEdit, applyCustomAnimeEdits } from './utils/customEditsStorage';
@@ -42,6 +43,7 @@ function overlayUserRatings(items, userId) {
 
   const idMap = new Map();
   const titleMap = new Map();
+  const favIds = getFavoriteAnimeIds(targetUserId);
 
   for (const r of userRatings) {
     if (!r) continue;
@@ -91,19 +93,24 @@ function overlayUserRatings(items, userId) {
       }
     }
 
+    const isFav = favIds.has(numId) || (Array.isArray(item.aliasIds) && item.aliasIds.some((a) => favIds.has(Number(a)))) || Boolean(item.isFavorite);
+
+    let updated = item;
     if (matched && matched.myScore !== null && matched.myScore !== undefined) {
-      return {
+      updated = {
         ...item,
         myScore: Number(matched.myScore)
       };
-    }
-    if (item.myScore !== null && item.myScore !== undefined) {
-      return {
+    } else if (item.myScore !== null && item.myScore !== undefined) {
+      updated = {
         ...item,
         myScore: Number(item.myScore)
       };
     }
-    return item;
+    return {
+      ...updated,
+      isFavorite: isFav
+    };
   });
 }
 
@@ -1098,31 +1105,24 @@ export default function App() {
 
   // Toggle Favorite handler
   const handleToggleFavorite = async (animeId) => {
-    if (!token) {
+    if (!token && !user) {
       setAuthModalOpen(true);
       return;
     }
 
-    try {
-      const res = await fetch(apiUrl(`/api/anime/${animeId}/favorite`), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    const animeObj = animeList.find(
+      (item) => item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId))
+    ) || { id: animeId };
 
-      if (!res.ok) throw new Error('Favorite toggle failed');
+    const nextState = await toggleFavoriteAnime(animeObj, token, user?.id);
 
-      const data = await res.json();
-
-      setAnimeList((prev) =>
-        prev.map((item) =>
-          (item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId)))
-            ? { ...item, isFavorite: data.isFavorite }
-            : item
-        )
-      );
-    } catch (err) {
-      console.error('Favorite toggle error:', err);
-    }
+    setAnimeList((prev) =>
+      prev.map((item) =>
+        item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId))
+          ? { ...item, isFavorite: nextState }
+          : item
+      )
+    );
   };
 
   // Toggle Hide ("Не интересует") handler
