@@ -361,13 +361,18 @@ export default function SimilarAnimeFeed({
                 {/* Poster Box */}
                 <div className="relative w-full aspect-[2/3] rounded-2xl overflow-hidden bg-neutral-200 dark:bg-neutral-800 shadow-xs border border-neutral-200/60 dark:border-neutral-800 group-hover:border-amber-500/50 dark:group-hover:border-amber-400/50 group-hover:shadow-md transition-all duration-300">
                   <img
-                    src={getImageUrl(item.imageUrl)}
+                    src={getImageUrl(item.imageUrl, item.id)}
                     alt={item.title}
                     loading="lazy"
                     decoding="async"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     onError={(e) => {
-                      e.target.style.display = 'none';
+                      const raw = item.imageUrl || item.image_url;
+                      if (e.target.src.includes('/covers/') && raw && raw !== e.target.src) {
+                        e.target.src = raw;
+                      } else {
+                        e.target.style.display = 'none';
+                      }
                     }}
                   />
 

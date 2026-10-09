@@ -42,12 +42,15 @@ export const apiUrl = (endpoint, useBase = null) => {
  * Returns image URL for external anime posters.
  * Directly loads external CDN images with no-referrer to save 100% of server bandwidth!
  */
-export const getImageUrl = (url) => {
+export const getImageUrl = (url, animeId) => {
+  if (animeId && Number(animeId) > 0) {
+    return `/covers/${Number(animeId)}.webp`;
+  }
   if (!url) return '';
   if (url.startsWith('data:') || url.startsWith('blob:')) {
     return url;
   }
-  if (url.startsWith('/api/uploads') || url.startsWith('/uploads')) {
+  if (url.startsWith('/covers/') || url.startsWith('/api/uploads') || url.startsWith('/uploads')) {
     // Hosted directly on the fast Firebase Hosting global CDN for instant 0ms delivery
     return url;
   }

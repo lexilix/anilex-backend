@@ -16,3 +16,7 @@ yarn-error.log*
 !data/anime_ratings.db
 scratch/
 backend_backup*/
+cloudflared.exe
+data/anime.db
+data/image_cache/
+data/backups/

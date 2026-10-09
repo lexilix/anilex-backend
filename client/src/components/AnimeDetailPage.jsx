@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Star, MessageSquare, Send, Trash2, Calendar, Film, User, Bookmark, EyeOff, ThumbsUp, ThumbsDown, CornerDownRight, Lock } from 'lucide-react';
 import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, getImageUrl, getImageProxyUrl } from '../api';
+import { resolveImageSrc } from '../utils/imageCache';
 import SimilarAnimeFeed from './SimilarAnimeFeed';
 import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 import { applyCustomAnimeEdits, getCustomAnimeEdits } from '../utils/customEditsStorage';
@@ -81,9 +82,10 @@ export default function AnimeDetailPage({
   const [ratingLoading, setRatingLoading] = useState(false);
   const [hideLoading, setHideLoading] = useState(false);
   const [imgSrc, setImgSrc] = useState(() => {
-    return anime ? (anime.imageUrl || anime.image_url || '') : '';
+    return resolveImageSrc(anime?.imageUrl || anime?.image_url, anime?.id || animeId);
   });
   const [imageFailed, setImageFailed] = useState(false);
+  const [triedFallback, setTriedFallback] = useState(false);
   const [triedProxy, setTriedProxy] = useState(false);
   const [favoriteAnimate, setFavoriteAnimate] = useState(false);
 
@@ -620,8 +622,9 @@ export default function AnimeDetailPage({
       }
 
       setAnime(data);
-      setImgSrc(data.imageUrl || data.image_url);
+      setImgSrc(resolveImageSrc(data.imageUrl || data.image_url, data.id || animeId));
       setImageFailed(false);
+      setTriedFallback(false);
       setTriedProxy(false);
     } catch (err) {
       console.error('Error loading anime details:', err);
@@ -653,7 +656,7 @@ export default function AnimeDetailPage({
             }
           }
           setAnime(custom);
-          setImgSrc(custom.imageUrl || custom.image_url);
+          setImgSrc(resolveImageSrc(custom.imageUrl || custom.image_url, custom.id || animeId));
         }
       } catch (e) {}
     } finally {
@@ -702,7 +705,7 @@ export default function AnimeDetailPage({
         (anime?.aliasIds && anime.aliasIds.map(Number).includes(uId));
       if (isCurrentAnime) {
         setAnime((prev) => applyCustomAnimeEdits({ ...(prev || {}), ...updated }));
-        setImgSrc(updated.imageUrl || updated.image_url);
+        setImgSrc(resolveImageSrc(updated.imageUrl || updated.image_url, updated.id || animeId));
       }
       // Re-fetch related franchise anime so linking changes appear immediately!
       fetchRelatedAnime();
@@ -712,7 +715,12 @@ export default function AnimeDetailPage({
   }, [animeId, anime?.aliasIds, anime?.id]);
 
   const handleImageError = () => {
-    const raw = anime?.imageUrl || anime?.image_url;
+    const raw = anime?.imageUrl || anime?.image_url || anime?.fallbackImageUrl;
+    if (imgSrc && imgSrc.startsWith('/covers/') && raw && raw !== imgSrc && !triedFallback) {
+      setTriedFallback(true);
+      setImgSrc(raw);
+      return;
+    }
     if (!triedProxy && raw && !imgSrc?.includes('/api/proxy-image')) {
       setTriedProxy(true);
       setImgSrc(getImageProxyUrl(raw));
@@ -1308,7 +1316,7 @@ export default function AnimeDetailPage({
                   {/* Thumbnail */}
                   <div className="w-12 h-16 rounded-xl overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0 relative">
                     <img
-                      src={getImageUrl(item.imageUrl)}
+                      src={getImageUrl(item.imageUrl, item.id)}
                       alt={item.title}
                       className="w-full h-full object-cover"
                       onError={(e) => { e.target.style.display = 'none'; }}

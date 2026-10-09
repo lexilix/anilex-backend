@@ -284,7 +284,7 @@ export default function FeaturedCarousel({
                 {/* Poster */}
                 <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-neutral-800 mb-2 transition-transform duration-200 group-hover:scale-[1.02]">
                   <img
-                    src={resolveImageSrc(anime.imageUrl)}
+                    src={resolveImageSrc(anime.imageUrl, anime.id)}
                     alt=""
                     loading="lazy"
                     decoding="async"
@@ -293,6 +293,10 @@ export default function FeaturedCarousel({
                     onError={(e) => {
                       const target = e.target;
                       const raw = anime.imageUrl;
+                      if (target.src.includes('/covers/') && raw && raw.startsWith('http')) {
+                        target.src = raw;
+                        return;
+                      }
                       if (raw && raw.startsWith('http') && !target.src.includes('/api/proxy-image') && !raw.includes('missing_original')) {
                         target.src = getImageProxyUrl(raw);
                       } else {

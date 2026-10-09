@@ -12,8 +12,14 @@ const prefetchedUrls = new Set();
 
 /**
  * Resolves an anime image URL to its optimal, cached source.
+ * Prioritizes local compressed WebP covers (/covers/{id}.webp) if animeId is provided.
  */
-export function resolveImageSrc(rawUrl) {
+export function resolveImageSrc(rawUrl, animeId) {
+  // 1. If animeId is provided and valid, prioritize fast local compressed WebP cover
+  if (animeId && Number(animeId) > 0) {
+    return `/covers/${Number(animeId)}.webp`;
+  }
+
   if (!rawUrl || typeof rawUrl !== 'string') return '';
   if (rawUrl.includes('missing_original') || rawUrl.includes('placehold.co')) return '';
 
@@ -22,37 +28,39 @@ export function resolveImageSrc(rawUrl) {
     return rawUrl;
   }
 
-  // Local paths like /mugen_gacha_poster.jpg
+  // Local paths like /covers/123.webp or /mugen_gacha_poster.jpg
   if (rawUrl.startsWith('/') && !rawUrl.startsWith('//')) {
     return rawUrl;
   }
 
-  // Direct CDN loading with no-referrer: ultrafast, 0 server load, saved network
-  // In case of any loading failure, AnimeCard / FeaturedCarousel automatically falls back to getImageProxyUrl()
+  // Direct CDN loading with no-referrer
   return rawUrl;
 }
 
 /**
  * Backward-compatible helper for components expecting an async resolver.
  */
-export async function getCachedImageUrl(url) {
-  return resolveImageSrc(url);
+export async function getCachedImageUrl(url, animeId) {
+  return resolveImageSrc(url, animeId);
 }
 
 /**
- * Pre-warms browser HTTP cache and server disk cache for a list of anime items.
+ * Pre-warms browser HTTP cache for a list of anime items.
  * Uses native Image() pre-loading which avoids CORS/opaque response issues.
  */
 export function prefetchAnimeImages(animeList) {
   if (!Array.isArray(animeList) || typeof window === 'undefined') return;
 
-  const validUrls = animeList
-    .slice(0, 15)
-    .map((a) => a?.imageUrl || a?.image_url || a?.image)
-    .filter((u) => u && typeof u === 'string' && u.startsWith('http') && !u.includes('missing_original'));
+  const validItems = animeList
+    .slice(0, 20)
+    .map((a) => ({
+      url: a?.imageUrl || a?.image_url || a?.image,
+      id: a?.id
+    }))
+    .filter((it) => (it.id && Number(it.id) > 0) || (it.url && typeof it.url === 'string' && !it.url.includes('missing_original')));
 
-  validUrls.forEach((url, i) => {
-    const resolved = resolveImageSrc(url);
+  validItems.forEach((item, i) => {
+    const resolved = resolveImageSrc(item.url, item.id);
     if (!resolved || prefetchedUrls.has(resolved)) return;
     prefetchedUrls.add(resolved);
 
@@ -65,6 +73,6 @@ export function prefetchAnimeImages(animeList) {
       } catch (e) {
         // Silently ignore prefetch errors
       }
-    }, i * 60);
+    }, i * 40);
   });
 }

@@ -1793,12 +1793,12 @@ export default function ProfilePage({
 
                       <div className="w-20 aspect-[5/7] rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 shrink-0">
                         <img
-                          src={getImageUrl(anime.imageUrl || anime.image_url || anime.image)}
+                          src={getImageUrl(anime.imageUrl || anime.image_url || anime.image, anime.id)}
                           alt={anime.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                           onError={(e) => {
                             const raw = anime.image_url || anime.imageUrl || anime.image;
-                            if (raw && !e.target.dataset.triedFallback) {
+                            if (e.target.src.includes('/covers/') && raw && !e.target.dataset.triedFallback) {
                               e.target.dataset.triedFallback = 'true';
                               e.target.src = raw;
                             } else {
@@ -2049,12 +2049,12 @@ export default function ProfilePage({
                 >
                   <div className="w-20 sm:w-24 aspect-[5/7] rounded-2xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 shrink-0">
                     <img
-                      src={getImageUrl(anime.imageUrl || anime.image_url || anime.image)}
+                      src={getImageUrl(anime.imageUrl || anime.image_url || anime.image, anime.id)}
                       alt={anime.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                       onError={(e) => {
                         const raw = anime.image_url || anime.imageUrl || anime.image;
-                        if (raw && !e.target.dataset.triedFallback) {
+                        if (e.target.src.includes('/covers/') && raw && !e.target.dataset.triedFallback) {
                           e.target.dataset.triedFallback = 'true';
                           e.target.src = raw;
                         } else {
@@ -2200,12 +2200,12 @@ export default function ProfilePage({
                   >
                     <div className="w-20 sm:w-24 aspect-[5/7] rounded-2xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 shrink-0">
                       <img
-                        src={getImageUrl(anime.imageUrl || anime.image_url || anime.image)}
+                        src={getImageUrl(anime.imageUrl || anime.image_url || anime.image, anime.id)}
                         alt={anime.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                         onError={(e) => {
                           const raw = anime.image_url || anime.imageUrl || anime.image;
-                          if (raw && !e.target.dataset.triedFallback) {
+                          if (e.target.src.includes('/covers/') && raw && !e.target.dataset.triedFallback) {
                             e.target.dataset.triedFallback = 'true';
                             e.target.src = raw;
                           } else {
@@ -2976,12 +2976,12 @@ export default function ProfilePage({
 
                                     <div className="w-10 aspect-[5/7] rounded-lg overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0">
                                       <img
-                                        src={getImageUrl(item.imageUrl || item.image_url || item.image)}
+                                        src={getImageUrl(item.imageUrl || item.image_url || item.image, item.id)}
                                         alt={item.title}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                         onError={(e) => {
                                           const raw = item.image_url || item.imageUrl || item.image;
-                                          if (raw && !e.target.dataset.triedFallback) {
+                                          if (e.target.src.includes('/covers/') && raw && !e.target.dataset.triedFallback) {
                                             e.target.dataset.triedFallback = 'true';
                                             e.target.src = raw;
                                           } else {

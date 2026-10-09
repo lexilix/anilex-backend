@@ -121,6 +121,29 @@ app.use('/uploads', express.static(UPLOADS_DIR, {
   }
 }));
 
+// ----------------------------------------------------
+// STATIC ANIME COVERS (HIGH PERFORMANCE WEBP)
+// ----------------------------------------------------
+const COVERS_DIR = path.join(__dirname, '../client/public/covers');
+if (!fs.existsSync(COVERS_DIR)) {
+  try { fs.mkdirSync(COVERS_DIR, { recursive: true }); } catch (e) {}
+}
+app.use('/covers', express.static(COVERS_DIR, {
+  maxAge: '1y',
+  immutable: true,
+  setHeaders: (res, path, stat) => {
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
+
+function getAnimeCoverUrl(animeId, defaultUrl) {
+  if (animeId && fs.existsSync(path.join(COVERS_DIR, `${animeId}.webp`))) {
+    return `/covers/${animeId}.webp`;
+  }
+  return defaultUrl || '';
+}
+
 function processUploadDataUrl(dataUrl, prefix) {
   if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) return dataUrl;
   try {
@@ -134,6 +157,30 @@ function processUploadDataUrl(dataUrl, prefix) {
   } catch (e) {
     return dataUrl;
   }
+}
+
+// Background helper to download and compress cover to WebP if missing
+async function ensureCompressedCover(animeId, imageUrl) {
+  if (!animeId || !imageUrl || !imageUrl.startsWith('http') || imageUrl.includes('missing_original')) return;
+  const targetPath = path.join(COVERS_DIR, `${animeId}.webp`);
+  if (fs.existsSync(targetPath)) return;
+  try {
+    let sharp;
+    try { sharp = require('sharp'); } catch (e) { return; }
+    const res = await fetch(imageUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Referer': getUpstreamReferer(imageUrl)
+      },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!res.ok) return;
+    const buf = Buffer.from(await res.arrayBuffer());
+    await sharp(buf)
+      .resize(200, null, { withoutEnlargement: true })
+      .webp({ quality: 55 })
+      .toFile(targetPath);
+  } catch (err) {}
 }
 
 // ----------------------------------------------------
@@ -1587,7 +1634,8 @@ app.get('/api/anime/featured', optionalAuthMiddleware, async (req, res) => {
             slug: dbRow.slug,
             title: dbRow.title,
             originalTitle: dbRow.original_title,
-            imageUrl: dbRow.image_url,
+            imageUrl: getAnimeCoverUrl(dbRow.id, dbRow.image_url),
+            fallbackImageUrl: dbRow.image_url,
             type: dbRow.type,
             year: dbRow.year,
             genres: JSON.parse(dbRow.genres || '[]'),
@@ -1633,7 +1681,8 @@ app.get('/api/anime/featured', optionalAuthMiddleware, async (req, res) => {
         slug: item.slug,
         title: item.title,
         originalTitle: item.original_title,
-        imageUrl: item.image_url,
+        imageUrl: getAnimeCoverUrl(item.id, item.image_url),
+        fallbackImageUrl: item.image_url,
         type: item.type,
         year: item.year,
         genres: JSON.parse(item.genres || '[]'),
@@ -1681,7 +1730,8 @@ app.get('/api/anime/featured', optionalAuthMiddleware, async (req, res) => {
       slug: item.slug,
       title: item.title,
       originalTitle: item.original_title,
-      imageUrl: item.image_url,
+      imageUrl: getAnimeCoverUrl(item.id, item.image_url),
+      fallbackImageUrl: item.image_url,
       type: item.type,
       year: item.year,
       genres: JSON.parse(item.genres || '[]'),
@@ -2228,7 +2278,8 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         slug: item.slug,
         title: item.title,
         originalTitle: item.original_title,
-        imageUrl: item.image_url,
+        imageUrl: getAnimeCoverUrl(item.id, item.image_url),
+        fallbackImageUrl: item.image_url,
         type: item.type,
         year: item.year,
         genres: JSON.parse(item.genres || '[]'),
@@ -2497,7 +2548,8 @@ app.get('/api/anime/:id', optionalAuthMiddleware, async (req, res) => {
       slug: anime.slug,
       title: anime.title,
       originalTitle: anime.original_title,
-      imageUrl: anime.image_url,
+      imageUrl: getAnimeCoverUrl(anime.id, anime.image_url),
+      fallbackImageUrl: anime.image_url,
       type: anime.type,
       year: anime.year,
       genres: parsedGenres,
@@ -2650,7 +2702,8 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
       originalTitle: target.original_title,
       year: target.year,
       type: target.type,
-      imageUrl: target.image_url,
+      imageUrl: getAnimeCoverUrl(target.id, target.image_url),
+      fallbackImageUrl: target.image_url,
       relation: target.season || 'Текущий тайтл',
       isCurrent: true,
       myScore: null,
@@ -2666,6 +2719,7 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
           for (const item of linkedList) {
             if (item && item.id && Number(item.id) !== target.id) {
               const fullItem = db.prepare('SELECT id, slug, title, original_title, year, type, image_url, season FROM anime WHERE id = ?').get(Number(item.id));
+              const remoteUrl = fullItem ? fullItem.image_url : (item.imageUrl || '');
               resultsMap.set(Number(item.id), {
                 id: Number(item.id),
                 slug: fullItem ? fullItem.slug : `anime-${item.id}`,
@@ -2673,7 +2727,8 @@ app.get('/api/anime/:id/related', optionalAuthMiddleware, async (req, res) => {
                 originalTitle: fullItem ? fullItem.original_title : (item.originalTitle || ''),
                 year: fullItem ? fullItem.year : (item.year || ''),
                 type: fullItem ? fullItem.type : (item.type || 'Сериал'),
-                imageUrl: fullItem ? fullItem.image_url : (item.imageUrl || ''),
+                imageUrl: getAnimeCoverUrl(Number(item.id), remoteUrl),
+                fallbackImageUrl: remoteUrl,
                 relation: item.relation || (fullItem && fullItem.season) || 'Связанная часть',
                 isCurrent: false,
                 myScore: null,
@@ -2974,7 +3029,8 @@ app.get('/api/anime/:id/similar', optionalAuthMiddleware, async (req, res) => {
         originalTitle: c.original_title,
         year: c.year,
         type: c.type,
-        imageUrl: c.image_url,
+        imageUrl: getAnimeCoverUrl(c.id, c.image_url),
+        fallbackImageUrl: c.image_url,
         genres: cGenres,
         matchingGenres,
         averageScore: avgScore,

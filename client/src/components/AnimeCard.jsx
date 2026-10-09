@@ -24,9 +24,10 @@ export default function AnimeCard({
   const [fetchedRatings, setFetchedRatings] = useState(null);
   const [scoresFetchLoading, setScoresFetchLoading] = useState(false);
   const rawImage = anime.imageUrl || anime.image_url;
-  const initialImg = resolveImageSrc(rawImage);
+  const initialImg = resolveImageSrc(rawImage, anime.id);
   const [imgSrc, setImgSrc] = useState(initialImg);
-  const [imageFailed, setImageFailed] = useState(() => !rawImage || rawImage.includes('missing_original'));
+  const [imageFailed, setImageFailed] = useState(() => !rawImage && !anime.id);
+  const [triedFallback, setTriedFallback] = useState(false);
   const [triedProxy, setTriedProxy] = useState(() => Boolean(initialImg && initialImg.includes('/api/proxy-image')));
   const [retryCount, setRetryCount] = useState(0);
   const [ratingLoading, setRatingLoading] = useState(false);
@@ -87,16 +88,17 @@ export default function AnimeCard({
 
   useEffect(() => {
     const raw = anime.imageUrl || anime.image_url;
-    if (!raw || raw.includes('missing_original')) {
+    const resolved = resolveImageSrc(raw, anime.id);
+    if (!resolved) {
       setImageFailed(true);
       return;
     }
-    const resolved = resolveImageSrc(raw);
     setImgSrc(resolved);
     setImageFailed(false);
+    setTriedFallback(false);
     setTriedProxy(Boolean(resolved && resolved.includes('/api/proxy-image')));
     setRetryCount(0);
-  }, [anime.imageUrl, anime.image_url]);
+  }, [anime.imageUrl, anime.image_url, anime.id]);
 
   // Optimistic hidden state synced with anime prop and local storage
   const [localHidden, setLocalHidden] = useState(() => {
@@ -226,7 +228,15 @@ export default function AnimeCard({
   const commentsCount = anime.commentsCount || 0;
 
   const handleImageError = () => {
-    const raw = anime.imageUrl || anime.image_url;
+    const raw = anime.imageUrl || anime.image_url || anime.fallbackImageUrl;
+
+    // 1. If local /covers/ failed to load, fall back to the external CDN URL first
+    if (imgSrc && imgSrc.startsWith('/covers/') && raw && raw !== imgSrc && !triedFallback) {
+      setTriedFallback(true);
+      setImgSrc(raw);
+      return;
+    }
+
     if (!raw || raw.includes('missing_original')) {
       setImageFailed(true);
       return;
@@ -238,8 +248,8 @@ export default function AnimeCard({
       return;
     }
 
-    // Server may still be downloading the image in background; retry up to 3 times
-    if (retryCount < 3) {
+    // Server may still be downloading the image in background; retry up to 2 times
+    if (retryCount < 2 && proxyUrl) {
       const nextRetry = retryCount + 1;
       setRetryCount(nextRetry);
       setTimeout(() => {
