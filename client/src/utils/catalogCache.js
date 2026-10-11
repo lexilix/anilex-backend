@@ -45,6 +45,8 @@ export function setCachedCatalog(key, payload) {
       ratingCount: it.ratingCount,
       isFavorite: it.isFavorite,
       isHidden: it.isHidden,
+      isPublished: it.isPublished !== false && it.is_published !== 0,
+      is_published: it.is_published !== undefined ? it.is_published : (it.isPublished !== false ? 1 : 0),
       commentsCount: it.commentsCount,
       season: it.season || '',
       linkedAnime: it.linkedAnime || []
@@ -106,6 +108,8 @@ export function setCachedPage(filterKey, page, payload) {
       ratingCount: it.ratingCount,
       isFavorite: it.isFavorite,
       isHidden: it.isHidden,
+      isPublished: it.isPublished !== false && it.is_published !== 0,
+      is_published: it.is_published !== undefined ? it.is_published : (it.isPublished !== false ? 1 : 0),
       commentsCount: it.commentsCount,
       season: it.season || '',
       linkedAnime: it.linkedAnime || []
@@ -199,7 +203,7 @@ export const getCachedAnime = getAllCachedAnime;
  * Fallback to provide immediate items from any cached page if target page is not yet cached.
  */
 export function getAnyCachedCatalog() {
-  const all = getAllCachedAnime();
+  const all = getAllCachedAnime().filter((it) => it.isPublished !== false && it.is_published !== 0);
   if (all.length > 0) {
     return {
       items: all.slice(0, 15),
@@ -245,6 +249,7 @@ export function searchCachedAnime(query) {
 
   for (const item of all) {
     if (!item || !item.id) continue;
+    if (item.isPublished === false || item.is_published === 0) continue;
     const t = (item.title || '').toLowerCase().replace(/ё/g, 'е');
     const ot = (item.originalTitle || item.original_title || '').toLowerCase().replace(/ё/g, 'е');
     const season = (item.season || '').toLowerCase().replace(/ё/g, 'е');

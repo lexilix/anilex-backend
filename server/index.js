@@ -326,19 +326,79 @@ app.get('/api/proxy-image', async (req, res) => {
       signal: AbortSignal.any ? AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]) : controller.signal
     });
 
+    let finalBuffer = null;
+    let finalContentType = null;
+
     if (!upstreamRes.ok) {
-      return res.status(upstreamRes.status).send('Failed to fetch upstream image');
+      try {
+        const animeRow = db.prepare('SELECT id, title, original_title FROM anime WHERE image_url = ? LIMIT 1').get(imageUrl);
+        if (animeRow && (animeRow.original_title || animeRow.title)) {
+          const q = animeRow.original_title || animeRow.title;
+          const shikiRes = await fetch(`https://shikimori.one/api/animes?search=${encodeURIComponent(q)}&limit=1`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+          });
+          if (shikiRes.ok) {
+            const shikiList = await shikiRes.json();
+            if (shikiList && shikiList.length > 0 && shikiList[0].image && shikiList[0].image.original) {
+              const shikiImgUrl = `https://shikimori.one${shikiList[0].image.original}`;
+              const shikiImgRes = await fetch(shikiImgUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+              if (shikiImgRes.ok) {
+                const sBuf = await shikiImgRes.arrayBuffer();
+                if (sBuf.byteLength > 2000 && sBuf.byteLength !== 16876) {
+                  finalBuffer = Buffer.from(sBuf);
+                  finalContentType = shikiImgRes.headers.get('content-type') || 'image/jpeg';
+                  db.prepare('UPDATE anime SET image_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(shikiImgUrl, animeRow.id);
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {}
+
+      if (!finalBuffer) {
+        return res.status(upstreamRes.status).send('Failed to fetch upstream image');
+      }
+    } else {
+      const buffer = await upstreamRes.arrayBuffer();
+      if (buffer.byteLength === 16876 || imageUrl.includes('missing_original')) {
+        try {
+          const animeRow = db.prepare('SELECT id, title, original_title FROM anime WHERE image_url = ? LIMIT 1').get(imageUrl);
+          if (animeRow && (animeRow.original_title || animeRow.title)) {
+            const q = animeRow.original_title || animeRow.title;
+            const shikiRes = await fetch(`https://shikimori.one/api/animes?search=${encodeURIComponent(q)}&limit=1`, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+            });
+            if (shikiRes.ok) {
+              const shikiList = await shikiRes.json();
+              if (shikiList && shikiList.length > 0 && shikiList[0].image && shikiList[0].image.original) {
+                const shikiImgUrl = `https://shikimori.one${shikiList[0].image.original}`;
+                const shikiImgRes = await fetch(shikiImgUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+                if (shikiImgRes.ok) {
+                  const sBuf = await shikiImgRes.arrayBuffer();
+                  if (sBuf.byteLength > 2000 && sBuf.byteLength !== 16876) {
+                    finalBuffer = Buffer.from(sBuf);
+                    finalContentType = shikiImgRes.headers.get('content-type') || 'image/jpeg';
+                    db.prepare('UPDATE anime SET image_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(shikiImgUrl, animeRow.id);
+                  }
+                }
+              }
+            }
+          }
+        } catch (e) {}
+
+        if (!finalBuffer) {
+          return res.status(404).send('Placeholder 404 image detected');
+        }
+      } else {
+        finalBuffer = Buffer.from(buffer);
+        finalContentType = upstreamRes.headers.get('content-type') || 'image/jpeg';
+      }
     }
 
-    const contentType = upstreamRes.headers.get('content-type') || 'image/jpeg';
+    const contentType = finalContentType || 'image/jpeg';
     const etag = upstreamRes.headers.get('etag');
     const lastModified = upstreamRes.headers.get('last-modified');
-    const buffer = await upstreamRes.arrayBuffer();
-
-    // Detect CDNgOS 404 placeholder image or missing images
-    if (buffer.byteLength === 16876 || imageUrl.includes('missing_original')) {
-      return res.status(404).send('Placeholder 404 image detected');
-    }
+    const buffer = finalBuffer;
 
     // Save to disk cache
     try {
@@ -1612,7 +1672,7 @@ app.get('/api/anime/featured', optionalAuthMiddleware, async (req, res) => {
             (SELECT score FROM ratings WHERE anime_id = a.id AND user_id = ?) as my_score
           FROM anime a
           LEFT JOIN ratings r ON a.id = r.anime_id
-          WHERE a.slug = ? OR LOWER(TRIM(a.title)) = LOWER(?)
+          WHERE (a.slug = ? OR LOWER(TRIM(a.title)) = LOWER(?)) AND (a.is_published = 1 OR a.is_published IS NULL)
           GROUP BY a.id
           LIMIT 1
         `).get(currentUserId || -1, item.slug, (item.title || '').trim());
@@ -1704,6 +1764,7 @@ app.get('/api/anime/featured', optionalAuthMiddleware, async (req, res) => {
         ) as my_score
       FROM anime a
       LEFT JOIN ratings r ON a.id = r.anime_id
+      WHERE (a.is_published = 1 OR a.is_published IS NULL)
       GROUP BY LOWER(TRIM(a.title)), a.year
       HAVING COUNT(r.id) > 0
       ORDER BY
@@ -2002,6 +2063,21 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
       params.push(currentUserId);
     }
 
+    // Exclude unpublished/hidden anime from public catalog & search unless devMode is requested by dev admin
+    const isDevAdmin = currentUserId === 5 || (req.user && (req.user.nickname === 'Just' || req.user.email === 'just9jeeet@gmail.com'));
+    const devMode = req.query.devMode === '1' || req.query.includeHidden === '1';
+    const filterPublish = req.query.filterPublish;
+
+    if (isDevAdmin && devMode) {
+      if (filterPublish === 'hidden') {
+        whereClauses.push('(a.is_published = 0)');
+      } else if (filterPublish === 'published') {
+        whereClauses.push('(a.is_published = 1 OR a.is_published IS NULL)');
+      }
+    } else {
+      whereClauses.push('(a.is_published = 1 OR a.is_published IS NULL)');
+    }
+
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     // Recommendations logic
@@ -2099,6 +2175,7 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         a.created_at,
         a.season,
         a.related_json,
+        COALESCE(a.is_published, 1) as is_published,
         ROUND(AVG(r.score), 1) as avg_score,
         COUNT(r.id) as rating_count,
         (
@@ -2287,6 +2364,8 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
           : (friendsMap[item.id]?.find(f => currentUserId && (Number(f.userId) === Number(currentUserId) || (req.user?.nickname && f.nickname === req.user.nickname)))?.score ?? null),
         isFavorite: Boolean(item.is_favorite),
         isHidden: Boolean(item.is_hidden),
+        isPublished: item.is_published !== 0,
+        is_published: item.is_published !== 0 ? 1 : 0,
         averageScore: item.rating_count > 0 && item.avg_score !== null ? Number(item.avg_score) : null,
         ratingCount: Number(item.rating_count),
         commentsCount: Number(item.comments_count || 0),
@@ -5185,6 +5264,47 @@ app.delete('/api/dev/anime/:id', devAdminMiddleware, (req, res) => {
   } catch (err) {
     res.setHeader('Content-Type', 'application/json');
     return res.status(500).json({ error: 'Ошибка удаления тайтла: ' + err.message });
+  }
+});
+
+// Dev: Toggle or set Anime published status
+app.post('/api/dev/anime/:id/toggle-publish', devAdminMiddleware, (req, res) => {
+  try {
+    const animeId = parseInt(req.params.id, 10);
+    if (!animeId) {
+      return res.status(400).json({ error: 'Неверный ID тайтла' });
+    }
+
+    const row = db.prepare('SELECT id, title, is_published FROM anime WHERE id = ?').get(animeId);
+    if (!row) {
+      return res.status(404).json({ error: 'Тайтл не найден' });
+    }
+
+    let nextPublished;
+    if (req.body && typeof req.body.isPublished === 'boolean') {
+      nextPublished = req.body.isPublished ? 1 : 0;
+    } else {
+      nextPublished = (row.is_published === 0) ? 1 : 0;
+    }
+
+    db.prepare('UPDATE anime SET is_published = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(nextPublished, animeId);
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).json({
+      success: true,
+      id: animeId,
+      title: row.title,
+      isPublished: nextPublished === 1,
+      is_published: nextPublished
+    });
+  } catch (err) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(500).json({ error: 'Ошибка изменения статуса публикации: ' + err.message });
   }
 });
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Star, MessageSquare, ChevronDown, ChevronUp, Calendar, Film, Lock, Bookmark, EyeOff, Loader2 } from 'lucide-react';
 import { getScoreConfig, getScoreBadgeClass } from '../utils/scoreColors';
 import { getImageUrl, getImageProxyUrl, apiUrl } from '../api';
-import { resolveImageSrc, getCachedImageUrl } from '../utils/imageCache';
+import { resolveImageSrc, getCachedImageUrl, loadCachedImage } from '../utils/imageCache';
 import { isAnimeHiddenLocally } from '../utils/hiddenStorage';
 import { isAnimeFavoritedLocally, toggleFavoriteAnime } from '../utils/favoritesStorage';
 import { getCachedUserRatings, getCachedUserProfile, updateCachedUserRating } from '../utils/profileCache';
@@ -87,18 +87,30 @@ export default function AnimeCard({
   };
 
   useEffect(() => {
-    const raw = anime.imageUrl || anime.image_url;
+    let isMounted = true;
+    const raw = anime.imageUrl || anime.image_url || anime.fallbackImageUrl;
     const resolved = resolveImageSrc(raw, anime.id);
-    if (!resolved) {
+    if (!resolved && !raw) {
       setImageFailed(true);
       return;
     }
-    setImgSrc(resolved);
+    setImgSrc(resolved || raw);
     setImageFailed(false);
     setTriedFallback(false);
     setTriedProxy(Boolean(resolved && resolved.includes('/api/proxy-image')));
     setRetryCount(0);
-  }, [anime.imageUrl, anime.image_url, anime.id]);
+
+    // Gradual persistent cache loading
+    loadCachedImage(resolved || raw, raw, (cachedUrl) => {
+      if (isMounted && cachedUrl) {
+        setImgSrc(cachedUrl);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [anime.imageUrl, anime.image_url, anime.fallbackImageUrl, anime.id]);
 
   // Optimistic hidden state synced with anime prop and local storage
   const [localHidden, setLocalHidden] = useState(() => {
@@ -230,8 +242,8 @@ export default function AnimeCard({
   const handleImageError = () => {
     const raw = anime.imageUrl || anime.image_url || anime.fallbackImageUrl;
 
-    // 1. If local /covers/ failed to load, fall back to the external CDN URL first
-    if (imgSrc && imgSrc.startsWith('/covers/') && raw && raw !== imgSrc && !triedFallback) {
+    // 1. If local /covers/ or cached blob failed to load, fall back to external CDN URL first
+    if (imgSrc && (imgSrc.startsWith('/covers/') || imgSrc.startsWith('blob:')) && raw && raw !== imgSrc && !triedFallback) {
       setTriedFallback(true);
       setImgSrc(raw);
       return;

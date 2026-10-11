@@ -281,6 +281,11 @@ try {
       db.exec("ALTER TABLE anime ADD COLUMN related_json TEXT DEFAULT '[]';");
     } catch (e) {}
   }
+  if (!animeColNames.includes('is_published')) {
+    try {
+      db.exec('ALTER TABLE anime ADD COLUMN is_published INTEGER DEFAULT 1;');
+    } catch (e) {}
+  }
 
   const top5Info = db.prepare('PRAGMA table_info(user_top5)').all();
   const top5ColNames = top5Info.map(c => c.name);
@@ -293,6 +298,7 @@ try {
   // Create indexes for fast search
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_anime_title_lower ON anime(title_lower);
+    CREATE INDEX IF NOT EXISTS idx_anime_is_published ON anime(is_published);
     CREATE INDEX IF NOT EXISTS idx_anime_orig_lower ON anime(original_title_lower);
   `);
 
@@ -748,9 +754,63 @@ function archiveUnreleasedAnime() {
   }
 }
 
+// Ensure default visibility flags for unreleased anime (hides them from public catalog & search, leaves controllable in Dev Console)
+function ensureAnimeVisibilityDefaults() {
+  try {
+    const unreleasedIds = [
+      7256, // Кайдзю номер восемь: Рабочий день Наруми
+      7243, // Первый порядок 2
+      7239, // Убийца богов: Финал
+      7237, // Легенда о Белом Коте 3
+      7238, // Стражи гробниц
+      60058, // Ребёнок идола 3
+      142718, // Дорогой звёзд 7
+      144994, // Принцесса-герой
+      144999, // Противостояние святого: Война за истребление небожителей
+      1130, // Магическая битва: Смертельная миграция
+      1133, // Адский рай 2
+      1123, // Провожающая в последний путь Фрирен 2
+      914, // О моём перерождении в слизь 4
+      916, // Ангел по соседству 2
+      1108, // Моя геройская академия: Вне закона 2
+      1113, // Медалистка 2
+      1128, // Время пыток, принцесса! 2
+      1129, // Раб спецотряда демонического города 2
+      1134, // Золотое божество: Финал
+      1135, // Триган: Наблюдая за звёздами
+      1084, // В любом случае я влюблюсь в тебя 2
+      980, // Один из отвергнутых: Изгой 6
+      1102, // Школа вверх дном (2026)
+      1137 // Адский учитель Нубэ (2025). Часть 2
+    ];
+
+    const placeholders = unreleasedIds.map(() => '?').join(',');
+    db.prepare(`
+      UPDATE anime 
+      SET is_published = 0 
+      WHERE id IN (${placeholders}) 
+        AND id NOT IN (144107, 552)
+        AND id NOT IN (SELECT anime_id FROM ratings WHERE user_id = 5)
+    `).run(...unreleasedIds);
+
+    db.prepare(`
+      UPDATE anime 
+      SET is_published = 0 
+      WHERE (CAST(year AS INTEGER) >= 2027 OR year LIKE '%2027%' OR year >= '2027')
+        AND id != 144107
+        AND id NOT IN (SELECT anime_id FROM ratings WHERE user_id = 5)
+    `).run();
+
+    console.log('[Database] Synchronized is_published visibility flags.');
+  } catch (err) {
+    console.error('[Database] Error setting default anime visibility:', err.message);
+  }
+}
+
 restoreAccountsFromBackup();
 ensureAllUsersFriends();
 archiveUnreleasedAnime();
+ensureAnimeVisibilityDefaults();
 
 // Helper to snapshot current accounts state to accounts_backup.json
 function saveAccountsBackup() {

@@ -19,6 +19,7 @@ import {
   Pin,
   X,
   Eye,
+  EyeOff,
   SlidersHorizontal,
   Download,
   Upload,
@@ -494,6 +495,8 @@ export default function DevConsolePage({
   const [animeLoading, setAnimeLoading] = useState(false);
   const [animePage, setAnimePage] = useState(1);
   const [animeTotal, setAnimeTotal] = useState(0);
+  const [animePublishFilter, setAnimePublishFilter] = useState('all'); // 'all' | 'published' | 'hidden'
+  const [togglingPublishId, setTogglingPublishId] = useState(null);
 
   // Edit Anime Modal
   const [editingAnime, setEditingAnime] = useState(null);
@@ -668,14 +671,18 @@ export default function DevConsolePage({
   // ----------------------------------------------------
   // FETCH ANIME LIST FOR MANAGEMENT
   // ----------------------------------------------------
-  const fetchAnimeForDev = useCallback(async (searchQuery = '', pageNum = 1) => {
+  const fetchAnimeForDev = useCallback(async (searchQuery = '', pageNum = 1, pubFilter = animePublishFilter) => {
     setAnimeLoading(true);
     try {
       const token = localStorage.getItem('anime_auth_token');
       const params = new URLSearchParams({
         page: String(pageNum),
-        limit: '20'
+        limit: '20',
+        devMode: '1'
       });
+      if (pubFilter && pubFilter !== 'all') {
+        params.append('filterPublish', pubFilter);
+      }
       if (searchQuery.trim()) {
         params.append('search', searchQuery.trim());
       }
@@ -695,7 +702,7 @@ export default function DevConsolePage({
           .filter((it) => !deletedAnimeIds.has(Number(it.id)))
           .map((it) => applyCustomAnimeEdits(it));
 
-        // If searching, always check cached database titles (all 3445 titles) and merge so nothing is missed
+        // If searching, check cached database titles and merge matching filter
         if (searchQuery.trim()) {
           const cached = searchCachedAnime(searchQuery.trim())
             .filter((it) => !deletedAnimeIds.has(Number(it.id)))
@@ -705,8 +712,14 @@ export default function DevConsolePage({
             const existingIds = new Set(filtered.map((it) => Number(it.id)));
             for (const c of cached) {
               if (!existingIds.has(Number(c.id))) {
-                filtered.push(c);
-                existingIds.add(Number(c.id));
+                const matchesFilter =
+                  pubFilter === 'all' ||
+                  (pubFilter === 'published' && c.isPublished !== false && c.is_published !== 0) ||
+                  (pubFilter === 'hidden' && (c.isPublished === false || c.is_published === 0));
+                if (matchesFilter) {
+                  filtered.push(c);
+                  existingIds.add(Number(c.id));
+                }
               }
             }
           } else if (filtered.length === 0) {
@@ -735,16 +748,76 @@ export default function DevConsolePage({
     } finally {
       setAnimeLoading(false);
     }
-  }, []);
+  }, [animePublishFilter]);
 
   useEffect(() => {
     if (isUnlocked && activeTab === 'anime') {
       const timer = setTimeout(() => {
-        fetchAnimeForDev(animeSearch, animePage);
+        fetchAnimeForDev(animeSearch, animePage, animePublishFilter);
       }, 250);
       return () => clearTimeout(timer);
     }
-  }, [isUnlocked, activeTab, animeSearch, animePage, fetchAnimeForDev]);
+  }, [isUnlocked, activeTab, animeSearch, animePage, animePublishFilter, fetchAnimeForDev]);
+
+  // Toggle Anime Publish / Hide status
+  const handleTogglePublish = async (anime) => {
+    const isCurrentlyPublished = anime.isPublished !== false && anime.is_published !== 0;
+    const nextPublished = !isCurrentlyPublished;
+    setTogglingPublishId(anime.id);
+
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      const res = await fetch(apiUrl(`/api/dev/anime/${anime.id}/toggle-publish`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ isPublished: nextPublished })
+      });
+
+      if (res.ok) {
+        const updatedAnime = {
+          ...anime,
+          isPublished: nextPublished,
+          is_published: nextPublished ? 1 : 0
+        };
+
+        // 1. Update in dev console list
+        setAnimeList((prev) =>
+          prev.map((item) => (Number(item.id) === Number(anime.id) ? updatedAnime : item))
+        );
+
+        // 2. Update catalog cache
+        upsertCachedAnimeItem(updatedAnime);
+
+        // 3. Notify parent app if callbacks exist
+        if (onAnimeUpdated) onAnimeUpdated(updatedAnime);
+        if (onCatalogUpdated) onCatalogUpdated(updatedAnime);
+
+        // 4. Dispatch custom event for real-time sync across open views
+        window.dispatchEvent(
+          new CustomEvent('anilex-anime-published-changed', {
+            detail: { id: anime.id, isPublished: nextPublished }
+          })
+        );
+
+        showToast(
+          nextPublished
+            ? `Тайтл «${anime.title}» опубликован и доступен в каталоге!`
+            : `Тайтл «${anime.title}» скрыт из каталога и поиска!`,
+          'success'
+        );
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast(errData.error || 'Ошибка изменения статуса тайтла', 'error');
+      }
+    } catch (err) {
+      showToast('Ошибка сети при переключении статуса', 'error');
+    } finally {
+      setTogglingPublishId(null);
+    }
+  };
 
   // ----------------------------------------------------
   // FETCH USERS LIST
@@ -2522,6 +2595,54 @@ export default function DevConsolePage({
             </div>
           </div>
 
+          {/* Filter Tabs: Все / Опубликованные / Скрытые */}
+          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-neutral-100 dark:bg-[#1b1b1f] border border-neutral-200/80 dark:border-neutral-800 w-fit">
+            <button
+              type="button"
+              onClick={() => {
+                setAnimePublishFilter('all');
+                setAnimePage(1);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                animePublishFilter === 'all'
+                  ? 'bg-white dark:bg-[#25252b] text-neutral-900 dark:text-white shadow-xs'
+                  : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+              }`}
+            >
+              Все тайтлы
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAnimePublishFilter('published');
+                setAnimePage(1);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                animePublishFilter === 'published'
+                  ? 'bg-emerald-500 text-white shadow-xs'
+                  : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+              }`}
+            >
+              <CheckCircle className="w-3.5 h-3.5" />
+              <span>Опубликованные</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAnimePublishFilter('hidden');
+                setAnimePage(1);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                animePublishFilter === 'hidden'
+                  ? 'bg-rose-500 text-white shadow-xs'
+                  : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+              }`}
+            >
+              <EyeOff className="w-3.5 h-3.5" />
+              <span>Скрытые (анонсы / 0 серий)</span>
+            </button>
+          </div>
+
           {animeLoading ? (
             <div className="py-20 text-center text-xs text-neutral-400">
               Загрузка тайтлов...
@@ -2596,6 +2717,23 @@ export default function DevConsolePage({
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 font-medium">
                               {anime.type || 'Сериал'}
                             </span>
+                            {anime.isPublished === false || anime.is_published === 0 ? (
+                              <span
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold border border-rose-500/30 flex items-center gap-0.5"
+                                title="Скрыт из каталога и поиска"
+                              >
+                                <EyeOff className="w-2.5 h-2.5" />
+                                Скрыт
+                              </span>
+                            ) : (
+                              <span
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-0.5"
+                                title="Опубликован в каталоге"
+                              >
+                                <CheckCircle className="w-2.5 h-2.5" />
+                                Опубликован
+                              </span>
+                            )}
                             {currentSeason ? (
                               <span
                                 className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30 flex items-center gap-0.5"
@@ -2663,6 +2801,33 @@ export default function DevConsolePage({
                       </div>
 
                       <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-neutral-100 dark:border-neutral-800/60 mt-2">
+                        <button
+                          type="button"
+                          disabled={togglingPublishId === anime.id}
+                          onClick={() => handleTogglePublish(anime)}
+                          className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold flex items-center gap-1 transition-all ${
+                            anime.isPublished === false || anime.is_published === 0
+                              ? 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white dark:text-emerald-400 border border-emerald-500/20'
+                              : 'bg-amber-500/10 hover:bg-amber-500 text-amber-600 hover:text-white dark:text-amber-400 border border-amber-500/20'
+                          }`}
+                          title={
+                            anime.isPublished === false || anime.is_published === 0
+                              ? 'Опубликовать в каталоге и поиске'
+                              : 'Скрыть из каталога и поиска'
+                          }
+                        >
+                          {togglingPublishId === anime.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : anime.isPublished === false || anime.is_published === 0 ? (
+                            <Eye className="w-3 h-3" />
+                          ) : (
+                            <EyeOff className="w-3 h-3" />
+                          )}
+                          <span>
+                            {anime.isPublished === false || anime.is_published === 0 ? 'Опубликовать' : 'Скрыть'}
+                          </span>
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => handleOpenEditAnime(anime)}
