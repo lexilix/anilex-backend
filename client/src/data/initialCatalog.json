@@ -1,5 +1,100 @@
 [
   {
+    "id": 7256,
+    "slug": "kaidzyu-nomer-vosem-rabochii-den-narumi-4122",
+    "title": "Кайдзю номер восемь: Рабочий день Наруми",
+    "originalTitle": "Kaijuu 8-gou: Narumi no Heijitsu",
+    "imageUrl": "/covers/7256.webp",
+    "type": "ONA",
+    "year": "2026",
+    "genres": [
+      "Фантастика",
+      "Сёнен"
+    ],
+    "description": "Гэн Наруми считается сильнейшим бойцом Сил обороны, но за пределами сражений образ идеального капитана быстро рассыпается. Он пропускает совещания, всеми способами избегает бумажной работы, тратит свободное время на игры и интернет и регулярно заставляет...",
+    "season": "",
+    "related_json": "[]",
+    "linkedAnime": [],
+    "myScore": null,
+    "averageScore": null,
+    "ratingCount": 0,
+    "isPublished": true,
+    "is_published": 1,
+    "fallbackImageUrl": "https://img.cdngos.com/v/250x350/anime/6a/6ab4633c11850203866913"
+  },
+  {
+    "id": 1123,
+    "slug": "provozhayuschaya-v-posledniy-put-friren-2-2911",
+    "title": "Провожающая в последний путь Фрирен 2",
+    "originalTitle": "Sousou no Frieren 2nd Season",
+    "imageUrl": "/covers/1123.webp",
+    "type": "Сериал",
+    "year": "2026",
+    "genres": [
+      "Приключения",
+      "Драма",
+      "Фэнтези",
+      "Сёнен"
+    ],
+    "description": "Эльфийка-маг Фрирен, некогда победившая Короля демонов плечом к плечу с героями Химмелем, Хайтером и Айзеном, продолжает своё неспешное странствие по миру. Столетия жизни заставляют её иначе воспринимать время, и теперь Фрирен стремится разобраться в...",
+    "season": "2-й сезон",
+    "related_json": "[{\"id\":1545,\"title\":\"Провожающая в последний путь Фрирен\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/65/6515ec6ebe476944952501\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"}]",
+    "linkedAnime": [
+      {
+        "id": 1545,
+        "title": "Провожающая в последний путь Фрирен",
+        "imageUrl": "https://img.cdngos.com/v/250x350/anime/65/6515ec6ebe476944952501",
+        "year": "2023",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      }
+    ],
+    "myScore": null,
+    "averageScore": null,
+    "ratingCount": 0,
+    "isPublished": true,
+    "is_published": 1,
+    "fallbackImageUrl": "https://img.cdngos.com/v/250x350/anime/69/6950e591025e0010381241"
+  },
+  {
+    "id": 1133,
+    "slug": "adskiy-ray-2-2900",
+    "title": "Адский рай 2",
+    "originalTitle": "Jigokuraku 2nd Season / Hell's Paradise Season 2 / Paradition / Heavenhell",
+    "imageUrl": "/covers/1133.webp",
+    "type": "Сериал",
+    "year": "2026",
+    "genres": [
+      "Экшен",
+      "Приключения",
+      "Сверхъестественное",
+      "Сёнен",
+      "Фэнтези",
+      "Исторический",
+      "Самураи",
+      "Жестокость"
+    ],
+    "description": "Не дождавшись никаких известий от преступников, отправленных на поиски эликсира бессмертия, сёгун приходит в ярость и отдаёт приказ собрать новую экспедицию к таинственному острову. В её состав входят лучшие палачи клана Ямада Асаэмон под командованием...",
+    "season": "2-й сезон",
+    "related_json": "[{\"id\":6039,\"title\":\"Адский рай\",\"imageUrl\":\"https://shikimori.one/system/animes/original/46569.jpg?1711955691\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"}]",
+    "linkedAnime": [
+      {
+        "id": 6039,
+        "title": "Адский рай",
+        "imageUrl": "https://shikimori.one/system/animes/original/46569.jpg?1711955691",
+        "year": "2023",
+        "type": "Сериал",
+        "relation": "1-й сезон"
+      }
+    ],
+    "myScore": null,
+    "averageScore": null,
+    "ratingCount": 0,
+    "isPublished": true,
+    "is_published": 1,
+    "fallbackImageUrl": "https://img.cdngos.com/v/250x350/anime/69/694b1598aefaf239811101"
+  },
+  {
     "id": 7196,
     "slug": "shiki-62877",
     "title": "Бесконечная чистота",

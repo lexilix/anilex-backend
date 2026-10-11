@@ -5290,6 +5290,14 @@ app.post('/api/dev/anime/:id/toggle-publish', devAdminMiddleware, (req, res) => 
     db.prepare('UPDATE anime SET is_published = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(nextPublished, animeId);
 
+    try {
+      db.prepare(`
+        INSERT INTO anime_publish_overrides (anime_id, is_published, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(anime_id) DO UPDATE SET is_published = excluded.is_published, updated_at = CURRENT_TIMESTAMP
+      `).run(animeId, nextPublished);
+    } catch (e) {}
+
     if (typeof db.saveAccountsBackup === 'function') {
       db.saveAccountsBackup();
     }
@@ -5305,6 +5313,19 @@ app.post('/api/dev/anime/:id/toggle-publish', devAdminMiddleware, (req, res) => 
   } catch (err) {
     res.setHeader('Content-Type', 'application/json');
     return res.status(500).json({ error: 'Ошибка изменения статуса публикации: ' + err.message });
+  }
+});
+
+// Dev: Trigger automatic online episode verification across candidate anime
+app.post('/api/dev/anime/sync-episodes', devAdminMiddleware, async (req, res) => {
+  try {
+    if (typeof db.checkAndSyncEpisodeAvailability === 'function') {
+      const result = await db.checkAndSyncEpisodeAvailability();
+      return res.json({ success: true, ...result });
+    }
+    return res.json({ success: false, error: 'Функция проверки серий недоступна' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка проверки серий: ' + err.message });
   }
 });
 

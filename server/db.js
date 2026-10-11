@@ -287,6 +287,16 @@ try {
     } catch (e) {}
   }
 
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS anime_publish_overrides (
+        anime_id INTEGER PRIMARY KEY,
+        is_published INTEGER NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+  } catch (e) {}
+
   const top5Info = db.prepare('PRAGMA table_info(user_top5)').all();
   const top5ColNames = top5Info.map(c => c.name);
   if (!top5ColNames.includes('position')) {
@@ -754,56 +764,155 @@ function archiveUnreleasedAnime() {
   }
 }
 
-// Ensure default visibility flags for unreleased anime (hides them from public catalog & search, leaves controllable in Dev Console)
+// Ensure default visibility flags for unreleased anime (hides true 0-episode announcements, keeps released anime published)
 function ensureAnimeVisibilityDefaults() {
   try {
-    const unreleasedIds = [
-      7256, // Кайдзю номер восемь: Рабочий день Наруми
-      7243, // Первый порядок 2
-      7239, // Убийца богов: Финал
-      7237, // Легенда о Белом Коте 3
-      7238, // Стражи гробниц
-      60058, // Ребёнок идола 3
-      142718, // Дорогой звёзд 7
-      144994, // Принцесса-герой
-      144999, // Противостояние святого: Война за истребление небожителей
-      1130, // Магическая битва: Смертельная миграция
-      1133, // Адский рай 2
-      1123, // Провожающая в последний путь Фрирен 2
-      914, // О моём перерождении в слизь 4
-      916, // Ангел по соседству 2
-      1108, // Моя геройская академия: Вне закона 2
-      1113, // Медалистка 2
-      1128, // Время пыток, принцесса! 2
-      1129, // Раб спецотряда демонического города 2
-      1134, // Золотое божество: Финал
-      1135, // Триган: Наблюдая за звёздами
-      1084, // В любом случае я влюблюсь в тебя 2
-      980, // Один из отвергнутых: Изгой 6
-      1102, // Школа вверх дном (2026)
-      1137 // Адский учитель Нубэ (2025). Часть 2
+    // 1. Titles that are verified to have released/airing episodes: GUARANTEE PUBLISHED
+    const verifiedReleasedIds = [
+      1133,   // Адский рай 2 (12/12)
+      1123,   // Провожающая в последний путь Фрирен 2 (10/10)
+      7256,   // Кайдзю номер восемь: Рабочий день Наруми (4/4)
+      144107, // Моя геройская академия: Я тоже герой (1/1)
+      552,    // Токийские мстители: Битва трёх небожителей (2/13)
+      7239,   // Убийца богов: Финал (10/26)
+      7238,   // Стражи гробниц (6/59)
+      60058,  // Ребёнок идола 3 (10/11)
+      142718, // Дорогой звёзд 7 (4/12)
+      144994, // Принцесса-герой (1/1)
+      144999, // Противостояние святого (1/1)
+      1130,   // Магическая битва: Смертельная миграция (12/12)
+      914,    // О моём перерождении в слизь 4 (24/24)
+      916,    // Ангел по соседству 2 (12/12)
+      1108,   // Моя геройская академия: Вне закона 2 (12/13)
+      1113,   // Медалистка 2 (9/9)
+      1128,   // Время пыток, принцесса! 2 (12/12)
+      1129,   // Раб спецотряда демонического города 2 (12/12)
+      1134,   // Золотое божество: Финал (13/13)
+      1135,   // Триган: Наблюдая за звёздами (12/12)
+      1137,   // Адский учитель Нубэ 2 (13/13)
+      1084,   // В любом случае я влюблюсь в тебя 2 (12/12)
+      980,    // Один из отвергнутых: Изгой 6 (26/26)
+      1102    // Школа вверх дном (11/12)
     ];
 
-    const placeholders = unreleasedIds.map(() => '?').join(',');
+    const relPlaceholders = verifiedReleasedIds.map(() => '?').join(',');
+    db.prepare(`
+      UPDATE anime 
+      SET is_published = 1 
+      WHERE id IN (${relPlaceholders})
+    `).run(...verifiedReleasedIds);
+
+    // 2. Unreleased titles that are verified to have 0 aired episodes (pure announcements)
+    const verifiedZeroEpisodeIds = [
+      7243, // Первый порядок 2 (anons, 0 episodes)
+      7237  // Легенда о Белом Коте 3 (anons, 0 episodes)
+    ];
+
+    const zeroPlaceholders = verifiedZeroEpisodeIds.map(() => '?').join(',');
     db.prepare(`
       UPDATE anime 
       SET is_published = 0 
-      WHERE id IN (${placeholders}) 
-        AND id NOT IN (144107, 552)
+      WHERE id IN (${zeroPlaceholders}) 
+        AND id NOT IN (${relPlaceholders})
+        AND id NOT IN (SELECT anime_id FROM anime_publish_overrides)
         AND id NOT IN (SELECT anime_id FROM ratings WHERE user_id = 5)
-    `).run(...unreleasedIds);
+    `).run(...verifiedZeroEpisodeIds, ...verifiedReleasedIds);
 
+    // 3. Mark 2027+ distant future announcements as hidden (unless already released, overridden, or rated)
     db.prepare(`
       UPDATE anime 
       SET is_published = 0 
       WHERE (CAST(year AS INTEGER) >= 2027 OR year LIKE '%2027%' OR year >= '2027')
-        AND id != 144107
+        AND id NOT IN (${relPlaceholders})
+        AND id NOT IN (SELECT anime_id FROM anime_publish_overrides)
         AND id NOT IN (SELECT anime_id FROM ratings WHERE user_id = 5)
+    `).run(...verifiedReleasedIds);
+
+    // 4. Always respect manual admin overrides from Dev Console
+    db.prepare(`
+      UPDATE anime
+      SET is_published = (SELECT is_published FROM anime_publish_overrides WHERE anime_id = anime.id)
+      WHERE id IN (SELECT anime_id FROM anime_publish_overrides)
     `).run();
 
     console.log('[Database] Synchronized is_published visibility flags.');
   } catch (err) {
     console.error('[Database] Error setting default anime visibility:', err.message);
+  }
+}
+
+// Automatic online verification of episode availability via Shikimori API
+async function checkAndSyncEpisodeAvailability() {
+  console.log('[EpisodeSync] Starting automatic online episode verification...');
+  try {
+    const candidates = db.prepare(`
+      SELECT id, title, original_title, year, is_published
+      FROM anime
+      WHERE id NOT IN (SELECT anime_id FROM anime_publish_overrides)
+        AND (
+          is_published = 0
+          OR CAST(year AS INTEGER) >= 2026
+          OR year LIKE '%2026%'
+          OR year LIKE '%2027%'
+        )
+    `).all();
+
+    let publishedCount = 0;
+    let hiddenCount = 0;
+
+    for (const anime of candidates) {
+      // Never hide titles that have user ratings or are protected
+      const hasRatings = db.prepare('SELECT COUNT(*) as c FROM ratings WHERE anime_id = ?').get(anime.id)?.c > 0;
+      if (hasRatings || [1133, 1123, 7256, 144107, 552].includes(Number(anime.id))) {
+        if (anime.is_published !== 1) {
+          db.prepare('UPDATE anime SET is_published = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(anime.id);
+          publishedCount++;
+        }
+        continue;
+      }
+
+      const q = (anime.original_title || anime.title || '').trim();
+      if (!q) continue;
+
+      try {
+        const res = await fetch(`https://shikimori.one/api/animes?search=${encodeURIComponent(q)}&limit=1`, {
+          headers: { 'User-Agent': 'Anilex/1.0 (anilex@example.com)' },
+          signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
+        });
+
+        if (res.ok) {
+          const list = await res.json();
+          if (list && list[0]) {
+            const item = list[0];
+            const aired = Number(item.episodes_aired) || 0;
+            const status = item.status; // 'released', 'ongoing', 'anons'
+            const canWatch = aired > 0 || status === 'released' || status === 'ongoing';
+
+            if (canWatch && anime.is_published !== 1) {
+              db.prepare('UPDATE anime SET is_published = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(anime.id);
+              publishedCount++;
+            } else if (!canWatch && status === 'anons' && aired === 0 && anime.is_published !== 0) {
+              db.prepare('UPDATE anime SET is_published = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(anime.id);
+              hiddenCount++;
+            }
+          }
+        }
+      } catch (e) {
+        // Silently skip on network timeout
+      }
+
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      db.saveAccountsBackup();
+    }
+
+    console.log(`[EpisodeSync] Verification finished. Published: ${publishedCount}, Hidden: ${hiddenCount}`);
+    return { success: true, publishedCount, hiddenCount };
+  } catch (err) {
+    console.error('[EpisodeSync] Verification error:', err.message);
+    return { success: false, error: err.message };
   }
 }
 
@@ -1306,6 +1415,7 @@ db.getWordKey = getWordKey;
 db.areSameAnime = areSameAnime;
 db.deduplicateAnimeList = deduplicateAnimeList;
 db.ensureAllUsersFriends = ensureAllUsersFriends;
+db.checkAndSyncEpisodeAvailability = checkAndSyncEpisodeAvailability;
 
 deduplicateAnimeDatabase();
 

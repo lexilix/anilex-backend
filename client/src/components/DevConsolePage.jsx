@@ -497,6 +497,7 @@ export default function DevConsolePage({
   const [animeTotal, setAnimeTotal] = useState(0);
   const [animePublishFilter, setAnimePublishFilter] = useState('all'); // 'all' | 'published' | 'hidden'
   const [togglingPublishId, setTogglingPublishId] = useState(null);
+  const [syncingEpisodes, setSyncingEpisodes] = useState(false);
 
   // Edit Anime Modal
   const [editingAnime, setEditingAnime] = useState(null);
@@ -816,6 +817,35 @@ export default function DevConsolePage({
       showToast('Ошибка сети при переключении статуса', 'error');
     } finally {
       setTogglingPublishId(null);
+    }
+  };
+
+  // Online episodes sync handler
+  const handleSyncEpisodesOnline = async () => {
+    setSyncingEpisodes(true);
+    try {
+      const token = localStorage.getItem('anime_auth_token');
+      const res = await fetch(apiUrl('/api/dev/anime/sync-episodes'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(
+          `Проверка серий завершена! Опубликовано: ${data.publishedCount || 0}, Скрыто (0 серий): ${data.hiddenCount || 0}`,
+          'success'
+        );
+        fetchAnimeForDev(animeSearch, animePage, animePublishFilter);
+      } else {
+        showToast('Ошибка при онлайн-проверке серий', 'error');
+      }
+    } catch (e) {
+      showToast('Ошибка сети при проверке серий', 'error');
+    } finally {
+      setSyncingEpisodes(false);
     }
   };
 
@@ -2595,51 +2625,68 @@ export default function DevConsolePage({
             </div>
           </div>
 
-          {/* Filter Tabs: Все / Опубликованные / Скрытые */}
-          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-neutral-100 dark:bg-[#1b1b1f] border border-neutral-200/80 dark:border-neutral-800 w-fit">
+          {/* Filter Tabs & Auto Episode Sync */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-neutral-100 dark:bg-[#1b1b1f] border border-neutral-200/80 dark:border-neutral-800 w-fit">
+              <button
+                type="button"
+                onClick={() => {
+                  setAnimePublishFilter('all');
+                  setAnimePage(1);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  animePublishFilter === 'all'
+                    ? 'bg-white dark:bg-[#25252b] text-neutral-900 dark:text-white shadow-xs'
+                    : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                }`}
+              >
+                Все тайтлы
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAnimePublishFilter('published');
+                  setAnimePage(1);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  animePublishFilter === 'published'
+                    ? 'bg-emerald-500 text-white shadow-xs'
+                    : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                }`}
+              >
+                <CheckCircle className="w-3.5 h-3.5" />
+                <span>Опубликованные</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAnimePublishFilter('hidden');
+                  setAnimePage(1);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  animePublishFilter === 'hidden'
+                    ? 'bg-rose-500 text-white shadow-xs'
+                    : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                }`}
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+                <span>Скрытые (анонсы / 0 серий)</span>
+              </button>
+            </div>
+
             <button
               type="button"
-              onClick={() => {
-                setAnimePublishFilter('all');
-                setAnimePage(1);
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                animePublishFilter === 'all'
-                  ? 'bg-white dark:bg-[#25252b] text-neutral-900 dark:text-white shadow-xs'
-                  : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
-              }`}
+              disabled={syncingEpisodes}
+              onClick={handleSyncEpisodesOnline}
+              className="px-3.5 py-1.5 rounded-2xl bg-blue-500/10 hover:bg-blue-500 text-blue-600 hover:text-white dark:text-blue-400 border border-blue-500/20 text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 shadow-xs"
+              title="Проверить количество вышедших серий по API и автоматически открыть вышедшие тайтлы"
             >
-              Все тайтлы
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAnimePublishFilter('published');
-                setAnimePage(1);
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                animePublishFilter === 'published'
-                  ? 'bg-emerald-500 text-white shadow-xs'
-                  : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
-              }`}
-            >
-              <CheckCircle className="w-3.5 h-3.5" />
-              <span>Опубликованные</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAnimePublishFilter('hidden');
-                setAnimePage(1);
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                animePublishFilter === 'hidden'
-                  ? 'bg-rose-500 text-white shadow-xs'
-                  : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
-              }`}
-            >
-              <EyeOff className="w-3.5 h-3.5" />
-              <span>Скрытые (анонсы / 0 серий)</span>
+              {syncingEpisodes ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="w-3.5 h-3.5" />
+              )}
+              <span>{syncingEpisodes ? 'Проверка серий онлайн...' : 'Авто-проверка серий онлайн'}</span>
             </button>
           </div>
 
