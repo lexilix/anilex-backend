@@ -719,6 +719,30 @@ export default function ProfilePage({
     }
   }, [activeTab, fetchHidden]);
 
+  useEffect(() => {
+    const handleHiddenUpdated = (e) => {
+      const { animeId, isHidden, anime: updatedAnime } = e.detail || {};
+      if (animeId === undefined) return;
+      const numId = Number(animeId);
+      if (isHidden) {
+        if (updatedAnime) {
+          setHiddenList((prev) => {
+            if (prev.some((it) => Number(it.id) === numId)) return prev;
+            return [updatedAnime, ...prev];
+          });
+        }
+      } else {
+        setHiddenList((prev) => prev.filter((it) => Number(it.id) !== numId));
+      }
+    };
+    window.addEventListener('anilex:hidden-updated', handleHiddenUpdated);
+    window.addEventListener('anilex:hidden-synced', fetchHidden);
+    return () => {
+      window.removeEventListener('anilex:hidden-updated', handleHiddenUpdated);
+      window.removeEventListener('anilex:hidden-synced', fetchHidden);
+    };
+  }, [fetchHidden]);
+
   // Quick remove from hidden ('Не интересует') — restores to catalog
   const handleRemoveHidden = async (e, anime) => {
     e.stopPropagation();

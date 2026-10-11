@@ -26,7 +26,7 @@ import {
   upsertCachedAnimeItem,
   removeCachedAnimeItem
 } from './utils/catalogCache';
-import { getHiddenAnimeIds, toggleHiddenAnime } from './utils/hiddenStorage';
+import { getHiddenAnimeIds, toggleHiddenAnime, syncHiddenAnimeFromServer } from './utils/hiddenStorage';
 import { getFavoriteAnimeIds, toggleFavoriteAnime, isAnimeFavoritedLocally } from './utils/favoritesStorage';
 import { getCachedUserProfile, setCachedUserProfile, clearCachedUserProfile, updateCachedUserRating, getCachedUserRatings } from './utils/profileCache';
 import { deduplicateAnimeList } from './utils/animeDeduplicator';
@@ -216,6 +216,42 @@ export default function App() {
     window.addEventListener('anilex:anime-updated', handleAnimeUpdated);
     return () => window.removeEventListener('anilex:anime-updated', handleAnimeUpdated);
   }, []);
+
+  // Sync hidden anime from server when token or user changes
+  useEffect(() => {
+    if (token && user?.id) {
+      syncHiddenAnimeFromServer(token, user.id);
+    }
+  }, [token, user?.id]);
+
+  // Live listener for hidden anime updates anywhere in the app
+  useEffect(() => {
+    const handleHiddenUpdated = (e) => {
+      const { animeId, isHidden } = e.detail || {};
+      if (animeId === undefined) return;
+      const numId = Number(animeId);
+      const isSearching = Boolean(debouncedSearch.trim());
+
+      if (!isSearching && isHidden) {
+        setAnimeList((prev) =>
+          prev.filter((item) => Number(item.id) !== numId && !(Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId)))
+        );
+        setTotalCount((prev) => Math.max(0, prev - 1));
+      } else {
+        setAnimeList((prev) =>
+          prev.map((item) => {
+            const isMatch =
+              Number(item.id) === numId ||
+              (Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId));
+            return isMatch ? { ...item, isHidden: Boolean(isHidden) } : item;
+          })
+        );
+      }
+    };
+
+    window.addEventListener('anilex:hidden-updated', handleHiddenUpdated);
+    return () => window.removeEventListener('anilex:hidden-updated', handleHiddenUpdated);
+  }, [debouncedSearch]);
 
   // Data states (pre-seeded with 15 titles so page is NEVER blank or hanging, with ratings overlaid)
   const [animeList, setAnimeList] = useState(() => {
@@ -1153,20 +1189,30 @@ export default function App() {
       return;
     }
 
-    const animeObj = animeList.find((it) => it.id === animeId || (it.aliasIds && it.aliasIds.includes(animeId))) || { id: animeId };
+    const numId = Number(animeId);
+    let animeObj = animeList.find((it) => Number(it.id) === numId || (it.aliasIds && it.aliasIds.map(Number).includes(numId)));
+    if (!animeObj) {
+      try {
+        animeObj =
+          getAllCachedAnime().find((a) => Number(a.id) === numId || a.slug === String(animeId)) ||
+          (Array.isArray(initialCatalog) ? initialCatalog.find((a) => Number(a.id) === numId || a.slug === String(animeId)) : null);
+      } catch (e) {}
+    }
+    if (!animeObj) animeObj = { id: animeId };
+
     const newHidden = await toggleHiddenAnime(animeObj, token, user?.id, forcedState);
 
     const isSearching = Boolean(debouncedSearch.trim());
 
     if (!isSearching && newHidden) {
       // Main catalog: remove immediately from list
-      setAnimeList((prev) => prev.filter((item) => item.id !== animeId && !(item.aliasIds && item.aliasIds.includes(animeId))));
+      setAnimeList((prev) => prev.filter((item) => Number(item.id) !== numId && !(item.aliasIds && item.aliasIds.map(Number).includes(numId))));
       setTotalCount((prev) => Math.max(0, prev - 1));
     } else {
       // Search mode (Photo 1) or un-hiding: update isHidden in current animeList to dim/undim
       setAnimeList((prev) =>
         prev.map((item) =>
-          (item.id === animeId || (item.aliasIds && item.aliasIds.includes(animeId))) ? { ...item, isHidden: newHidden } : item
+          (Number(item.id) === numId || (item.aliasIds && item.aliasIds.map(Number).includes(numId))) ? { ...item, isHidden: newHidden } : item
         )
       );
     }
@@ -1434,6 +1480,7 @@ export default function App() {
             onRequireAuth={() => setAuthModalOpen(true)}
             onSelectAnime={(id) => navigateTo('anime-detail', id)}
             onRateAnime={handleRate}
+            onToggleHide={handleToggleHide}
           />
         )}
 

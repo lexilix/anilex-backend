@@ -3287,25 +3287,78 @@ app.post('/api/anime/:id/favorite', authMiddleware, (req, res) => {
 app.post('/api/anime/:id/hide', authMiddleware, (req, res) => {
   try {
     const userId = req.user.id;
-    const animeId = parseInt(req.params.id, 10);
-    if (isNaN(animeId)) {
-      return res.status(400).json({ error: 'Неверный ID аниме' });
+    let animeId = parseInt(req.params.id, 10);
+    let anime = null;
+
+    if (!isNaN(animeId)) {
+      anime = db.prepare('SELECT id FROM anime WHERE id = ?').get(animeId);
+    } else {
+      anime = db.prepare('SELECT id FROM anime WHERE slug = ?').get(req.params.id);
+      if (anime) animeId = anime.id;
     }
 
-    const anime = db.prepare('SELECT id FROM anime WHERE id = ?').get(animeId);
     if (!anime) {
+      // Fallback: check initialCatalog.json to auto-insert
+      try {
+        const catPath = path.join(__dirname, '..', 'client', 'src', 'data', 'initialCatalog.json');
+        if (fs.existsSync(catPath)) {
+          const cat = JSON.parse(fs.readFileSync(catPath, 'utf8'));
+          const found = cat.find((x) => x.id === animeId || x.slug === req.params.id);
+          if (found) {
+            const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+            db.prepare(`
+              INSERT INTO anime (id, slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET title = excluded.title
+            `).run(
+              found.id,
+              found.slug || `anime-${found.id}`,
+              found.title,
+              normalize(found.title),
+              found.originalTitle || '',
+              normalize(found.originalTitle || ''),
+              found.imageUrl || found.image_url || '',
+              found.type || 'Сериал',
+              found.year || '',
+              JSON.stringify(found.genres || []),
+              found.description || '',
+              found.season || '',
+              found.related_json || JSON.stringify(found.linkedAnime || [])
+            );
+            anime = db.prepare('SELECT id FROM anime WHERE id = ?').get(found.id);
+            animeId = found.id;
+          }
+        }
+      } catch (catErr) {}
+    }
+
+    if (!anime || isNaN(animeId)) {
       return res.status(404).json({ error: 'Аниме не найдено' });
     }
 
     const existing = db.prepare('SELECT id FROM user_hidden_anime WHERE user_id = ? AND anime_id = ?').get(userId, animeId);
     let isHidden = false;
 
-    if (existing) {
-      db.prepare('DELETE FROM user_hidden_anime WHERE id = ?').run(existing.id);
-      isHidden = false;
+    if (req.body && typeof req.body.isHidden === 'boolean') {
+      if (req.body.isHidden) {
+        if (!existing) {
+          db.prepare('INSERT INTO user_hidden_anime (user_id, anime_id) VALUES (?, ?)').run(userId, animeId);
+        }
+        isHidden = true;
+      } else {
+        if (existing) {
+          db.prepare('DELETE FROM user_hidden_anime WHERE id = ?').run(existing.id);
+        }
+        isHidden = false;
+      }
     } else {
-      db.prepare('INSERT INTO user_hidden_anime (user_id, anime_id) VALUES (?, ?)').run(userId, animeId);
-      isHidden = true;
+      if (existing) {
+        db.prepare('DELETE FROM user_hidden_anime WHERE id = ?').run(existing.id);
+        isHidden = false;
+      } else {
+        db.prepare('INSERT INTO user_hidden_anime (user_id, anime_id) VALUES (?, ?)').run(userId, animeId);
+        isHidden = true;
+      }
     }
 
     if (typeof db.saveAccountsBackup === 'function') {

@@ -9,6 +9,7 @@ import { applyCustomAnimeEdits, getCustomAnimeEdits } from '../utils/customEdits
 import { getAllCachedAnime, updateCachedAnimeItem } from '../utils/catalogCache';
 import { getCachedUserRatings, getCachedUserProfile, updateCachedUserRating } from '../utils/profileCache';
 import { isAnimeFavoritedLocally, toggleFavoriteAnime } from '../utils/favoritesStorage';
+import { isAnimeHiddenLocally, toggleHiddenAnime } from '../utils/hiddenStorage';
 import initialCatalog from '../data/initialCatalog.json';
 
 export default function AnimeDetailPage({
@@ -19,6 +20,7 @@ export default function AnimeDetailPage({
   onRequireAuth,
   onSelectAnime,
   onRateAnime,
+  onToggleHide,
   initialAnime = null
 }) {
   const [anime, setAnime] = useState(() => {
@@ -67,9 +69,11 @@ export default function AnimeDetailPage({
           }
         }
         found.isFavorite = isAnimeFavoritedLocally(found.id || animeId, user?.id);
+        found.isHidden = Boolean(found.isHidden) || isAnimeHiddenLocally(found.id || animeId, user?.id);
         return found;
       }
-      return null;
+      const initialHidden = isAnimeHiddenLocally(animeId, user?.id);
+      return initialHidden ? { id: animeId, isHidden: true } : null;
     } catch (e) {
       return null;
     }
@@ -108,6 +112,27 @@ export default function AnimeDetailPage({
     window.addEventListener('anilex:favorite-updated', handleFavUpdated);
     return () => window.removeEventListener('anilex:favorite-updated', handleFavUpdated);
   }, [animeId, user?.id]);
+
+  // Sync hidden ("Не интересует") with local storage and listen for updates
+  useEffect(() => {
+    if (animeId) {
+      const isHidden = isAnimeHiddenLocally(animeId, user?.id);
+      setAnime((prev) => (prev ? { ...prev, isHidden: isHidden || Boolean(prev.isHidden) } : prev));
+    }
+    const handleHiddenUpdated = (e) => {
+      const { animeId: evId, isHidden: nextHidden } = e.detail || {};
+      const numTargetId = Number(anime?.id || animeId);
+      if (Number(evId) === numTargetId || (anime?.aliasIds && anime.aliasIds.map(Number).includes(Number(evId)))) {
+        setAnime((prev) => (prev ? { ...prev, isHidden: Boolean(nextHidden) } : prev));
+      }
+    };
+    window.addEventListener('anilex:hidden-updated', handleHiddenUpdated);
+    window.addEventListener('anilex:hidden-synced', handleHiddenUpdated);
+    return () => {
+      window.removeEventListener('anilex:hidden-updated', handleHiddenUpdated);
+      window.removeEventListener('anilex:hidden-synced', handleHiddenUpdated);
+    };
+  }, [animeId, anime?.id, anime?.aliasIds, user?.id]);
 
   // Top-5 state (max 5 allowed - Photo 1 & 2)
   const [myTop5Ids, setMyTop5Ids] = useState(() => {
@@ -516,16 +541,16 @@ export default function AnimeDetailPage({
       onRequireAuth();
       return;
     }
+    const token = localStorage.getItem('anime_auth_token');
+    const targetAnime = anime ? { ...anime } : { id: animeId };
+    if (!targetAnime.id) targetAnime.id = animeId;
+
     setHideLoading(true);
     try {
-      const token = localStorage.getItem('anime_auth_token');
-      const res = await fetch(apiUrl(`/api/anime/${animeId}/hide`), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAnime((prev) => ({ ...prev, isHidden: data.isHidden }));
+      const nextHidden = await toggleHiddenAnime(targetAnime, token, user?.id);
+      setAnime((prev) => (prev ? { ...prev, isHidden: nextHidden } : { ...targetAnime, isHidden: nextHidden }));
+      if (onToggleHide) {
+        onToggleHide(targetAnime.id || animeId, nextHidden);
       }
     } catch (err) {
       console.error('Toggle hide error:', err);
@@ -621,6 +646,10 @@ export default function AnimeDetailPage({
         }
       }
 
+      if (data.isHidden === undefined || data.isHidden === null) {
+        data.isHidden = isAnimeHiddenLocally(data.id || animeId, currentUserId);
+      }
+
       setAnime(data);
       setImgSrc(resolveImageSrc(data.imageUrl || data.image_url, data.id || animeId));
       setImageFailed(false);
@@ -645,6 +674,9 @@ export default function AnimeDetailPage({
         }
         if (custom) {
           const currentUserId = user?.id || getCachedUserProfile()?.id;
+          if (custom.isHidden === undefined || custom.isHidden === null) {
+            custom.isHidden = isAnimeHiddenLocally(custom.id || animeId, currentUserId);
+          }
           if (currentUserId && (custom.myScore === null || custom.myScore === undefined)) {
             const cachedRatings = getCachedUserRatings(currentUserId);
             const match = (cachedRatings || []).find((r) =>
