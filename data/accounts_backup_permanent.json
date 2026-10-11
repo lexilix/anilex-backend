@@ -1512,7 +1512,7 @@
       "id": 673,
       "user_id": 5,
       "anime_id": 3307,
-      "score": 7,
+      "score": 9,
       "created_at": "2026-09-16 23:36:41",
       "updated_at": "2026-09-16 23:43:12"
     },
@@ -3547,6 +3547,30 @@
       "score": 7,
       "created_at": "2026-10-02 09:01:26",
       "updated_at": "2026-10-02 09:01:26"
+    },
+    {
+      "id": 36200,
+      "user_id": 21,
+      "anime_id": 7170,
+      "score": 10,
+      "created_at": "2026-10-11T13:17:01.344Z",
+      "updated_at": "2026-10-11T13:17:01.346Z"
+    },
+    {
+      "id": 36202,
+      "user_id": 5,
+      "anime_id": 7226,
+      "score": 8,
+      "created_at": "2026-10-11T13:17:01.346Z",
+      "updated_at": "2026-10-11T13:17:01.346Z"
+    },
+    {
+      "id": 36205,
+      "user_id": 5,
+      "anime_id": 718,
+      "score": 7,
+      "created_at": "2026-10-11T13:17:01.346Z",
+      "updated_at": "2026-10-11T13:17:01.346Z"
     }
   ],
   "friendRequests": [

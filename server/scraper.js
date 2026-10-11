@@ -97,6 +97,40 @@ function insertOrUpdateAnime(item) {
     item.image = 'https://placehold.co/300x450/1e293b/ffffff?text=' + encodeURIComponent(cleanTitle.slice(0, 30));
   }
 
+  // Check if item is unreleased / scheduled for 2027+
+  const isMHA = item.slug === 'anime-1790848936865-878' || cleanTitle.includes('Я тоже герой');
+  const itemYear = parseInt(item.year, 10);
+  const isUnreleased = !isMHA && (
+    (itemYear >= 2027) ||
+    (item.status === 'anons') ||
+    (item.episodesAired === 0 && item.episodes > 0)
+  );
+
+  if (isUnreleased) {
+    try {
+      db.prepare(`
+        INSERT OR REPLACE INTO unreleased_anime (id, slug, title, original_title, image_url, type, year, genres, description, season, related_json, status, episodes, episodes_aired)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        item.id || null,
+        item.slug,
+        cleanTitle,
+        cleanOriginal || null,
+        item.image,
+        item.type || null,
+        item.year ? String(item.year) : null,
+        JSON.stringify(item.genres || []),
+        item.description || null,
+        item.season || '',
+        item.related_json || '[]',
+        item.status || 'anons',
+        item.episodes || 0,
+        item.episodesAired || 0
+      );
+    } catch (e) {}
+    return;
+  }
+
   // 1. Check if an anime with this exact slug exists
   let existing = db.prepare('SELECT id, slug, title, original_title, image_url, type, year, genres, description FROM anime WHERE slug = ?').get(item.slug);
 

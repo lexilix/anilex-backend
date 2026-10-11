@@ -8177,61 +8177,6 @@
     "fallbackImageUrl": "https://shikimori.one/system/animes/original/42030.jpg?1711949205"
   },
   {
-    "id": 5655,
-    "slug": "shiki-57584",
-    "title": "Восхождение в тени! Реверберация",
-    "originalTitle": "Kage no Jitsuryokusha ni Naritakute! Movie: Zankyou-hen / The Eminence in Shadow: Lost Echoes / Восхождение в тени! Потерянное эхо / Кардинал теней. Реверберация / The Eminence in Shadow Movie: Lost Echoes Arc",
-    "imageUrl": "/covers/5655.webp",
-    "type": "Фильм",
-    "year": "2027",
-    "genres": [
-      "Экшен",
-      "Комедия",
-      "Фэнтези"
-    ],
-    "description": "Продолжение «Восхождение в тени! 2».",
-    "myScore": null,
-    "averageScore": null,
-    "ratingCount": 0,
-    "season": "Фильм",
-    "linkedAnime": [
-      {
-        "id": 6097,
-        "title": "Восхождение в тени: Мини-аниме!",
-        "imageUrl": "https://shikimori.one/system/animes/original/53406.jpg?1711935207",
-        "year": "2022",
-        "type": "ONA",
-        "relation": "ONA"
-      },
-      {
-        "id": 6970,
-        "title": "Восхождение в тени!",
-        "imageUrl": "https://shikimori.one/system/animes/original/48316.jpg?1711956877",
-        "year": "2022",
-        "type": "Сериал",
-        "relation": "1-й сезон"
-      },
-      {
-        "id": 6096,
-        "title": "Восхождение в тени! 2",
-        "imageUrl": "https://shikimori.one/system/animes/original/54595.jpg?1710728144",
-        "year": "2023",
-        "type": "Сериал",
-        "relation": "2-й сезон"
-      },
-      {
-        "id": 6099,
-        "title": "Восхождение в тени: Мини-аниме! 2",
-        "imageUrl": "https://shikimori.one/system/animes/original/56842.jpg?1718481413",
-        "year": "2023",
-        "type": "ONA",
-        "relation": "2-й сезон"
-      }
-    ],
-    "related_json": "[{\"id\":6097,\"title\":\"Восхождение в тени: Мини-аниме!\",\"imageUrl\":\"https://shikimori.one/system/animes/original/53406.jpg?1711935207\",\"year\":\"2022\",\"type\":\"ONA\",\"relation\":\"ONA\"},{\"id\":6970,\"title\":\"Восхождение в тени!\",\"imageUrl\":\"https://shikimori.one/system/animes/original/48316.jpg?1711956877\",\"year\":\"2022\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":6096,\"title\":\"Восхождение в тени! 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/54595.jpg?1710728144\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":6099,\"title\":\"Восхождение в тени: Мини-аниме! 2\",\"imageUrl\":\"https://shikimori.one/system/animes/original/56842.jpg?1718481413\",\"year\":\"2023\",\"type\":\"ONA\",\"relation\":\"2-й сезон\"}]",
-    "fallbackImageUrl": "https://shikimori.one/system/animes/original/57584.jpg?1718912548"
-  },
-  {
     "id": 5654,
     "slug": "shiki-43513",
     "title": "История кролика Таотао: Эхо",

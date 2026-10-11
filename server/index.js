@@ -1254,10 +1254,6 @@ app.get('/api/friends/my', optionalAuthMiddleware, (req, res) => {
 app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
   try {
     const currentUserId = req.user ? req.user.id : null;
-    if (!currentUserId) {
-      return res.status(401).json({ error: 'Войдите в аккаунт, чтобы просматривать профили пользователей' });
-    }
-
     const targetUserId = parseInt(req.params.id, 10);
     const user = db.prepare('SELECT id, nickname, avatar_url, banner_url, created_at FROM users WHERE id = ?').get(targetUserId);
     if (!user) {
@@ -1270,10 +1266,10 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
     let requestId = null;
 
     const isDevAdmin = currentUserId === 5 || (req.user && (req.user.nickname === 'Just' || req.user.email === 'just9jeeet@gmail.com'));
-    if (targetUserId === currentUserId || isDevAdmin) {
+    if (currentUserId && (targetUserId === currentUserId || isDevAdmin)) {
       isFriend = true;
       friendshipStatus = targetUserId === currentUserId ? 'self' : 'accepted';
-    } else {
+    } else if (currentUserId) {
       const relation = db.prepare(`
         SELECT id, from_user_id, to_user_id, status
         FROM friend_requests
@@ -1292,7 +1288,7 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
       }
     }
 
-    // Compute stats (for MrTech, exclude secret title from public count so it stays unchanged)
+    // Compute stats
     const isTargetMrTech = targetUserId === 20 || user.nickname === 'MrTech';
     const isTargetVenicek = targetUserId === 21 || user.nickname === 'Venicek';
 
@@ -1300,7 +1296,7 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
       SELECT COUNT(r.id) as rated_count, ROUND(AVG(r.score), 1) as avg_score
       FROM ratings r
       JOIN anime a ON r.anime_id = a.id
-      WHERE r.user_id = ? ${isTargetMrTech ? "AND a.title != 'Лимонные девочки'" : ''}
+      WHERE r.user_id = ?
     `).get(targetUserId);
 
     // Fetch user top 5 IDs
@@ -1315,12 +1311,9 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
     const lemonAnime = db.prepare("SELECT id, slug, title, image_url, type, year, genres FROM anime WHERE title = 'Лимонные девочки'").get();
     const lemonId = lemonAnime ? lemonAnime.id : 7170;
 
-    // Only apply specific constraints (MrTech / Venicek for Lemon Girls)
+    // Only apply specific constraints (MrTech for Lemon Girls)
     if (isTargetMrTech && !top5Ids.includes(lemonId)) {
       top5Ids.unshift(lemonId);
-    }
-    if (isTargetVenicek) {
-      top5Ids = top5Ids.filter(id => id !== lemonId);
     }
 
     // Always fetch full details for top-5 anime to return directly as top5Anime
@@ -1332,7 +1325,7 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
                COALESCE(r.score, 10) as score
         FROM anime a
         LEFT JOIN ratings r ON r.anime_id = a.id AND r.user_id = ?
-        WHERE a.id IN (${top5Placeholders}) ${isTargetVenicek ? "AND a.title != 'Лимонные девочки'" : ''}
+        WHERE a.id IN (${top5Placeholders})
       `).all(targetUserId, ...top5Ids);
 
       top5Anime = top5Ids.map(id => {
@@ -1367,7 +1360,7 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
         SELECT a.id, a.slug, a.title, a.image_url, a.type, a.year, a.genres, r.score, r.updated_at
         FROM ratings r
         JOIN anime a ON r.anime_id = a.id
-        WHERE r.user_id = ? ${isTargetVenicek ? "AND a.title != 'Лимонные девочки'" : ''}
+        WHERE r.user_id = ?
         ORDER BY ${orderClause}
       `).all(targetUserId);
     } else if (top5Ids.length > 0) {
@@ -1377,7 +1370,7 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
         SELECT a.id, a.slug, a.title, a.image_url, a.type, a.year, a.genres, r.score, r.updated_at
         FROM ratings r
         JOIN anime a ON r.anime_id = a.id
-        WHERE r.user_id = ? AND a.id IN (${placeholders}) ${isTargetVenicek ? "AND a.title != 'Лимонные девочки'" : ''}
+        WHERE r.user_id = ? AND a.id IN (${placeholders})
       `).all(targetUserId, ...top5Ids);
     }
 
@@ -1414,10 +1407,6 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
             updatedAt: r.updated_at
           };
         });
-
-        if (isTargetVenicek) {
-          formatted = formatted.filter(r => r.title !== 'Лимонные девочки' && r.id !== lemonId);
-        }
 
         if (isTargetMrTech && !formatted.some(r => r.title === 'Лимонные девочки' || r.id === lemonId)) {
           if (lemonAnime) {
@@ -3538,7 +3527,7 @@ app.get('/api/user/rated-anime', authMiddleware, (req, res) => {
     const { search, genres, type, score, sort = 'my_score_desc' } = req.query;
 
     const params = [userId];
-    let whereClauses = ['r.user_id = ?', "a.title != 'Лимонные девочки'"];
+    let whereClauses = ['r.user_id = ?'];
 
     if (userId === 5 || req.user.nickname === 'Just') {
       whereClauses.push('r.anime_id NOT IN (1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234, 7186)');
@@ -4475,7 +4464,7 @@ app.get('/api/dev/users/:id/ratings', devAdminMiddleware, (req, res) => {
     const targetUserId = parseInt(req.params.id, 10);
     const { search, genres, type, score, sort = 'my_score_desc' } = req.query;
 
-    let whereClauses = ['r.user_id = ?', "a.title != 'Лимонные девочки'"];
+    let whereClauses = ['r.user_id = ?'];
     let params = [targetUserId];
 
     if (search && search.trim()) {
@@ -4550,7 +4539,7 @@ app.get('/api/dev/users/:id/unrated', devAdminMiddleware, (req, res) => {
     const limitNum = Math.min(100, Math.max(10, parseInt(limit, 10) || 60));
     const offset = (pageNum - 1) * limitNum;
 
-    let whereClauses = ['a.id NOT IN (SELECT anime_id FROM ratings WHERE user_id = ?)', "a.title != 'Лимонные девочки'"];
+    let whereClauses = ['a.id NOT IN (SELECT anime_id FROM ratings WHERE user_id = ?)'];
     let params = [targetUserId];
 
     if (search && search.trim()) {
@@ -5356,11 +5345,15 @@ if (require.main === module) {
         db.prepare('DELETE FROM users WHERE id = ?').run(inspectorUser.id);
       }
 
-      // Strictly purge any Lemon Girls rating or top5 from Venicek
+      // Guarantee Venicek 10/10 rating for Lemon Girls
       const venicekUser = db.prepare("SELECT id FROM users WHERE nickname = 'Venicek'").get();
       if (venicekUser && lemonAnime) {
-        db.prepare('DELETE FROM ratings WHERE user_id = ? AND anime_id = ?').run(venicekUser.id, lemonAnime.id);
-        db.prepare('DELETE FROM user_top5 WHERE user_id = ? AND anime_id = ?').run(venicekUser.id, lemonAnime.id);
+        const hasRateVen = db.prepare('SELECT id FROM ratings WHERE user_id = ? AND anime_id = ?').get(venicekUser.id, lemonAnime.id);
+        if (!hasRateVen) {
+          db.prepare('INSERT INTO ratings (user_id, anime_id, score, created_at, updated_at) VALUES (?, ?, 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)').run(venicekUser.id, lemonAnime.id);
+        } else {
+          db.prepare('UPDATE ratings SET score = 10 WHERE id = ?').run(hasRateVen.id);
+        }
       }
     } catch (e) {
       console.warn('[Server] Startup cleanup warning:', e.message);

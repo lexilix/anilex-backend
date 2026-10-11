@@ -1218,6 +1218,17 @@ export default function ProfilePage({
   // Load friend public profile
   const handleOpenFriend = async (friendId, fallbackUser = null) => {
     try {
+      if (fallbackUser) {
+        let initUser = applyCustomUserEdits(fallbackUser);
+        if (!initUser || !initUser.nickname) initUser = { ...fallbackUser };
+        const isJustViewer = user?.nickname === 'Just' || user?.id === 5 || user?.email === 'just9jeeet@gmail.com';
+        if (isJustViewer) {
+          initUser.isFriend = true;
+          initUser.friendshipStatus = 'accepted';
+        }
+        setSelectedFriend(initUser);
+      }
+
       const token = localStorage.getItem('anime_auth_token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await fetch(apiUrl(`/api/users/${friendId}/profile`), { headers });
@@ -1241,9 +1252,22 @@ export default function ProfilePage({
         setSelectedFriend(userObj);
         let ratings = data.ratings || [];
 
-        // Strictly purge Lemon Girls from Venicek (Photo 1)
+        // Guarantee Lemon Girls 10/10 for Venicek
         if (data.user?.nickname === 'Venicek' || data.user?.id === 21 || friendId === 21) {
-          ratings = ratings.filter((r) => r.title !== 'Лимонные девочки' && r.id !== 7170 && !r.isSecretTop);
+          const hasLemon = ratings.some((r) => r.title === 'Лимонные девочки' || r.id === 7170);
+          if (!hasLemon) {
+            ratings.push({
+              id: 7170,
+              slug: 'shiki-82476',
+              title: 'Лимонные девочки',
+              imageUrl: 'https://cdn.myanimelist.net/images/anime/2/82476l.jpg',
+              type: 'OVA',
+              year: '2016',
+              genres: ['Хентай'],
+              score: 10,
+              updatedAt: new Date().toISOString()
+            });
+          }
         }
 
         // For MrTech (id: 20): always guarantee Lemon Girls with 10/10 is pinned at index 0 (Photo 2 & 3)
@@ -2729,14 +2753,7 @@ export default function ProfilePage({
                     {(() => {
                       const isMrTechProfile = selectedFriend?.nickname === 'MrTech' || selectedFriend?.id === 20;
                       const isVenicekProfile = selectedFriend?.nickname === 'Venicek' || selectedFriend?.id === 21;
-
-                      // Strict cleanse for Venicek
                       let cleanFriendRatings = friendRatings;
-                      if (isVenicekProfile) {
-                        cleanFriendRatings = cleanFriendRatings.filter(
-                          (item) => item.title !== 'Лимонные девочки' && item.id !== 7170 && !item.isSecretTop
-                        );
-                      }
 
                       // Sort ratings
                       const sortedFriendRatings = [...cleanFriendRatings].sort((a, b) => {

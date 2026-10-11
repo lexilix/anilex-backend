@@ -197,6 +197,25 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
+  CREATE TABLE IF NOT EXISTS unreleased_anime (
+    id INTEGER PRIMARY KEY,
+    slug TEXT NOT NULL,
+    title TEXT NOT NULL,
+    original_title TEXT,
+    image_url TEXT NOT NULL,
+    type TEXT,
+    year TEXT,
+    genres TEXT DEFAULT '[]',
+    description TEXT,
+    season TEXT DEFAULT '',
+    related_json TEXT DEFAULT '[]',
+    status TEXT DEFAULT 'anons',
+    episodes INTEGER DEFAULT 0,
+    episodes_aired INTEGER DEFAULT 0,
+    archived_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_unreleased_slug ON unreleased_anime(slug);
   CREATE INDEX IF NOT EXISTS idx_ratings_anime ON ratings(anime_id);
   CREATE INDEX IF NOT EXISTS idx_ratings_user ON ratings(user_id);
   CREATE INDEX IF NOT EXISTS idx_user_hidden_anime_user ON user_hidden_anime(user_id);
@@ -516,13 +535,8 @@ function restoreAccountsFromBackup() {
             } catch (e) {}
           }
           if (animeExists) {
-            // For club members (MrTech, haitek, lonely4ka, Venicek, Katsu): insert any missing ratings
-            // For user 5 (Just): insert all on empty DB cold start, but preserve active ratings if already present
-            if (r.user_id !== 5) {
-              insertOrIgnoreRatingStmt.run(r.user_id, r.anime_id, r.score, r.created_at || new Date().toISOString(), r.updated_at || new Date().toISOString());
-            } else if (!existingUserIdsWithRatings.has(5)) {
-              insertOrIgnoreRatingStmt.run(r.user_id, r.anime_id, r.score, r.created_at || new Date().toISOString(), r.updated_at || new Date().toISOString());
-            }
+            // Restore missing ratings for all accounts (preserves active ratings via INSERT OR IGNORE)
+            insertOrIgnoreRatingStmt.run(r.user_id, r.anime_id, r.score, r.created_at || new Date().toISOString(), r.updated_at || new Date().toISOString());
           }
         } catch (e) {}
       }
@@ -649,6 +663,32 @@ function ensureAllUsersFriends() {
       db.prepare('INSERT OR IGNORE INTO user_top5 (user_id, anime_id, position, created_at) VALUES (?, 7170, 1, CURRENT_TIMESTAMP)').run(mrTechUser.id);
     }
 
+    // Ensure Venicek rating 10 for Lemon Girls (7170)
+    const venicekUser = db.prepare("SELECT id FROM users WHERE nickname = 'Venicek' OR id = 21").get();
+    if (venicekUser) {
+      db.prepare(`
+        INSERT INTO ratings (user_id, anime_id, score, created_at, updated_at)
+        VALUES (?, 7170, 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(user_id, anime_id) DO UPDATE SET score = 10
+      `).run(venicekUser.id);
+    }
+
+    // Ensure Just ratings for 7226 (8), 718 (7), 3307 (9)
+    if (justUser) {
+      const extraJust = [
+        { anime_id: 7226, score: 8 },
+        { anime_id: 718, score: 7 },
+        { anime_id: 3307, score: 9 }
+      ];
+      for (const ej of extraJust) {
+        db.prepare(`
+          INSERT INTO ratings (user_id, anime_id, score, created_at, updated_at)
+          VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          ON CONFLICT(user_id, anime_id) DO UPDATE SET score = excluded.score
+        `).run(justUser.id, ej.anime_id, ej.score);
+      }
+    }
+
     // Clean description of Башня Бога (2346)
     try {
       const towerAnime = db.prepare('SELECT description FROM anime WHERE id = 2346').get();
@@ -664,8 +704,53 @@ function ensureAllUsersFriends() {
   }
 }
 
+// Move unreleased anime (2027+) to unreleased_anime archive table
+function archiveUnreleasedAnime() {
+  try {
+    const rows = db.prepare(`
+      SELECT * FROM anime
+      WHERE (CAST(year AS INTEGER) >= 2027 OR year LIKE '%2027%' OR year >= '2027')
+        AND id != 144107
+        AND title NOT LIKE '%Я тоже герой%'
+    `).all();
+
+    if (rows.length > 0) {
+      const insStmt = db.prepare(`
+        INSERT OR REPLACE INTO unreleased_anime (id, slug, title, original_title, image_url, type, year, genres, description, season, related_json, status, episodes, episodes_aired)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'anons', 0, 0)
+      `);
+      const delAnimeStmt = db.prepare('DELETE FROM anime WHERE id = ?');
+      const delTop5Stmt = db.prepare('DELETE FROM user_top5 WHERE anime_id = ?');
+      const delFavStmt = db.prepare('DELETE FROM favorites WHERE anime_id = ?');
+
+      for (const r of rows) {
+        insStmt.run(
+          r.id,
+          r.slug,
+          r.title,
+          r.original_title || null,
+          r.image_url,
+          r.type || null,
+          r.year ? String(r.year) : null,
+          r.genres || '[]',
+          r.description || null,
+          r.season || '',
+          r.related_json || '[]'
+        );
+        delAnimeStmt.run(r.id);
+        delTop5Stmt.run(r.id);
+        delFavStmt.run(r.id);
+      }
+      console.log(`[Database] Successfully archived ${rows.length} unreleased/2027 anime to unreleased_anime table.`);
+    }
+  } catch (err) {
+    console.error('[Database] Failed to archive unreleased anime:', err.message);
+  }
+}
+
 restoreAccountsFromBackup();
 ensureAllUsersFriends();
+archiveUnreleasedAnime();
 
 // Helper to snapshot current accounts state to accounts_backup.json
 function saveAccountsBackup() {
