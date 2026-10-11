@@ -217,24 +217,6 @@ export default function App() {
     return () => window.removeEventListener('anilex:anime-updated', handleAnimeUpdated);
   }, []);
 
-  // Live listener for publish/hide status toggles from DevConsole
-  useEffect(() => {
-    const handlePublishChanged = (e) => {
-      const { id, isPublished } = e.detail || {};
-      if (!id) return;
-      const numId = Number(id);
-      if (isPublished === false) {
-        setAnimeList((prev) => prev.filter((item) => Number(item.id) !== numId));
-      } else {
-        if (typeof fetchAnime === 'function') {
-          fetchAnime(page);
-        }
-      }
-    };
-    window.addEventListener('anilex-anime-published-changed', handlePublishChanged);
-    return () => window.removeEventListener('anilex-anime-published-changed', handlePublishChanged);
-  }, [fetchAnime, page]);
-
   // Data states (pre-seeded with 15 titles so page is NEVER blank or hanging, with ratings overlaid)
   const [animeList, setAnimeList] = useState(() => {
     let initialItems = [];
@@ -1033,6 +1015,24 @@ export default function App() {
   useEffect(() => {
     fetchAnime(1, false);
   }, [fetchAnime]);
+
+  // Live listener for publish/hide status toggles from DevConsole
+  useEffect(() => {
+    const handlePublishChanged = (e) => {
+      const { id, isPublished } = e.detail || {};
+      if (!id) return;
+      const numId = Number(id);
+      if (isPublished === false) {
+        setAnimeList((prev) => prev.filter((item) => Number(item.id) !== numId));
+      } else {
+        if (typeof fetchAnime === 'function') {
+          fetchAnime(page);
+        }
+      }
+    };
+    window.addEventListener('anilex-anime-published-changed', handlePublishChanged);
+    return () => window.removeEventListener('anilex-anime-published-changed', handlePublishChanged);
+  }, [fetchAnime, page]);
 
   // Page change handler
   const handlePageChange = (newPage) => {
