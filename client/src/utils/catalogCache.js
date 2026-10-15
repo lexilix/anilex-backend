@@ -244,6 +244,28 @@ export function levenshteinDistance(s1, s2) {
   return d[m][n];
 }
 
+export function fuzzySubstringMatch(query, target) {
+  if (!query || !target) return false;
+  const qClean = query.toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z0-9]/gi, '');
+  const tClean = target.toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z0-9]/gi, '');
+  if (!qClean || !tClean) return false;
+  if (tClean.includes(qClean)) return true;
+
+  const maxDist = qClean.length >= 8 ? 2 : (qClean.length >= 5 ? 1 : 0);
+  const qLen = qClean.length;
+
+  for (let len = qLen - 1; len <= qLen + 1; len++) {
+    if (len <= 0) continue;
+    for (let i = 0; i <= tClean.length - len; i++) {
+      const window = tClean.slice(i, i + len);
+      if (levenshteinDistance(qClean, window) <= maxDist) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 export function fuzzyWordMatch(queryWord, targetText, queryStem = null) {
   if (!queryWord || !targetText) return false;
   if (targetText.includes(queryWord)) return true;
@@ -263,6 +285,29 @@ export function fuzzyWordMatch(queryWord, targetText, queryStem = null) {
   return false;
 }
 
+const CLIENT_KNOWN_SYNONYMS = [
+  {
+    patterns: [/ван\s*па[нч]ч?\s*мен/i, /ванпач/i, /one\s*punch/i, /opm/i],
+    targetIds: [6047, 6049, 1174, 6050, 6051, 6048, 2329]
+  },
+  {
+    patterns: [/агент.*врем/i, /агент.*врям/i, /агент.*времини/i, /link\s*click/i, /shiguang\s*dailiren/i],
+    targetIds: [44074, 49413, 56752]
+  },
+  {
+    patterns: [/ангел.*по.*с[ао][сц]едств/i, /otonari.*tenshi/i],
+    targetIds: [1718, 916]
+  },
+  {
+    patterns: [/атак.*титан/i, /вторжен.*гигант/i, /attack\s*on\s*titan/i, /shingeki/i],
+    targetIds: [5393, 7180, 7181, 7182]
+  },
+  {
+    patterns: [/нарут/i, /naruto/i],
+    targetIds: [7178, 4494, 4486]
+  }
+];
+
 /**
  * Searches across all cached items for matches on title, original title, or description with stemming and relevance ranking.
  */
@@ -271,8 +316,7 @@ export function searchCachedAnime(query) {
   const q = query.trim().toLowerCase().replace(/ё/g, 'е');
   const all = getAllCachedAnime();
 
-  // Known typo/synonym shortcuts
-  const isLinkClickQuery = /агент.*врем|агент.*врев|link\s*click|shiguang\s*dailiren/i.test(q);
+  const matchedSyn = CLIENT_KNOWN_SYNONYMS.find((s) => s.patterns.some((p) => p.test(q)));
 
   const words = q.split(/\s+/).filter((w) => w.length > 0);
   const stopWords = new Set(['у', 'в', 'и', 'с', 'к', 'о', 'на', 'по', 'за', 'из', 'от', 'до', 'об', 'a', 'an', 'the', 'in', 'on', 'of', 'to', 'is', 'no', 'wa']);
@@ -299,9 +343,8 @@ export function searchCachedAnime(query) {
 
     let matchScore = 0;
 
-    // Link Click special synonym matching
-    if (isLinkClickQuery && (t.includes('агент') || ot.includes('shiguang') || ot.includes('link click') || [44074, 49413, 56752].includes(Number(item.id)))) {
-      matchScore += 150;
+    if (matchedSyn && matchedSyn.targetIds.includes(Number(item.id))) {
+      matchScore += 200;
     }
 
     // 1. Direct phrase matching
@@ -312,7 +355,13 @@ export function searchCachedAnime(query) {
     else if (season.includes(q)) matchScore += 30;
     else if (desc.includes(q)) matchScore += 10;
 
-    // 2. Multi-word / stem / fuzzy matching
+    // 2. Fuzzy substring match (typo tolerance)
+    const isFuzzyTitle = fuzzySubstringMatch(q, t);
+    const isFuzzyOrig = fuzzySubstringMatch(q, ot);
+    if (isFuzzyTitle) matchScore += 60;
+    else if (isFuzzyOrig) matchScore += 40;
+
+    // 3. Multi-word / stem / fuzzy matching
     let allWordsMatched = true;
     for (const ws of wordStems) {
       const inTitle = fuzzyWordMatch(ws.raw, t, ws.stem);
@@ -329,7 +378,7 @@ export function searchCachedAnime(query) {
       }
     }
 
-    if (matchScore > 0 && (allWordsMatched || isLinkClickQuery || t.includes(q) || ot.includes(q))) {
+    if (matchScore > 0 && (allWordsMatched || isFuzzyTitle || isFuzzyOrig || (matchedSyn && matchedSyn.targetIds.includes(Number(item.id))))) {
       scored.push({ item, score: matchScore });
     }
   }

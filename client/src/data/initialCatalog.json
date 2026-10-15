@@ -1,10 +1,44 @@
 [
   {
+    "id": 916,
+    "title": "Ангел по соседству 2",
+    "originalTitle": "Otonari no Tenshi-sama ni Itsunomanika Dame Ningen ni Sareteita Ken 2",
+    "imageUrl": "/covers/916.webp",
+    "image_url": "/covers/916.webp",
+    "type": "Сериал",
+    "year": "2026",
+    "genres": [
+      "Романтика",
+      "Комедия",
+      "Школа"
+    ],
+    "description": "Аманэ Фудзимия и Махиру Сина переходят на второй год старшей школы. Их привычная и спокойная жизнь постепенно меняется, а вместе с ней появляются новые ситуации как в школе, так и за её пределами.",
+    "season": "2-й сезон",
+    "linkedAnime": [
+      {
+        "id": 1718,
+        "title": "Ангел по соседству",
+        "imageUrl": "/covers/1718.webp",
+        "year": "2023",
+        "type": "Сериал",
+        "relation": "Предыстория"
+      }
+    ],
+    "myScore": null,
+    "averageScore": null,
+    "ratingCount": 0,
+    "isFavorite": false,
+    "isHidden": false,
+    "is_published": 1,
+    "isPublished": true,
+    "commentsCount": 0
+  },
+  {
     "id": 56752,
     "slug": "agenty-vremeni-season-3",
     "title": "Агенты времени 3: Глава Инду",
     "originalTitle": "Link Click: Bridon Arc / Shiguang Dailiren: Yingdu Pian",
-    "imageUrl": "https://shikimori.io/system/animes/original/56752.jpg",
+    "imageUrl": "/covers/56752.webp",
     "type": "ONA",
     "year": "2024",
     "genres": [
@@ -29,14 +63,15 @@
         "title": "Агенты времени 2",
         "relation": "Предыстория (2 сезон)"
       }
-    ]
+    ],
+    "image_url": "/covers/56752.webp"
   },
   {
     "id": 49413,
     "slug": "agenty-vremeni-season-2",
     "title": "Агенты времени 2",
     "originalTitle": "Link Click Season 2 / Shiguang Dailiren II",
-    "imageUrl": "https://shikimori.io/system/animes/original/49413.jpg",
+    "imageUrl": "/covers/49413.webp",
     "type": "ONA",
     "year": "2023",
     "genres": [
@@ -62,14 +97,15 @@
         "title": "Агенты времени 3: Глава Инду",
         "relation": "Продолжение (3 сезон)"
       }
-    ]
+    ],
+    "image_url": "/covers/49413.webp"
   },
   {
     "id": 44074,
     "slug": "agenty-vremeni-season-1",
     "title": "Агенты времени",
     "originalTitle": "Link Click / Shiguang Dailiren",
-    "imageUrl": "https://shikimori.io/system/animes/original/44074.jpg",
+    "imageUrl": "/covers/44074.webp",
     "type": "ONA",
     "year": "2021",
     "genres": [
@@ -94,7 +130,8 @@
         "title": "Агенты времени 3: Глава Инду",
         "relation": "Продолжение (3 сезон)"
       }
-    ]
+    ],
+    "image_url": "/covers/44074.webp"
   },
   {
     "id": 7256,

@@ -1821,9 +1821,19 @@ function stemRussianWord(word) {
 
 const ANIME_SYNONYMS = [
   {
-    patterns: [/агент.*врем/i, /агент.*врев/i, /link\s*click/i, /shiguang\s*dailiren/i],
+    patterns: [/ван\s*па[нч]ч?\s*мен/i, /ванпач/i, /one\s*punch/i, /opm/i],
+    canonical: ['Ванпанчмен', 'One Punch Man'],
+    targetIds: [6047, 6049, 1174, 6050, 6051, 6048, 2329]
+  },
+  {
+    patterns: [/агент.*врем/i, /агент.*врям/i, /агент.*времини/i, /агент.*врев/i, /link\s*click/i, /shiguang\s*dailiren/i],
     canonical: ['Агенты времени', 'Link Click', 'Shiguang Dailiren'],
     targetIds: [44074, 49413, 56752]
+  },
+  {
+    patterns: [/ангел.*по.*с[ао][сц]едств/i, /otonari.*tenshi/i],
+    canonical: ['Ангел по соседству', 'Ангел по соседству 2', 'Otonari no Tenshi'],
+    targetIds: [1718, 916]
   },
   {
     patterns: [/звездн.*дит/i, /звёздн.*дит/i, /реб[её]нок.*идол/i, /oshi\s*no\s*ko/i, /my\s*star/i, /реб[её]нок.*айдол/i],
@@ -1836,7 +1846,8 @@ const ANIME_SYNONYMS = [
   },
   {
     patterns: [/атак.*титан/i, /вторжен.*гигант/i, /shingeki\s*no\s*kyojin/i, /attack\s*on\s*titan/i],
-    canonical: ['Атака титанов', 'Вторжение гигантов', 'Shingeki no Kyojin']
+    canonical: ['Атака титанов', 'Вторжение гигантов', 'Shingeki no Kyojin'],
+    targetIds: [5393, 7180, 7181, 7182]
   },
   {
     patterns: [/магическ.*битв/i, /jujutsu\s*kaisen/i, /магическая\s*битва/i],
@@ -1903,8 +1914,9 @@ const ANIME_SYNONYMS = [
     canonical: ['Блич', 'Bleach']
   },
   {
-    patterns: [/наруто/i, /naruto/i],
-    canonical: ['Наруто', 'Naruto']
+    patterns: [/нарут/i, /naruto/i],
+    canonical: ['Наруто', 'Naruto'],
+    targetIds: [7178, 4494, 4486]
   }
 ];
 

@@ -4639,7 +4639,8 @@
       "title_lower": "ангел по соседству 2",
       "original_title_lower": "otonari no tenshi-sama ni itsunomanika dame ningen ni sareteita ken 2",
       "season": "2-й сезон",
-      "related_json": "[{\"id\":1718,\"title\":\"Ангел по соседству\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/63/63f85d883089f370485553\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"ONA\"}]"
+      "related_json": "[{\"id\":1718,\"title\":\"Ангел по соседству\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/63/63f85d883089f370485553\",\"year\":\"2023\",\"type\":\"Сериал\",\"relation\":\"ONA\"}]",
+      "is_published": 1
     },
     {
       "id": 940,
@@ -6118,7 +6119,8 @@
       "title_lower": "ангел по соседству",
       "original_title_lower": "otonari no tenshi-sama ni itsunomanika dame ningen ni sareteita ken",
       "season": "ONA",
-      "related_json": "[{\"id\":916,\"title\":\"Ангел по соседству 2\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/69/69920a2d3f55c531141179\",\"year\":\"2026\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"}]"
+      "related_json": "[{\"id\":916,\"title\":\"Ангел по соседству 2\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/69/69920a2d3f55c531141179\",\"year\":\"2026\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"}]",
+      "is_published": 1
     },
     {
       "id": 1742,
@@ -13955,7 +13957,8 @@
       "title_lower": "ванпанчмен",
       "original_title_lower": "one punch man / one-punch man / one punch-man / opm",
       "season": "1-й сезон",
-      "related_json": "[{\"id\":6050,\"title\":\"Ванпанчмен: Путь к становлению героем\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/6763f648181bb505321091\",\"year\":\"2015\",\"type\":\"OVA\",\"relation\":\"OVA\"},{\"id\":6051,\"title\":\"Ванпанчмен: Спецвыпуски\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/6763f64316c35952944917\",\"year\":\"2015\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":2329,\"title\":\"Ванпанчмен 2: Спецвыпуски\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5f/5f511bb77dd70890685851\",\"year\":\"2019\",\"type\":\"Спешл\",\"relation\":\"2-й сезон\"},{\"id\":6048,\"title\":\"Ванпанчмен 2: Памятный эпизод\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39652.jpg?1711967602\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":6049,\"title\":\"Ванпанчмен 2\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/6763f63e647c0917321005\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":1174,\"title\":\"Ванпанчмен 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/68d6cee5deb5f639021940\",\"year\":\"2025\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"}]"
+      "related_json": "[{\"id\":6050,\"title\":\"Ванпанчмен: Путь к становлению героем\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/6763f648181bb505321091\",\"year\":\"2015\",\"type\":\"OVA\",\"relation\":\"OVA\"},{\"id\":6051,\"title\":\"Ванпанчмен: Спецвыпуски\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/6763f64316c35952944917\",\"year\":\"2015\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":2329,\"title\":\"Ванпанчмен 2: Спецвыпуски\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5f/5f511bb77dd70890685851\",\"year\":\"2019\",\"type\":\"Спешл\",\"relation\":\"2-й сезон\"},{\"id\":6048,\"title\":\"Ванпанчмен 2: Памятный эпизод\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39652.jpg?1711967602\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":6049,\"title\":\"Ванпанчмен 2\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/6763f63e647c0917321005\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":1174,\"title\":\"Ванпанчмен 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/68d6cee5deb5f639021940\",\"year\":\"2025\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"}]",
+      "is_published": 1
     },
     {
       "id": 6048,
@@ -13989,7 +13992,8 @@
       "title_lower": "ванпанчмен 2",
       "original_title_lower": "one punch man 2nd season / one-punch man season 2 / one punch-man 2 / one-punch man 2 / opm 2",
       "season": "2-й сезон",
-      "related_json": "[{\"id\":6047,\"title\":\"Ванпанчмен\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5d/5df735a5705a7588124703\",\"year\":\"2015\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":6050,\"title\":\"Ванпанчмен: Путь к становлению героем\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/6763f648181bb505321091\",\"year\":\"2015\",\"type\":\"OVA\",\"relation\":\"OVA\"},{\"id\":6051,\"title\":\"Ванпанчмен: Спецвыпуски\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/6763f64316c35952944917\",\"year\":\"2015\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":2329,\"title\":\"Ванпанчмен 2: Спецвыпуски\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5f/5f511bb77dd70890685851\",\"year\":\"2019\",\"type\":\"Спешл\",\"relation\":\"2-й сезон\"},{\"id\":6048,\"title\":\"Ванпанчмен 2: Памятный эпизод\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39652.jpg?1711967602\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":1174,\"title\":\"Ванпанчмен 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/68d6cee5deb5f639021940\",\"year\":\"2025\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"}]"
+      "related_json": "[{\"id\":6047,\"title\":\"Ванпанчмен\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5d/5df735a5705a7588124703\",\"year\":\"2015\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":6050,\"title\":\"Ванпанчмен: Путь к становлению героем\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/6763f648181bb505321091\",\"year\":\"2015\",\"type\":\"OVA\",\"relation\":\"OVA\"},{\"id\":6051,\"title\":\"Ванпанчмен: Спецвыпуски\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/6763f64316c35952944917\",\"year\":\"2015\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":2329,\"title\":\"Ванпанчмен 2: Спецвыпуски\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5f/5f511bb77dd70890685851\",\"year\":\"2019\",\"type\":\"Спешл\",\"relation\":\"2-й сезон\"},{\"id\":6048,\"title\":\"Ванпанчмен 2: Памятный эпизод\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39652.jpg?1711967602\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":1174,\"title\":\"Ванпанчмен 3\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/68/68d6cee5deb5f639021940\",\"year\":\"2025\",\"type\":\"Сериал\",\"relation\":\"3-й сезон\"}]",
+      "is_published": 1
     },
     {
       "id": 6050,
@@ -17418,9 +17422,13 @@
       "year": "2021",
       "genres": "[\"Детектив\",\"Драма\",\"Сверхъестественное\",\"Триллер\",\"Путешествия во времени\"]",
       "description": "В одном из уголков шумного мегаполиса есть неприметное фотоателье «Время». Им управляют двое молодых парней с необычными способностями: Чэн Сяоши может проникать внутрь фотоснимка и проживать события глазами того, кто сделал фото, а Лу Гуан видит хронологию событий за следующие 12 часов после момента съёмки. Вместе со своей подругой Цяо Лин они берутся за самые запутанные заказы клиентов, погружаясь в тайны прошлого через фотографии. Однако главное правило — никогда не менять ход событий прошлого, иначе последствия для настоящего могут оказаться необратимыми.",
+      "created_at": "2026-10-15 21:20:54",
+      "updated_at": "2026-10-15T22:10:20.608Z",
+      "title_lower": "агенты времени",
+      "original_title_lower": "link click / shiguang dailiren",
       "season": "1 сезон",
-      "is_published": 1,
-      "related_json": "[{\"id\":49413,\"title\":\"Агенты времени 2\",\"relation\":\"Продолжение (2 сезон)\"},{\"id\":56752,\"title\":\"Агенты времени 3: Глава Инду\",\"relation\":\"Продолжение (3 сезон)\"}]"
+      "related_json": "[{\"id\":49413,\"title\":\"Агенты времени 2\",\"relation\":\"Продолжение (2 сезон)\"},{\"id\":56752,\"title\":\"Агенты времени 3: Глава Инду\",\"relation\":\"Продолжение (3 сезон)\"}]",
+      "is_published": 1
     },
     {
       "id": 49413,
@@ -17432,9 +17440,13 @@
       "year": "2023",
       "genres": "[\"Детектив\",\"Драма\",\"Сверхъестественное\",\"Триллер\",\"Путешествия во времени\",\"Экшен\"]",
       "description": "Продолжение захватывающей истории о фотоателье «Время». После трагических событий финала первого сезона Чэн Сяоши и Лу Гуан сталкиваются с опасным и неуловимым противником, который также способен манипулировать сознанием людей. Друзьям предстоит раскрыть масштабный заговор и разгадать личность маньяка, скрывающегося в тени, рискуя собственными жизнями.",
+      "created_at": "2026-10-15 21:20:54",
+      "updated_at": "2026-10-15T22:10:20.610Z",
+      "title_lower": "агенты времени 2",
+      "original_title_lower": "link click season 2 / shiguang dailiren ii",
       "season": "2 сезон",
-      "is_published": 1,
-      "related_json": "[{\"id\":44074,\"title\":\"Агенты времени\",\"relation\":\"Предыстория (1 сезон)\"},{\"id\":56752,\"title\":\"Агенты времени 3: Глава Инду\",\"relation\":\"Продолжение (3 сезон)\"}]"
+      "related_json": "[{\"id\":44074,\"title\":\"Агенты времени\",\"relation\":\"Предыстория (1 сезон)\"},{\"id\":56752,\"title\":\"Агенты времени 3: Глава Инду\",\"relation\":\"Продолжение (3 сезон)\"}]",
+      "is_published": 1
     },
     {
       "id": 56752,
@@ -17446,9 +17458,31 @@
       "year": "2024",
       "genres": "[\"Детектив\",\"Драма\",\"Сверхъестественное\",\"Путешествия во времени\",\"Экшен\"]",
       "description": "Третий сезон и специальная арка приключений Лу Гуана и Чэн Сяоши в Лондоне (Инду). История раскрывает события до и после переломных моментов, проливая свет на прошлое Лу Гуана, происхождение его способностей и тайну первого знакомства героев.",
+      "created_at": "2026-10-15 21:20:54",
+      "updated_at": "2026-10-15T22:10:20.614Z",
+      "title_lower": "агенты времени 3: глава инду",
+      "original_title_lower": "link click: bridon arc / shiguang dailiren: yingdu pian",
       "season": "3 сезон",
-      "is_published": 1,
-      "related_json": "[{\"id\":44074,\"title\":\"Агенты времени\",\"relation\":\"Предыстория (1 сезон)\"},{\"id\":49413,\"title\":\"Агенты времени 2\",\"relation\":\"Предыстория (2 сезон)\"}]"
+      "related_json": "[{\"id\":44074,\"title\":\"Агенты времени\",\"relation\":\"Предыстория (1 сезон)\"},{\"id\":49413,\"title\":\"Агенты времени 2\",\"relation\":\"Предыстория (2 сезон)\"}]",
+      "is_published": 1
+    },
+    {
+      "id": 1174,
+      "slug": "vanpanchmen-3-2854",
+      "title": "Ванпанчмен 3",
+      "original_title": "One Punch Man 3 / One-Punch Man Season 3",
+      "image_url": "https://img.cdngos.com/v/250x350/anime/68/68d6cee5deb5f639021940",
+      "type": "Сериал",
+      "year": "2025",
+      "genres": "[\"Экшен\",\"Комедия\",\"Сэйнэн\",\"Взрослые персонажи\",\"Пародия\",\"Супер сила\"]",
+      "description": "После очередного спасения человечества кажется, что угроза временно отступила, но на самом деле война между Ассоциацией героев и Ассоциацией монстров только набирает обороты. Пока герои пытаются восстановить контроль над ситуацией, появляется новая проблема...",
+      "created_at": "2026-09-15 12:33:20",
+      "updated_at": "2026-09-23 21:48:50",
+      "title_lower": "ванпанчмен 3",
+      "original_title_lower": "one punch man 3 / one-punch man season 3",
+      "season": "3-й сезон",
+      "related_json": "[{\"id\":6047,\"title\":\"Ванпанчмен\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5d/5df735a5705a7588124703\",\"year\":\"2015\",\"type\":\"Сериал\",\"relation\":\"1-й сезон\"},{\"id\":6050,\"title\":\"Ванпанчмен: Путь к становлению героем\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/6763f648181bb505321091\",\"year\":\"2015\",\"type\":\"OVA\",\"relation\":\"OVA\"},{\"id\":6051,\"title\":\"Ванпанчмен: Спецвыпуски\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/6763f64316c35952944917\",\"year\":\"2015\",\"type\":\"Спешл\",\"relation\":\"Спешл\"},{\"id\":2329,\"title\":\"Ванпанчмен 2: Спецвыпуски\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/5f/5f511bb77dd70890685851\",\"year\":\"2019\",\"type\":\"Спешл\",\"relation\":\"2-й сезон\"},{\"id\":6048,\"title\":\"Ванпанчмен 2: Памятный эпизод\",\"imageUrl\":\"https://shikimori.one/system/animes/original/39652.jpg?1711967602\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"},{\"id\":6049,\"title\":\"Ванпанчмен 2\",\"imageUrl\":\"https://img.cdngos.com/v/250x350/anime/67/6763f63e647c0917321005\",\"year\":\"2019\",\"type\":\"Сериал\",\"relation\":\"2-й сезон\"}]",
+      "is_published": 1
     }
   ],
   "customGenres": [],

@@ -996,6 +996,26 @@ export default function App() {
               }
             } catch (e) {}
           }
+
+          const sLower = debouncedSearch.trim().toLowerCase().replace(/ё/g, 'е');
+          sanitized.sort((a, b) => {
+            const aT = (a.title || '').toLowerCase().replace(/ё/g, 'е');
+            const bT = (b.title || '').toLowerCase().replace(/ё/g, 'е');
+            if (aT === sLower && bT !== sLower) return -1;
+            if (aT !== sLower && bT === sLower) return 1;
+
+            const aStarts = aT.startsWith(sLower);
+            const bStarts = bT.startsWith(sLower);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+
+            const aInc = aT.includes(sLower);
+            const bInc = bT.includes(sLower);
+            if (aInc && !bInc) return -1;
+            if (!aInc && bInc) return 1;
+
+            return 0;
+          });
         }
 
         // Strictly take 15 items per page for catalog navigation
