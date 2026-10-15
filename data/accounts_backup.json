@@ -3583,6 +3583,363 @@
       "score": 7,
       "created_at": "2026-10-11T13:17:01.376Z",
       "updated_at": "2026-10-11T13:17:01.376Z"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 3339,
+      "score": 10,
+      "created_at": "2026-10-15 21:37:39",
+      "updated_at": "2026-10-15 21:37:39"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 3341,
+      "score": 10,
+      "created_at": "2026-10-15 21:37:39",
+      "updated_at": "2026-10-15 21:37:39"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 7184,
+      "score": 10,
+      "created_at": "2026-10-15 21:37:38",
+      "updated_at": "2026-10-15 21:37:38"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 60058,
+      "score": 10,
+      "created_at": "2026-10-15 21:37:38",
+      "updated_at": "2026-10-15 21:37:38"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 3127,
+      "score": 10,
+      "created_at": "2026-10-15 21:34:40",
+      "updated_at": "2026-10-15 21:34:40"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 846,
+      "score": 9,
+      "created_at": "2026-10-15 21:37:45",
+      "updated_at": "2026-10-15 21:37:45"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 2080,
+      "score": 9,
+      "created_at": "2026-10-15 21:37:41",
+      "updated_at": "2026-10-15 21:37:41"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 3340,
+      "score": 9,
+      "created_at": "2026-10-15 21:36:30",
+      "updated_at": "2026-10-15 21:36:30"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 3128,
+      "score": 9,
+      "created_at": "2026-10-15 21:35:45",
+      "updated_at": "2026-10-15 21:35:45"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 6039,
+      "score": 8,
+      "created_at": "2026-10-15 21:37:45",
+      "updated_at": "2026-10-15 21:37:45"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 674,
+      "score": 8,
+      "created_at": "2026-10-15 21:37:44",
+      "updated_at": "2026-10-15 21:37:44"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1628,
+      "score": 8,
+      "created_at": "2026-10-15 21:37:43",
+      "updated_at": "2026-10-15 21:37:43"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1923,
+      "score": 8,
+      "created_at": "2026-10-15 21:37:42",
+      "updated_at": "2026-10-15 21:37:42"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 3287,
+      "score": 8,
+      "created_at": "2026-10-15 21:37:39",
+      "updated_at": "2026-10-15 21:37:39"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 2069,
+      "score": 8,
+      "created_at": "2026-10-15 21:37:39",
+      "updated_at": "2026-10-15 21:37:39"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 3124,
+      "score": 8,
+      "created_at": "2026-10-15 21:37:39",
+      "updated_at": "2026-10-15 21:37:39"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 7183,
+      "score": 8,
+      "created_at": "2026-10-15 21:37:35",
+      "updated_at": "2026-10-15 21:37:35"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 758,
+      "score": 7,
+      "created_at": "2026-10-15 21:37:44",
+      "updated_at": "2026-10-15 21:37:44"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 2042,
+      "score": 7,
+      "created_at": "2026-10-15 21:37:40",
+      "updated_at": "2026-10-15 21:37:40"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 2070,
+      "score": 7,
+      "created_at": "2026-10-15 21:37:39",
+      "updated_at": "2026-10-15 21:37:39"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 7185,
+      "score": 7,
+      "created_at": "2026-10-15 21:37:38",
+      "updated_at": "2026-10-15 21:37:38"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1133,
+      "score": 6,
+      "created_at": "2026-10-15 21:37:45",
+      "updated_at": "2026-10-15 21:37:45"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1029,
+      "score": 6,
+      "created_at": "2026-10-15 21:37:44",
+      "updated_at": "2026-10-15 21:37:44"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1245,
+      "score": 6,
+      "created_at": "2026-10-15 21:37:44",
+      "updated_at": "2026-10-15 21:37:44"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1691,
+      "score": 6,
+      "created_at": "2026-10-15 21:37:43",
+      "updated_at": "2026-10-15 21:37:43"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1434,
+      "score": 6,
+      "created_at": "2026-10-15 21:37:43",
+      "updated_at": "2026-10-15 21:37:43"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1596,
+      "score": 6,
+      "created_at": "2026-10-15 21:37:42",
+      "updated_at": "2026-10-15 21:37:42"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 2058,
+      "score": 6,
+      "created_at": "2026-10-15 21:37:41",
+      "updated_at": "2026-10-15 21:37:41"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 2140,
+      "score": 6,
+      "created_at": "2026-10-15 21:37:41",
+      "updated_at": "2026-10-15 21:37:41"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1758,
+      "score": 6,
+      "created_at": "2026-10-15 21:37:41",
+      "updated_at": "2026-10-15 21:37:41"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 2249,
+      "score": 6,
+      "created_at": "2026-10-15 21:37:40",
+      "updated_at": "2026-10-15 21:37:40"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1612,
+      "score": 5,
+      "created_at": "2026-10-15 21:37:43",
+      "updated_at": "2026-10-15 21:37:43"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1774,
+      "score": 5,
+      "created_at": "2026-10-15 21:37:42",
+      "updated_at": "2026-10-15 21:37:42"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1814,
+      "score": 5,
+      "created_at": "2026-10-15 21:37:42",
+      "updated_at": "2026-10-15 21:37:42"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 2279,
+      "score": 5,
+      "created_at": "2026-10-15 21:37:40",
+      "updated_at": "2026-10-15 21:37:40"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1489,
+      "score": 4,
+      "created_at": "2026-10-15 21:37:44",
+      "updated_at": "2026-10-15 21:37:44"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1745,
+      "score": 4,
+      "created_at": "2026-10-15 21:37:43",
+      "updated_at": "2026-10-15 21:37:43"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 7187,
+      "score": 4,
+      "created_at": "2026-10-15 21:37:38",
+      "updated_at": "2026-10-15 21:37:38"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1615,
+      "score": 3,
+      "created_at": "2026-10-15 21:37:43",
+      "updated_at": "2026-10-15 21:37:43"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1942,
+      "score": 3,
+      "created_at": "2026-10-15 21:37:42",
+      "updated_at": "2026-10-15 21:37:42"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 2110,
+      "score": 3,
+      "created_at": "2026-10-15 21:37:41",
+      "updated_at": "2026-10-15 21:37:41"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1674,
+      "score": 3,
+      "created_at": "2026-10-15 21:37:41",
+      "updated_at": "2026-10-15 21:37:41"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 2933,
+      "score": 3,
+      "created_at": "2026-10-15 21:37:40",
+      "updated_at": "2026-10-15 21:37:40"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 2331,
+      "score": 3,
+      "created_at": "2026-10-15 21:37:40",
+      "updated_at": "2026-10-15 21:37:40"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 7178,
+      "score": 3,
+      "created_at": "2026-10-15 21:37:38",
+      "updated_at": "2026-10-15 21:37:38"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 837,
+      "score": 0,
+      "created_at": "2026-10-15 21:37:45",
+      "updated_at": "2026-10-15 21:37:45"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1196,
+      "score": 0,
+      "created_at": "2026-10-15 21:37:44",
+      "updated_at": "2026-10-15 21:37:44"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1627,
+      "score": 0,
+      "created_at": "2026-10-15 21:37:43",
+      "updated_at": "2026-10-15 21:37:43"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 1887,
+      "score": 0,
+      "created_at": "2026-10-15 21:37:42",
+      "updated_at": "2026-10-15 21:37:42"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 2286,
+      "score": 0,
+      "created_at": "2026-10-15 21:37:40",
+      "updated_at": "2026-10-15 21:37:40"
+    },
+    {
+      "user_id": 25,
+      "anime_id": 7181,
+      "score": 0,
+      "created_at": "2026-10-15 21:37:37",
+      "updated_at": "2026-10-15 21:37:37"
     }
   ],
   "friendRequests": [

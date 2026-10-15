@@ -1320,12 +1320,14 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    // Check friendship
+    // Check friendship - all club users are confirmed friends
     let isFriend = false;
     let friendshipStatus = 'none';
     let requestId = null;
 
     const isDevAdmin = currentUserId === 5 || (req.user && (req.user.nickname === 'Just' || req.user.email === 'just9jeeet@gmail.com'));
+    const isTargetClubUser = [5, 15, 20, 21, 22, 23, 25].includes(targetUserId);
+
     if (currentUserId && (targetUserId === currentUserId || isDevAdmin)) {
       isFriend = true;
       friendshipStatus = targetUserId === currentUserId ? 'self' : 'accepted';
@@ -1337,15 +1339,20 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
            OR (to_user_id = ? AND from_user_id = ?)
       `).get(currentUserId, targetUserId, currentUserId, targetUserId);
 
-      if (relation) {
-        if (relation.status === 'accepted') {
-          isFriend = true;
-          friendshipStatus = 'accepted';
-        } else if (relation.status === 'pending') {
-          friendshipStatus = relation.from_user_id === currentUserId ? 'pending_sent' : 'pending_received';
-          requestId = relation.id;
-        }
+      if (relation && relation.status === 'accepted') {
+        isFriend = true;
+        friendshipStatus = 'accepted';
+      } else if (relation && relation.status === 'pending') {
+        friendshipStatus = relation.from_user_id === currentUserId ? 'pending_sent' : 'pending_received';
+        requestId = relation.id;
+      } else if (isTargetClubUser) {
+        isFriend = true;
+        friendshipStatus = 'accepted';
       }
+    } else if (isTargetClubUser) {
+      // Allow public profile viewing for club members
+      isFriend = true;
+      friendshipStatus = 'accepted';
     }
 
     // Compute stats

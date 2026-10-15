@@ -207,11 +207,12 @@ export default function ProfilePage({
 
   // Friends state
   const DEFAULT_CLUB_USERS = [
-    { id: 15, nickname: 'Katsu', ratedCount: 9, avgScore: 9.0, friendshipStatus: 'accepted' },
-    { id: 20, nickname: 'MrTech', ratedCount: 46, avgScore: 9.2, friendshipStatus: 'accepted' },
-    { id: 21, nickname: 'Venicek', ratedCount: 85, avgScore: 9.3, friendshipStatus: 'accepted' },
-    { id: 22, nickname: 'haitek', ratedCount: 46, avgScore: 8.6, friendshipStatus: 'accepted' },
-    { id: 23, nickname: 'lonely4ka', ratedCount: 39, avgScore: 8.4, friendshipStatus: 'accepted' }
+    { id: 15, nickname: 'Katsu', avatarUrl: '/api/uploads/user_15_avatar.jpg', ratedCount: 9, avgScore: 9.0, friendshipStatus: 'accepted' },
+    { id: 20, nickname: 'MrTech', avatarUrl: null, ratedCount: 46, avgScore: 9.2, friendshipStatus: 'accepted' },
+    { id: 21, nickname: 'Venicek', avatarUrl: '/api/uploads/user_21_avatar.gif', ratedCount: 86, avgScore: 9.3, friendshipStatus: 'accepted' },
+    { id: 22, nickname: 'haitek', avatarUrl: '/api/uploads/user_22_avatar.gif', ratedCount: 46, avgScore: 8.6, friendshipStatus: 'accepted' },
+    { id: 23, nickname: 'lonely4ka', avatarUrl: '/api/uploads/user_23_avatar.gif', ratedCount: 39, avgScore: 8.4, friendshipStatus: 'accepted' },
+    { id: 25, nickname: 'Goose4ka', avatarUrl: '/api/uploads/user_25_avatar_1792097671383.gif', bannerUrl: '/api/uploads/user_25_banner_1792097671385.jpg', ratedCount: 51, avgScore: 6.3, friendshipStatus: 'accepted' }
   ];
 
   const [friendsTab, setFriendsTab] = useState('my'); // 'my' | 'requests' | 'search'
@@ -219,7 +220,12 @@ export default function ProfilePage({
     try {
       const raw = localStorage.getItem('anilex_cached_friends_list');
       const parsed = raw ? JSON.parse(raw) : null;
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CLUB_USERS;
+      let list = Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CLUB_USERS;
+      if (!list.some(u => u.id === 25 || u.nickname === 'Goose4ka')) {
+        const goose = DEFAULT_CLUB_USERS.find(u => u.id === 25);
+        if (goose) list = [...list, goose];
+      }
+      return list;
     } catch (e) {
       return DEFAULT_CLUB_USERS;
     }
@@ -228,7 +234,12 @@ export default function ProfilePage({
     try {
       const raw = localStorage.getItem('anilex_cached_my_friends');
       const parsed = raw ? JSON.parse(raw) : null;
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CLUB_USERS;
+      let list = Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CLUB_USERS;
+      if (user?.id !== 25 && !list.some(u => u.id === 25 || u.nickname === 'Goose4ka')) {
+        const goose = DEFAULT_CLUB_USERS.find(u => u.id === 25);
+        if (goose) list = [...list, goose];
+      }
+      return list;
     } catch (e) {
       return DEFAULT_CLUB_USERS;
     }
@@ -1012,6 +1023,12 @@ export default function ProfilePage({
       setFriendsLoading(false);
     }
   }, []);
+
+  // Always fetch latest friends data on initial component mount
+  useEffect(() => {
+    fetchFriendRequestsAndMyFriends();
+    searchFriends('');
+  }, [fetchFriendRequestsAndMyFriends, searchFriends]);
 
   useEffect(() => {
     if (activeTab === 'friends') {
