@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { ArrowLeft, User, Mail, Lock, Check, AlertCircle, Camera, Image, Trash2 } from 'lucide-react';
 import { apiUrl } from '../api';
 import { invalidateMediaCache } from '../utils/userMediaCache';
+import { saveCustomUserEdit } from '../utils/customEditsStorage';
 
 export default function ProfileEditPage({
   user,
@@ -116,6 +117,14 @@ export default function ProfileEditPage({
       }
       if (user?.bannerUrl && user.bannerUrl !== data.user?.bannerUrl) {
         invalidateMediaCache(user.bannerUrl);
+      }
+      if (data?.user?.id) {
+        saveCustomUserEdit(data.user.id, {
+          nickname: data.user.nickname,
+          email: data.user.email,
+          avatarUrl: data.user.avatarUrl,
+          bannerUrl: data.user.bannerUrl
+        });
       }
       if (onUserUpdated) {
         onUserUpdated(data.user, data.token);

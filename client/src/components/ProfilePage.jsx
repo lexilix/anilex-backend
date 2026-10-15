@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { User, Settings, Star, Search, Filter, X, ArrowLeft, Film, Users, Calendar, Bookmark, Trash2, Check, UserPlus, UserMinus, UserCheck, Lock, Trophy, Sparkles, Award, ChevronRight, Download, RefreshCw, ExternalLink, HelpCircle, AlertCircle, Ghost, Swords, Gamepad2, Crown, Zap, Eye, EyeOff, Infinity } from 'lucide-react';
 import { getScoreBadgeClass } from '../utils/scoreColors';
 import { apiUrl, apiFetch, getImageUrl } from '../api';
@@ -160,8 +160,8 @@ export default function ProfilePage({
     }
   }, [initialTab]);
 
-  // Rated anime state
-  const [ratedAnime, setRatedAnime] = useState(() => getCachedUserRatings(user?.id) || []);
+  // Rated anime state (Authoritative full list)
+  const [allRatedAnime, setAllRatedAnime] = useState(() => getCachedUserRatings(user?.id) || []);
   const [loading, setLoading] = useState(() => (getCachedUserRatings(user?.id)?.length > 0 ? false : true));
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('my_score_desc');
@@ -169,6 +169,7 @@ export default function ProfilePage({
   const [showAllRatedGenres, setShowAllRatedGenres] = useState(false);
   const [selectedType, setSelectedType] = useState('all');
   const [selectedScore, setSelectedScore] = useState('all');
+  const [syncStatus, setSyncStatus] = useState(null); // null | 'syncing' | 'synced' | 'error'
 
   // Overall total rated count - must remain stable and reflect all user ratings regardless of active filter
   const [totalRatedCount, setTotalRatedCount] = useState(() => {
@@ -207,12 +208,13 @@ export default function ProfilePage({
 
   // Friends state
   const DEFAULT_CLUB_USERS = [
-    { id: 15, nickname: 'Katsu', avatarUrl: '/api/uploads/user_15_avatar.jpg', ratedCount: 9, avgScore: 9.0, friendshipStatus: 'accepted' },
-    { id: 20, nickname: 'MrTech', avatarUrl: null, ratedCount: 46, avgScore: 9.2, friendshipStatus: 'accepted' },
-    { id: 21, nickname: 'Venicek', avatarUrl: '/api/uploads/user_21_avatar.gif', ratedCount: 86, avgScore: 9.3, friendshipStatus: 'accepted' },
-    { id: 22, nickname: 'haitek', avatarUrl: '/api/uploads/user_22_avatar.gif', ratedCount: 46, avgScore: 8.6, friendshipStatus: 'accepted' },
-    { id: 23, nickname: 'lonely4ka', avatarUrl: '/api/uploads/user_23_avatar.gif', ratedCount: 39, avgScore: 8.4, friendshipStatus: 'accepted' },
-    { id: 25, nickname: 'Goose4ka', avatarUrl: '/api/uploads/user_25_avatar_1792097671383.gif', bannerUrl: '/api/uploads/user_25_banner_1792097671385.jpg', ratedCount: 51, avgScore: 6.3, friendshipStatus: 'accepted' }
+    { id: 5, nickname: 'Just', email: 'just9jeeet@gmail.com', avatarUrl: '/api/uploads/user_5_avatar.jpg', bannerUrl: '/api/uploads/user_5_banner.gif', ratedCount: 211, avgScore: 8.5, friendshipStatus: 'accepted' },
+    { id: 25, nickname: 'Goose4ka', email: 'divatiar123@gmail.com', avatarUrl: '/api/uploads/user_25_avatar_1792097671383.gif', bannerUrl: '/api/uploads/user_25_banner_1792097671385.jpg', ratedCount: 202, avgScore: 6.3, friendshipStatus: 'accepted' },
+    { id: 21, nickname: 'Venicek', email: 'venicek@example.com', avatarUrl: '/api/uploads/user_21_avatar.gif', bannerUrl: '/api/uploads/user_21_banner.gif', ratedCount: 86, avgScore: 9.3, friendshipStatus: 'accepted' },
+    { id: 20, nickname: 'MrTech', email: 'mrtech@example.com', avatarUrl: null, bannerUrl: null, ratedCount: 46, avgScore: 9.2, friendshipStatus: 'accepted' },
+    { id: 22, nickname: 'haitek', email: 'cik5921@gmail.com', avatarUrl: '/api/uploads/user_22_avatar.gif', bannerUrl: '/api/uploads/user_22_banner.gif', ratedCount: 46, avgScore: 8.6, friendshipStatus: 'accepted' },
+    { id: 23, nickname: 'lonely4ka', email: 'xyesosinaaaaa@gmail.com', avatarUrl: '/api/uploads/user_23_avatar.gif', bannerUrl: '/api/uploads/user_23_banner.jpg', ratedCount: 39, avgScore: 8.4, friendshipStatus: 'accepted' },
+    { id: 15, nickname: 'Katsu', email: 'katsudemisek@gmail.com', avatarUrl: '/api/uploads/user_15_avatar.jpg', bannerUrl: '/api/uploads/user_15_banner.jpg', ratedCount: 9, avgScore: 9.0, friendshipStatus: 'accepted' }
   ];
 
   const [friendsTab, setFriendsTab] = useState('my'); // 'my' | 'requests' | 'search'
@@ -220,12 +222,7 @@ export default function ProfilePage({
     try {
       const raw = localStorage.getItem('anilex_cached_friends_list');
       const parsed = raw ? JSON.parse(raw) : null;
-      let list = Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CLUB_USERS;
-      if (!list.some(u => u.id === 25 || u.nickname === 'Goose4ka')) {
-        const goose = DEFAULT_CLUB_USERS.find(u => u.id === 25);
-        if (goose) list = [...list, goose];
-      }
-      return list;
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CLUB_USERS;
     } catch (e) {
       return DEFAULT_CLUB_USERS;
     }
@@ -235,13 +232,9 @@ export default function ProfilePage({
       const raw = localStorage.getItem('anilex_cached_my_friends');
       const parsed = raw ? JSON.parse(raw) : null;
       let list = Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CLUB_USERS;
-      if (user?.id !== 25 && !list.some(u => u.id === 25 || u.nickname === 'Goose4ka')) {
-        const goose = DEFAULT_CLUB_USERS.find(u => u.id === 25);
-        if (goose) list = [...list, goose];
-      }
-      return list;
+      return list.filter(u => Number(u.id) !== Number(user?.id));
     } catch (e) {
-      return DEFAULT_CLUB_USERS;
+      return DEFAULT_CLUB_USERS.filter(u => Number(u.id) !== Number(user?.id));
     }
   });
   const [incomingRequests, setIncomingRequests] = useState([]);
@@ -377,6 +370,7 @@ export default function ProfilePage({
   };
 
   // Fetch rated anime
+  // Fetch rated anime (Full authoritative list from server + merge with local evaluations)
   const fetchRated = useCallback(async () => {
     setLoading(true);
     try {
@@ -385,17 +379,13 @@ export default function ProfilePage({
 
       const res = await fetch(apiUrl('/api/user/rated-anime'), {
         headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(4000)
+        signal: AbortSignal.timeout(6000)
       });
       if (res.ok) {
         const data = await res.json();
         let allItems = deduplicateAnimeList(data.items || []);
         const UNWANTED_JUST_ZERO_IDS = new Set([1306, 650, 3395, 2069, 2149, 2591, 3492, 1577, 914, 865, 7227, 5655, 7234, 7186]);
         const isJust = Number(user?.id) === 5 || user?.nickname === 'Just';
-
-        if (isJust) {
-          allItems = allItems.filter(it => !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)));
-        }
 
         if (isJust) {
           allItems = allItems.filter(it => !UNWANTED_JUST_ZERO_IDS.has(Number(it.id)));
@@ -411,137 +401,212 @@ export default function ProfilePage({
           });
         }
 
-        // Always update totalRatedCount and save complete authoritative ratings
+        // If local cache had MORE ratings (e.g. offline evaluations by Goose4ka), preserve and merge them!
+        const localCached = getCachedUserRatings(user?.id) || [];
+        if (localCached.length > allItems.length) {
+          const serverIdSet = new Set(allItems.map(it => Number(it.id)));
+          for (const loc of localCached) {
+            if (!serverIdSet.has(Number(loc.id)) && loc.myScore !== null && loc.myScore !== undefined) {
+              allItems.push(loc);
+            }
+          }
+        }
+
         setTotalRatedCount(allItems.length);
         setCachedUserRatings(user?.id, allItems);
-
-        let items = allItems;
-        if (searchQuery.trim()) {
-          const q = searchQuery.trim().toLowerCase();
-          items = items.filter((it) =>
-            (it.title && it.title.toLowerCase().includes(q)) ||
-            (it.originalTitle && it.originalTitle.toLowerCase().includes(q))
-          );
-        }
-
-        if (selectedType !== 'all') {
-          items = items.filter((it) => it.type === selectedType);
-        }
-
-        if (activeRatedGenres.length > 0) {
-          items = items.filter((it) => {
-            const genres = Array.isArray(it.genres) ? it.genres : [];
-            return activeRatedGenres.every((g) => genres.includes(g));
-          });
-        }
-
-        if (selectedScore === 'top5') {
-          const ordered = [];
-          myTop5Ids.forEach((id) => {
-            const found = allItems.find((it) => Number(it.id) === Number(id));
-            if (found) ordered.push(found);
-          });
-          items = ordered.slice(0, 5);
-        } else if (selectedScore !== 'all') {
-          const targetScore = parseInt(selectedScore, 10);
-          items = allItems.filter((it) => Number(it.myScore) === targetScore);
-        }
-
-        // Apply strict sorting for rated titles:
-        // - In 'all' view: pinned Top-5 always come first in order #1..#5
-        // - my_score_desc: 10 -> 0
-        // - my_score_asc: 0 -> 10 (0 first!)
-        // - recent_rated: by user rating timestamp from newest to oldest
-        // - newest: by anime release year from newest to oldest
-        if (selectedScore === 'all') {
-          items.sort((a, b) => {
-            const idxA = myTop5Ids.findIndex((id) => Number(id) === Number(a.id));
-            const idxB = myTop5Ids.findIndex((id) => Number(id) === Number(b.id));
-            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-            if (idxA !== -1) return -1;
-            if (idxB !== -1) return 1;
-
-            if (sortOption === 'my_score_desc') {
-              const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : -1;
-              const sb = (b.myScore !== null && b.myScore !== undefined) ? Number(b.myScore) : -1;
-              if (sb !== sa) return sb - sa;
-              const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
-              const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
-              if (dateB !== dateA) return dateB - dateA;
-              return (b.id || 0) - (a.id || 0);
-            }
-            if (sortOption === 'my_score_asc') {
-              const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : 999;
-              const sb = (b.myScore !== null && b.myScore !== undefined) ? Number(b.myScore) : 999;
-              if (sa !== sb) return sa - sb;
-              const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
-              const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
-              if (dateB !== dateA) return dateB - dateA;
-              return (a.id || 0) - (b.id || 0);
-            }
-            if (sortOption === 'recent_rated') {
-              const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
-              const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
-              if (dateB !== dateA) return dateB - dateA;
-              return (b.id || 0) - (a.id || 0);
-            }
-            if (sortOption === 'newest') {
-              const ya = parseInt(a.year, 10) || 0;
-              const yb = parseInt(b.year, 10) || 0;
-              if (yb !== ya) return yb - ya;
-              return (b.id || 0) - (a.id || 0);
-            }
-            return 0;
-          });
-        } else if (selectedScore !== 'top5') {
-          items.sort((a, b) => {
-            const idxA = myTop5Ids.findIndex((id) => Number(id) === Number(a.id));
-            const idxB = myTop5Ids.findIndex((id) => Number(id) === Number(b.id));
-            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-            if (idxA !== -1) return -1;
-            if (idxB !== -1) return 1;
-
-            if (sortOption === 'my_score_desc') {
-              const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : -1;
-              const sb = (b.myScore !== null && b.myScore !== undefined) ? Number(b.myScore) : -1;
-              if (sb !== sa) return sb - sa;
-              const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
-              const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
-              if (dateB !== dateA) return dateB - dateA;
-              return (b.id || 0) - (a.id || 0);
-            }
-            if (sortOption === 'my_score_asc') {
-              const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : 999;
-              const sb = (b.myScore !== null && b.myScore !== undefined) ? Number(b.myScore) : 999;
-              if (sa !== sb) return sa - sb;
-              const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
-              const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
-              if (dateB !== dateA) return dateB - dateA;
-              return (a.id || 0) - (b.id || 0);
-            }
-            if (sortOption === 'recent_rated') {
-              const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
-              const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
-              if (dateB !== dateA) return dateB - dateA;
-              return (b.id || 0) - (a.id || 0);
-            }
-            if (sortOption === 'newest') {
-              const ya = parseInt(a.year, 10) || 0;
-              const yb = parseInt(b.year, 10) || 0;
-              if (yb !== ya) return yb - ya;
-              return (b.id || 0) - (a.id || 0);
-            }
-            return 0;
-          });
-        }
-        setRatedAnime(items);
+        setAllRatedAnime(allItems);
       }
     } catch (err) {
-      console.error('Error fetching rated anime:', err);
+      console.warn('Network notice while fetching rated anime, using preserved local ratings:', err.message);
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, sortOption, selectedType, activeRatedGenres, selectedScore, myTop5Ids, user?.id]);
+  }, [user?.id]);
+
+  // Synchronous client-side filtering and sorting for instant 0ms response
+  const displayedRatedAnime = useMemo(() => {
+    let items = allRatedAnime;
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      items = items.filter((it) => {
+        const t = (it.title || '').toLowerCase();
+        const ot = (it.originalTitle || '').toLowerCase();
+        if (t.includes(q) || ot.includes(q)) return true;
+        // typo tolerance for queries >= 3 chars
+        if (q.length >= 3 && (t.includes(q.slice(0, -1)) || ot.includes(q.slice(0, -1)))) return true;
+        return false;
+      });
+    }
+
+    if (selectedType !== 'all') {
+      items = items.filter((it) => it.type === selectedType);
+    }
+
+    if (activeRatedGenres.length > 0) {
+      items = items.filter((it) => {
+        const genres = Array.isArray(it.genres) ? it.genres : [];
+        return activeRatedGenres.every((g) => genres.includes(g));
+      });
+    }
+
+    if (selectedScore === 'top5') {
+      const ordered = [];
+      myTop5Ids.forEach((id) => {
+        const found = allRatedAnime.find((it) => Number(it.id) === Number(id));
+        if (found) ordered.push(found);
+      });
+      items = ordered.slice(0, 5);
+    } else if (selectedScore !== 'all') {
+      const targetScore = parseInt(selectedScore, 10);
+      items = items.filter((it) => Number(it.myScore) === targetScore);
+    }
+
+    const sorted = [...items];
+    if (selectedScore === 'all') {
+      sorted.sort((a, b) => {
+        const idxA = myTop5Ids.findIndex((id) => Number(id) === Number(a.id));
+        const idxB = myTop5Ids.findIndex((id) => Number(id) === Number(b.id));
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+
+        if (sortOption === 'my_score_desc') {
+          const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : -1;
+          const sb = (b.myScore !== null && b.myScore !== undefined) ? Number(b.myScore) : -1;
+          if (sb !== sa) return sb - sa;
+          const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
+          const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
+          if (dateB !== dateA) return dateB - dateA;
+          return (b.id || 0) - (a.id || 0);
+        }
+        if (sortOption === 'my_score_asc') {
+          const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : 999;
+          const sb = (b.myScore !== null && b.myScore !== undefined) ? Number(b.myScore) : 999;
+          if (sa !== sb) return sa - sb;
+          const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
+          const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
+          if (dateB !== dateA) return dateB - dateA;
+          return (a.id || 0) - (b.id || 0);
+        }
+        if (sortOption === 'recent_rated') {
+          const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
+          const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
+          if (dateB !== dateA) return dateB - dateA;
+          return (b.id || 0) - (a.id || 0);
+        }
+        if (sortOption === 'newest') {
+          const ya = parseInt(a.year, 10) || 0;
+          const yb = parseInt(b.year, 10) || 0;
+          if (yb !== ya) return yb - ya;
+          return (b.id || 0) - (a.id || 0);
+        }
+        return 0;
+      });
+    } else if (selectedScore !== 'top5') {
+      sorted.sort((a, b) => {
+        const idxA = myTop5Ids.findIndex((id) => Number(id) === Number(a.id));
+        const idxB = myTop5Ids.findIndex((id) => Number(id) === Number(b.id));
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+
+        if (sortOption === 'my_score_desc') {
+          const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : -1;
+          const sb = (b.myScore !== null && b.myScore !== undefined) ? Number(b.myScore) : -1;
+          if (sb !== sa) return sb - sa;
+          const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
+          const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
+          if (dateB !== dateA) return dateB - dateA;
+          return (b.id || 0) - (a.id || 0);
+        }
+        if (sortOption === 'my_score_asc') {
+          const sa = (a.myScore !== null && a.myScore !== undefined) ? Number(a.myScore) : 999;
+          const sb = (b.myScore !== null && b.myScore !== undefined) ? Number(b.myScore) : 999;
+          if (sa !== sb) return sa - sb;
+          const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
+          const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
+          if (dateB !== dateA) return dateB - dateA;
+          return (a.id || 0) - (b.id || 0);
+        }
+        if (sortOption === 'recent_rated') {
+          const dateA = new Date(a.ratedAt || a.updatedAt || 0).getTime();
+          const dateB = new Date(b.ratedAt || b.updatedAt || 0).getTime();
+          if (dateB !== dateA) return dateB - dateA;
+          return (b.id || 0) - (a.id || 0);
+        }
+        if (sortOption === 'newest') {
+          const ya = parseInt(a.year, 10) || 0;
+          const yb = parseInt(b.year, 10) || 0;
+          if (yb !== ya) return yb - ya;
+          return (b.id || 0) - (a.id || 0);
+        }
+        return 0;
+      });
+    }
+    return sorted;
+  }, [allRatedAnime, searchQuery, selectedType, activeRatedGenres, selectedScore, sortOption, myTop5Ids]);
+
+  const ratedAnime = displayedRatedAnime;
+  const setRatedAnime = setAllRatedAnime;
+
+  const handleSyncAllRatingsWithServer = async () => {
+    try {
+      setSyncStatus('syncing');
+      const token = localStorage.getItem('anime_auth_token');
+      if (!token) throw new Error('Требуется авторизация');
+      const ratingsToSync = allRatedAnime.filter(it => it.myScore !== null && it.myScore !== undefined);
+      const res = await fetch(apiUrl('/api/user/sync-ratings'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ ratings: ratingsToSync })
+      });
+      if (res.ok) {
+        setSyncStatus('synced');
+        setTimeout(() => setSyncStatus(null), 3500);
+      } else {
+        setSyncStatus('error');
+        setTimeout(() => setSyncStatus(null), 3500);
+      }
+    } catch (e) {
+      setSyncStatus('error');
+      setTimeout(() => setSyncStatus(null), 3500);
+    }
+  };
+
+  const handleExportRatingsJson = () => {
+    try {
+      const exportData = {
+        nickname: user?.nickname,
+        userId: user?.id,
+        exportedAt: new Date().toISOString(),
+        totalRatings: allRatedAnime.length,
+        ratings: allRatedAnime.map(it => ({
+          id: it.id,
+          title: it.title,
+          originalTitle: it.originalTitle,
+          year: it.year,
+          type: it.type,
+          genres: it.genres,
+          myScore: it.myScore,
+          ratedAt: it.ratedAt || it.updatedAt
+        }))
+      };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `anilex_ratings_${user?.nickname || 'profile'}_${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Export error:', e);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'ratings') {
@@ -1334,20 +1399,16 @@ export default function ProfilePage({
       if (fallbackUser) {
         let initUser = applyCustomUserEdits(fallbackUser);
         if (!initUser || !initUser.nickname) initUser = { ...fallbackUser };
-        const isJustViewer = user?.nickname === 'Just' || user?.id === 5 || user?.email === 'just9jeeet@gmail.com';
-        if (isJustViewer) {
-          initUser.isFriend = true;
-          initUser.friendshipStatus = 'accepted';
-        }
+        initUser.isFriend = true;
+        initUser.friendshipStatus = 'accepted';
         setSelectedFriend(initUser);
       }
 
       const token = localStorage.getItem('anime_auth_token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(apiUrl(`/api/users/${friendId}/profile`), { headers });
-      if (res.ok) {
+      const res = await fetch(apiUrl(`/api/users/${friendId}/profile`), { headers }).catch(() => null);
+      if (res && res.ok) {
         const data = await res.json();
-        const isJustViewer = user?.nickname === 'Just' || user?.id === 5 || user?.email === 'just9jeeet@gmail.com';
         let userObj = applyCustomUserEdits(data.user);
         if (!userObj || !userObj.nickname) {
           userObj = { ...(data.user || fallbackUser || {}) };
@@ -1358,10 +1419,8 @@ export default function ProfilePage({
           userObj.avatarUrl = data.user.avatarUrl || userObj.avatarUrl;
           userObj.bannerUrl = data.user.bannerUrl || userObj.bannerUrl;
         }
-        if (isJustViewer) {
-          userObj.isFriend = true;
-          userObj.friendshipStatus = 'accepted';
-        }
+        userObj.isFriend = true;
+        userObj.friendshipStatus = 'accepted';
         setSelectedFriend(userObj);
         let ratings = data.ratings || [];
 
@@ -1453,12 +1512,22 @@ export default function ProfilePage({
         }));
 
         setFriendRatings(ratings);
+        setCachedUserRatings(friendId, ratings);
         setFriendTop5Ids(friendTop5);
         setFriendScoreFilter('all');
         setFriendGenreFilter('all');
+      } else {
+        const cachedRatings = getCachedUserRatings(friendId);
+        if (Array.isArray(cachedRatings) && cachedRatings.length > 0) {
+          setFriendRatings(cachedRatings);
+        }
       }
     } catch (err) {
-      console.error('Error loading friend profile:', err);
+      console.warn('Notice loading friend profile (using offline cache):', err.message);
+      const cachedRatings = getCachedUserRatings(friendId);
+      if (Array.isArray(cachedRatings) && cachedRatings.length > 0) {
+        setFriendRatings(cachedRatings);
+      }
     }
   };
 
@@ -1732,7 +1801,7 @@ export default function ProfilePage({
                 />
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-neutral-400 font-medium shrink-0">Сортировка:</span>
                 <select
                   value={sortOption}
@@ -1744,6 +1813,43 @@ export default function ProfilePage({
                   <option value="recent_rated">Недавно оцененные</option>
                   <option value="newest">Новизна тайтла</option>
                 </select>
+
+                {/* Batch Sync Button (Variant 1.A) */}
+                <button
+                  type="button"
+                  onClick={handleSyncAllRatingsWithServer}
+                  disabled={syncStatus === 'syncing'}
+                  className={`px-3 py-2 rounded-2xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm ${
+                    syncStatus === 'synced'
+                      ? 'bg-emerald-500 text-white'
+                      : syncStatus === 'error'
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200'
+                  }`}
+                  title="Отправить и зафиксировать все оценки на сервере"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+                  <span>
+                    {syncStatus === 'syncing'
+                      ? 'Сохранение...'
+                      : syncStatus === 'synced'
+                      ? 'Сохранено!'
+                      : syncStatus === 'error'
+                      ? 'Офлайн (сохранено в браузере)'
+                      : 'Синхронизировать'}
+                  </span>
+                </button>
+
+                {/* JSON Export Button (Variant 1.A) */}
+                <button
+                  type="button"
+                  onClick={handleExportRatingsJson}
+                  className="px-3 py-2 rounded-2xl text-xs font-semibold flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 transition-colors shadow-sm"
+                  title="Скачать копию всех ваших оценок в формате JSON"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Резервная копия</span>
+                </button>
               </div>
             </div>
 

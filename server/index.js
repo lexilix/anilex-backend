@@ -4001,6 +4001,91 @@ app.post('/api/anime/:id/rate', authMiddleware, (req, res) => {
   }
 });
 
+// Batch sync ratings endpoint for offline resilience and fast full profile sync
+app.post('/api/user/sync-ratings', authMiddleware, (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { ratings } = req.body;
+    if (!Array.isArray(ratings)) {
+      return res.status(400).json({ error: 'ratings must be an array' });
+    }
+
+    const insertRatingStmt = db.prepare(`
+      INSERT INTO ratings (user_id, anime_id, score, created_at, updated_at)
+      VALUES (?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id, anime_id) DO UPDATE SET
+        score = excluded.score,
+        updated_at = CURRENT_TIMESTAMP
+    `);
+
+    const deleteRatingStmt = db.prepare(`
+      DELETE FROM ratings WHERE user_id = ? AND anime_id = ?
+    `);
+
+    const insertAnimeStmt = db.prepare(`
+      INSERT INTO anime (id, slug, title, title_lower, original_title, original_title_lower, image_url, type, year, genres, description, season, related_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET title = excluded.title
+    `);
+
+    const normalize = db.normalizeSearchText || ((s) => (s || '').toLowerCase().trim());
+
+    let countSaved = 0;
+    for (const r of ratings) {
+      const animeId = Number(r.id || r.animeId);
+      if (!animeId || isNaN(animeId)) continue;
+
+      const animeExists = db.prepare('SELECT id FROM anime WHERE id = ?').get(animeId);
+      if (!animeExists && r.title) {
+        try {
+          insertAnimeStmt.run(
+            animeId,
+            r.slug || `anime-${animeId}`,
+            r.title,
+            normalize(r.title),
+            r.originalTitle || r.original_title || '',
+            normalize(r.originalTitle || r.original_title || ''),
+            r.imageUrl || r.image_url || '',
+            r.type || 'Сериал',
+            r.year || '',
+            JSON.stringify(r.genres || []),
+            r.description || '',
+            r.season || '',
+            JSON.stringify(r.linkedAnime || [])
+          );
+        } catch (e) {}
+      }
+
+      const scoreVal = r.score !== undefined ? r.score : r.myScore;
+      if (scoreVal === null || scoreVal === undefined || scoreVal === '') {
+        deleteRatingStmt.run(userId, animeId);
+      } else {
+        const numScore = parseInt(scoreVal, 10);
+        if (!isNaN(numScore) && numScore >= 0 && numScore <= 10) {
+          insertRatingStmt.run(userId, animeId, numScore, r.createdAt || r.updatedAt || null);
+          countSaved++;
+        }
+      }
+    }
+
+    if (typeof db.saveAccountsBackup === 'function') {
+      try { db.saveAccountsBackup(); } catch (e) {}
+    }
+
+    // Verify Just ratings count
+    const justCount = db.prepare('SELECT count(*) as c FROM ratings WHERE user_id = 5').get().c;
+    if (justCount !== 211) {
+      console.error('CRITICAL: Just count changed in sync-ratings:', justCount);
+    }
+
+    const totalRow = db.prepare('SELECT count(*) as c FROM ratings WHERE user_id = ?').get(userId);
+    return res.json({ success: true, count: countSaved, totalRated: totalRow ? totalRow.c : countSaved });
+  } catch (err) {
+    console.error('Sync ratings error:', err.message);
+    return res.status(500).json({ error: 'Ошибка синхронизации оценок' });
+  }
+});
+
 // ----------------------------------------------------
 // COMMENTS SYSTEM (THREADED REPLIES & REACTIONS)
 // ----------------------------------------------------

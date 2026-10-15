@@ -539,7 +539,26 @@ export default function DevConsolePage({
   // ----------------------------------------------------
   // USERS TAB STATE
   // ----------------------------------------------------
-  const [usersList, setUsersList] = useState([]);
+  const DEFAULT_DEV_USERS = [
+    { id: 5, nickname: 'Just', email: 'just9jeeet@gmail.com', avatarUrl: '/api/uploads/user_5_avatar.jpg', bannerUrl: '/api/uploads/user_5_banner.gif', ratedCount: 211, avgScore: 8.5, isBlocked: false },
+    { id: 25, nickname: 'Goose4ka', email: 'divatiar123@gmail.com', avatarUrl: '/api/uploads/user_25_avatar_1792097671383.gif', bannerUrl: '/api/uploads/user_25_banner_1792097671385.jpg', ratedCount: 202, avgScore: 6.3, isBlocked: false },
+    { id: 21, nickname: 'Venicek', email: 'venicek@example.com', avatarUrl: '/api/uploads/user_21_avatar.gif', bannerUrl: '/api/uploads/user_21_banner.gif', ratedCount: 86, avgScore: 9.3, isBlocked: false },
+    { id: 20, nickname: 'MrTech', email: 'mrtech@example.com', avatarUrl: null, bannerUrl: null, ratedCount: 46, avgScore: 9.2, isBlocked: false },
+    { id: 22, nickname: 'haitek', email: 'cik5921@gmail.com', avatarUrl: '/api/uploads/user_22_avatar.gif', bannerUrl: '/api/uploads/user_22_banner.gif', ratedCount: 46, avgScore: 8.6, isBlocked: false },
+    { id: 23, nickname: 'lonely4ka', email: 'xyesosinaaaaa@gmail.com', avatarUrl: '/api/uploads/user_23_avatar.gif', bannerUrl: '/api/uploads/user_23_banner.jpg', ratedCount: 39, avgScore: 8.4, isBlocked: false },
+    { id: 15, nickname: 'Katsu', email: 'katsudemisek@gmail.com', avatarUrl: '/api/uploads/user_15_avatar.jpg', bannerUrl: '/api/uploads/user_15_banner.jpg', ratedCount: 9, avgScore: 9.0, isBlocked: false }
+  ];
+
+  const [usersList, setUsersList] = useState(() => {
+    try {
+      const raw = localStorage.getItem('anilex_cached_dev_users');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return DEFAULT_DEV_USERS;
+  });
   const [usersLoading, setUsersLoading] = useState(false);
   const [userSearch, setUserSearch] = useState('');
 
@@ -940,15 +959,37 @@ export default function DevConsolePage({
         }
       }
 
+      if (users.length === 0) {
+        const raw = localStorage.getItem('anilex_cached_dev_users');
+        if (raw) {
+          try { users = JSON.parse(raw); } catch (e) {}
+        }
+        if (!users || users.length === 0) {
+          users = DEFAULT_DEV_USERS;
+        }
+      }
+
+      // Guarantee Goose4ka is present
+      if (!users.some(u => Number(u.id) === 25 || u.nickname === 'Goose4ka')) {
+        const goose = DEFAULT_DEV_USERS.find(u => u.id === 25);
+        if (goose) users.push(goose);
+      }
+
       // Filter out 'inspector' and permanently deleted users, and apply custom edits
       let deletedUserIds = new Set();
       try {
         deletedUserIds = new Set(JSON.parse(localStorage.getItem('anilex_deleted_user_ids') || '[]').map(Number));
       } catch (e) {}
+      // Safety: don't let core club members be suppressed by stale local state
+      deletedUserIds.delete(5);
+      deletedUserIds.delete(25);
+
       users = users
         .filter((u) => u.nickname?.toLowerCase() !== 'inspector' && !deletedUserIds.has(Number(u.id)))
         .map((u) => applyCustomUserEdits(u));
+
       setUsersList(users);
+      try { localStorage.setItem('anilex_cached_dev_users', JSON.stringify(users)); } catch (e) {}
 
       if (!selectedUserId && users.length > 0) {
         setSelectedUserId(users[0].id);

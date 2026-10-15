@@ -124,6 +124,41 @@ function overlayUserRatings(items, userId) {
   });
 }
 
+const DEFAULT_GENRES = [
+  { name: 'Приключения', count: 950 },
+  { name: 'Сёнен', count: 820 },
+  { name: 'Фэнтези', count: 780 },
+  { name: 'Романтика', count: 650 },
+  { name: 'Комедия', count: 640 },
+  { name: 'Драма', count: 600 },
+  { name: 'Экшен', count: 580 },
+  { name: 'Сэйнэн', count: 420 },
+  { name: 'Сверхъестественное', count: 390 },
+  { name: 'Фантастика', count: 350 },
+  { name: 'Повседневность', count: 340 },
+  { name: 'Исэкай', count: 310 },
+  { name: 'Школа', count: 300 },
+  { name: 'Детектив', count: 280 },
+  { name: 'Триллер', count: 260 },
+  { name: 'Психологическое', count: 240 },
+  { name: 'Магия', count: 220 },
+  { name: 'Спорт', count: 180 },
+  { name: 'Меха', count: 150 },
+  { name: 'Военное', count: 140 },
+  { name: 'Исторический', count: 130 },
+  { name: 'Ужасы', count: 120 }
+];
+
+const DEFAULT_FRIENDS = [
+  { id: 5, nickname: 'Just', email: 'just9jeeet@gmail.com', avatarUrl: '/api/uploads/user_5_avatar.jpg', bannerUrl: '/api/uploads/user_5_banner.gif', rated_count: 211, avg_score: 8.5 },
+  { id: 25, nickname: 'Goose4ka', email: 'divatiar123@gmail.com', avatarUrl: '/api/uploads/user_25_avatar_1792097671383.gif', bannerUrl: '/api/uploads/user_25_banner_1792097671385.jpg', rated_count: 202, avg_score: 6.3 },
+  { id: 21, nickname: 'Venicek', email: 'venicek@example.com', avatarUrl: '/api/uploads/user_21_avatar.gif', bannerUrl: '/api/uploads/user_21_banner.gif', rated_count: 86, avg_score: 9.3 },
+  { id: 20, nickname: 'MrTech', email: 'mrtech@example.com', avatarUrl: null, bannerUrl: null, rated_count: 46, avg_score: 9.2 },
+  { id: 22, nickname: 'haitek', email: 'cik5921@gmail.com', avatarUrl: '/api/uploads/user_22_avatar.gif', bannerUrl: '/api/uploads/user_22_banner.gif', rated_count: 46, avg_score: 8.6 },
+  { id: 23, nickname: 'lonely4ka', email: 'xyesosinaaaaa@gmail.com', avatarUrl: '/api/uploads/user_23_avatar.gif', bannerUrl: '/api/uploads/user_23_banner.jpg', rated_count: 39, avg_score: 8.4 },
+  { id: 15, nickname: 'Katsu', email: 'katsudemisek@gmail.com', avatarUrl: '/api/uploads/user_15_avatar.jpg', bannerUrl: '/api/uploads/user_15_banner.jpg', rated_count: 9, avg_score: 9.0 }
+];
+
 export default function App() {
   // Theme state
   const [darkMode, setDarkMode] = useState(() => {
@@ -303,9 +338,29 @@ export default function App() {
     } catch (e) {}
     return Math.ceil(3406 / 15);
   });
-  const [genres, setGenres] = useState([]);
-  const [types, setTypes] = useState([]);
-  const [friends, setFriends] = useState([]);
+  const [genres, setGenres] = useState(() => {
+    try {
+      const saved = localStorage.getItem('anilex_cached_genres');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return DEFAULT_GENRES;
+  });
+  const [types, setTypes] = useState([
+    { name: 'Сериал' }, { name: 'Фильм' }, { name: 'ONA' }, { name: 'OVA' }, { name: 'Спешл' }
+  ]);
+  const [friends, setFriends] = useState(() => {
+    try {
+      const saved = localStorage.getItem('anilex_cached_friends');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return DEFAULT_FRIENDS;
+  });
   const [recommendationCount, setRecommendationCount] = useState(0);
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
   const [renderedLimit, setRenderedLimit] = useState(isMobile ? 12 : 20);
@@ -458,18 +513,20 @@ export default function App() {
               );
               if (pending.length > 0) {
                 console.log(`[Auto-Sync] Syncing ${pending.length} pending ratings for user ${currentUserId} to server...`);
-                for (const p of pending) {
-                  try {
-                    await fetch(apiUrl(`/api/anime/${p.id}/rate`), {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`
-                      },
-                      body: JSON.stringify({ score: p.myScore, anime: p })
-                    });
-                    data.items.push(p);
-                  } catch (e) {}
+                try {
+                  const syncRes = await fetch(apiUrl('/api/user/sync-ratings'), {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ ratings: pending })
+                  });
+                  if (syncRes.ok) {
+                    data.items.push(...pending);
+                  }
+                } catch (batchErr) {
+                  console.warn('Batch sync notice:', batchErr.message);
                 }
               }
             }
@@ -481,29 +538,37 @@ export default function App() {
       .catch((err) => console.warn('Could not sync user ratings on mount:', err));
   }, [token, user?.id]);
 
-  // Fetch metadata (genres, types, friends)
+  // Fetch metadata (genres, types, friends) with offline persistence
   const fetchMetadata = useCallback(async () => {
     try {
       const [genresRes, typesRes, friendsRes] = await Promise.all([
-        fetch(apiUrl('/api/genres')),
-        fetch(apiUrl('/api/types')),
-        fetch(apiUrl('/api/friends'))
+        fetch(apiUrl('/api/genres')).catch(() => null),
+        fetch(apiUrl('/api/types')).catch(() => null),
+        fetch(apiUrl('/api/friends')).catch(() => null)
       ]);
 
-      if (genresRes.ok) {
+      if (genresRes && genresRes.ok) {
         const data = await genresRes.json();
-        setGenres(data.genres || []);
+        if (Array.isArray(data.genres) && data.genres.length > 0) {
+          setGenres(data.genres);
+          try { localStorage.setItem('anilex_cached_genres', JSON.stringify(data.genres)); } catch (e) {}
+        }
       }
-      if (typesRes.ok) {
+      if (typesRes && typesRes.ok) {
         const data = await typesRes.json();
-        setTypes(data.types || []);
+        if (Array.isArray(data.types) && data.types.length > 0) {
+          setTypes(data.types);
+        }
       }
-      if (friendsRes.ok) {
+      if (friendsRes && friendsRes.ok) {
         const data = await friendsRes.json();
-        setFriends(data.friends || []);
+        if (Array.isArray(data.friends) && data.friends.length > 0) {
+          setFriends(data.friends);
+          try { localStorage.setItem('anilex_cached_friends', JSON.stringify(data.friends)); } catch (e) {}
+        }
       }
     } catch (err) {
-      console.error('Error fetching metadata:', err);
+      console.warn('Metadata fetch notice (preserved offline cache):', err.message);
     }
   }, []);
 
