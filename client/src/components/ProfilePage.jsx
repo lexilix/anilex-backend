@@ -556,7 +556,16 @@ export default function ProfilePage({
         } else if (hadRatingBefore) {
           setTotalRatedCount((prev) => Math.max(0, prev - 1));
         }
-        setRatedAnime((prev) => prev.filter((it) => Number(it.id) !== numId));
+        setRatedAnime((prev) =>
+          prev.filter((it) => {
+            const itId = Number(it.id);
+            if (itId === numId) return false;
+            if (Array.isArray(it.aliasIds) && it.aliasIds.map(Number).includes(numId)) return false;
+            if (updatedAnime?.aliasIds && Array.isArray(updatedAnime.aliasIds) && updatedAnime.aliasIds.map(Number).includes(itId)) return false;
+            if (updatedAnime?.title && it.title && it.title.trim().toLowerCase() === updatedAnime.title.trim().toLowerCase()) return false;
+            return true;
+          })
+        );
       } else {
         // Rating added or changed (0 to 10)
         const numericScore = Number(score);
@@ -566,12 +575,24 @@ export default function ProfilePage({
           setTotalRatedCount((prev) => prev + 1);
         }
         setRatedAnime((prev) => {
-          const exists = prev.some((it) => Number(it.id) === numId);
+          const exists = prev.some((it) =>
+            Number(it.id) === numId ||
+            (Array.isArray(it.aliasIds) && it.aliasIds.map(Number).includes(numId)) ||
+            (updatedAnime?.aliasIds && Array.isArray(updatedAnime.aliasIds) && updatedAnime.aliasIds.map(Number).includes(Number(it.id))) ||
+            (updatedAnime?.title && it.title && it.title.trim().toLowerCase() === updatedAnime.title.trim().toLowerCase())
+          );
           if (exists) {
             if (selectedScore !== 'all' && selectedScore !== 'top5' && Number(selectedScore) !== numericScore) {
               return prev.filter((it) => Number(it.id) !== numId);
             }
-            return prev.map((it) => (Number(it.id) === numId ? { ...it, myScore: numericScore } : it));
+            return prev.map((it) => {
+              const isMatch =
+                Number(it.id) === numId ||
+                (Array.isArray(it.aliasIds) && it.aliasIds.map(Number).includes(numId)) ||
+                (updatedAnime?.aliasIds && Array.isArray(updatedAnime.aliasIds) && updatedAnime.aliasIds.map(Number).includes(Number(it.id))) ||
+                (updatedAnime?.title && it.title && it.title.trim().toLowerCase() === updatedAnime.title.trim().toLowerCase());
+              return isMatch ? { ...it, myScore: numericScore } : it;
+            });
           } else if (updatedAnime) {
             if (selectedScore === 'top5' && !myTop5Ids.map(Number).includes(numId)) {
               return prev;
@@ -596,6 +617,57 @@ export default function ProfilePage({
     window.addEventListener('anilex:rating-updated', handleRatingUpdated);
     return () => window.removeEventListener('anilex:rating-updated', handleRatingUpdated);
   }, [user?.id, selectedScore, myTop5Ids]);
+
+  // Live listener for anime metadata updates (title, poster, description from DevConsole)
+  useEffect(() => {
+    const handleAnimeUpdated = (e) => {
+      const updated = e.detail;
+      if (!updated || !updated.id) return;
+      const numId = Number(updated.id);
+      const img = updated.imageUrl || updated.image_url || updated.image;
+
+      setRatedAnime((prev) =>
+        prev.map((item) => {
+          const isMatch =
+            Number(item.id) === numId ||
+            (Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId)) ||
+            (updated.aliasIds && Array.isArray(updated.aliasIds) && updated.aliasIds.map(Number).includes(Number(item.id))) ||
+            (updated.title && item.title && item.title.trim().toLowerCase() === updated.title.trim().toLowerCase());
+          if (isMatch) {
+            return {
+              ...item,
+              ...updated,
+              imageUrl: img || item.imageUrl,
+              image_url: img || item.image_url
+            };
+          }
+          return item;
+        })
+      );
+
+      setFavoritesList((prev) =>
+        prev.map((item) => {
+          const isMatch =
+            Number(item.id) === numId ||
+            (Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId)) ||
+            (updated.aliasIds && Array.isArray(updated.aliasIds) && updated.aliasIds.map(Number).includes(Number(item.id))) ||
+            (updated.title && item.title && item.title.trim().toLowerCase() === updated.title.trim().toLowerCase());
+          if (isMatch) {
+            return {
+              ...item,
+              ...updated,
+              imageUrl: img || item.imageUrl,
+              image_url: img || item.image_url
+            };
+          }
+          return item;
+        })
+      );
+    };
+
+    window.addEventListener('anilex:anime-updated', handleAnimeUpdated);
+    return () => window.removeEventListener('anilex:anime-updated', handleAnimeUpdated);
+  }, []);
 
   // Re-sync ratings when returning to the tab/window
   useEffect(() => {

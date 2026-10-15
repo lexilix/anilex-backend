@@ -101,6 +101,16 @@ function overlayUserRatings(items, userId) {
         ...item,
         myScore: Number(matched.myScore)
       };
+    } else if (item.myScore !== null && item.myScore !== undefined) {
+      // Backend returned an authentic score for this authenticated user! Keep it and self-heal cache.
+      const s = Number(item.myScore);
+      updated = {
+        ...item,
+        myScore: s
+      };
+      if (targetUserId) {
+        updateCachedUserRating(targetUserId, numId, s, item);
+      }
     } else {
       updated = {
         ...item,
@@ -153,7 +163,9 @@ export default function App() {
       const { animeId, score, anime: updatedAnime } = e.detail || {};
       if (animeId === undefined && !updatedAnime?.id) return;
       const numId = Number(animeId !== undefined ? animeId : updatedAnime?.id);
+      const newScore = score !== null && score !== undefined ? Number(score) : null;
 
+      // 1. Update in active catalog/search view
       setAnimeList((prev) =>
         prev.map((item) => {
           const isMatch =
@@ -162,12 +174,16 @@ export default function App() {
             (updatedAnime?.aliasIds && Array.isArray(updatedAnime.aliasIds) && updatedAnime.aliasIds.map(Number).includes(Number(item.id))) ||
             (updatedAnime?.title && item.title && item.title.trim().toLowerCase() === updatedAnime.title.trim().toLowerCase());
           if (isMatch) {
-            return { ...item, myScore: score !== null && score !== undefined ? Number(score) : null };
+            return { ...item, myScore: newScore };
           }
           return item;
         })
       );
-      // Dynamically update user.ratedCount in global state & profile cache
+
+      // 2. Update all cached pages in localStorage
+      updateCachedAnimeItem(numId, { myScore: newScore });
+
+      // 3. Dynamically update user.ratedCount in global state & profile cache
       setUser((prevUser) => {
         if (!prevUser) return prevUser;
         const currentUserId = prevUser.id;
@@ -200,17 +216,23 @@ export default function App() {
       if (!updated || !updated.id) return;
       const numId = Number(updated.id);
 
-      setAnimeList((prev) =>
-        prev.map((item) => {
+      setAnimeList((prev) => {
+        if (updated.isPublished === false || updated.is_published === 0) {
+          // If hidden by admin, immediately remove from catalog and search view
+          return prev.filter((item) => Number(item.id) !== numId && !(Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId)));
+        }
+        return prev.map((item) => {
           const isMatch =
             Number(item.id) === numId ||
-            (Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId));
+            (Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId)) ||
+            (updated.aliasIds && Array.isArray(updated.aliasIds) && updated.aliasIds.map(Number).includes(Number(item.id))) ||
+            (updated.title && item.title && item.title.trim().toLowerCase() === updated.title.trim().toLowerCase());
           if (isMatch) {
             return applyCustomAnimeEdits({ ...item, ...updated });
           }
           return item;
-        })
-      );
+        });
+      });
     };
 
     window.addEventListener('anilex:anime-updated', handleAnimeUpdated);
@@ -333,31 +355,6 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
-  // Listen to live anime updates from DevConsole
-  useEffect(() => {
-    const handleLiveAnimeUpdated = (e) => {
-      const updated = e.detail;
-      if (!updated || !updated.id) return;
-      const numId = Number(updated.id);
-      const fullUpdated = applyCustomAnimeEdits(updated);
-      setAnimeList((prev) => {
-        const exists = prev.some(
-          (item) => Number(item.id) === numId || (Array.isArray(item.aliasIds) && item.aliasIds.includes(numId))
-        );
-        if (exists) {
-          return prev.map((item) =>
-            Number(item.id) === numId || (Array.isArray(item.aliasIds) && item.aliasIds.includes(numId))
-              ? { ...item, ...fullUpdated }
-              : item
-          );
-        } else {
-          return [fullUpdated, ...prev];
-        }
-      });
-    };
-    window.addEventListener('anilex:anime-updated', handleLiveAnimeUpdated);
-    return () => window.removeEventListener('anilex:anime-updated', handleLiveAnimeUpdated);
-  }, []);
 
   const navigateTo = (newView, animeId = null) => {
     if (newView === 'anime-detail' && animeId) {

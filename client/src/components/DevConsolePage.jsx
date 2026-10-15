@@ -790,16 +790,25 @@ export default function DevConsolePage({
         );
 
         // 2. Update catalog cache
-        upsertCachedAnimeItem(updatedAnime);
+        if (!nextPublished) {
+          removeCachedAnimeItem(anime.id);
+        } else {
+          upsertCachedAnimeItem(updatedAnime);
+        }
 
         // 3. Notify parent app if callbacks exist
         if (onAnimeUpdated) onAnimeUpdated(updatedAnime);
         if (onCatalogUpdated) onCatalogUpdated(updatedAnime);
 
-        // 4. Dispatch custom event for real-time sync across open views
+        // 4. Dispatch custom events for real-time sync across open views
         window.dispatchEvent(
           new CustomEvent('anilex-anime-published-changed', {
             detail: { id: anime.id, isPublished: nextPublished }
+          })
+        );
+        window.dispatchEvent(
+          new CustomEvent('anilex:anime-updated', {
+            detail: updatedAnime
           })
         );
 
@@ -819,6 +828,55 @@ export default function DevConsolePage({
       setTogglingPublishId(null);
     }
   };
+
+  // Live listener for real-time rating updates from any view or component
+  useEffect(() => {
+    const handleRatingUpdated = (e) => {
+      const { animeId, score } = e.detail || {};
+      if (animeId === undefined) return;
+      const numId = Number(animeId);
+      const newScore = score !== null && score !== undefined ? Number(score) : null;
+
+      setAnimeList((prev) =>
+        prev.map((item) => {
+          if (Number(item.id) === numId || (Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId))) {
+            return { ...item, myScore: newScore };
+          }
+          return item;
+        })
+      );
+
+      if (newScore !== null) {
+        setUnratedAnimeList((prev) =>
+          prev.filter((item) => Number(item.id) !== numId && !(Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId)))
+        );
+      }
+    };
+
+    window.addEventListener('anilex:rating-updated', handleRatingUpdated);
+    return () => window.removeEventListener('anilex:rating-updated', handleRatingUpdated);
+  }, []);
+
+  // Live listener for anime metadata updates from any view or component
+  useEffect(() => {
+    const handleAnimeUpdated = (e) => {
+      const updated = e.detail;
+      if (!updated || !updated.id) return;
+      const numId = Number(updated.id);
+
+      setAnimeList((prev) =>
+        prev.map((item) => {
+          if (Number(item.id) === numId || (Array.isArray(item.aliasIds) && item.aliasIds.map(Number).includes(numId))) {
+            return { ...item, ...updated };
+          }
+          return item;
+        })
+      );
+    };
+
+    window.addEventListener('anilex:anime-updated', handleAnimeUpdated);
+    return () => window.removeEventListener('anilex:anime-updated', handleAnimeUpdated);
+  }, []);
 
   // Online episodes sync handler
   const handleSyncEpisodesOnline = async () => {

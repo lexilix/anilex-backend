@@ -89,19 +89,27 @@ export default function AnimeCard({
   useEffect(() => {
     let isMounted = true;
     const raw = anime.imageUrl || anime.image_url || anime.fallbackImageUrl;
+    const externalFallback =
+      (anime.fallbackImageUrl && !anime.fallbackImageUrl.startsWith('/covers/'))
+        ? anime.fallbackImageUrl
+        : ((anime.image_url && !anime.image_url.startsWith('/covers/'))
+            ? anime.image_url
+            : ((anime.imageUrl && !anime.imageUrl.startsWith('/covers/'))
+                ? anime.imageUrl
+                : null));
     const resolved = resolveImageSrc(raw, anime.id);
-    if (!resolved && !raw) {
+    if (!resolved && !raw && !externalFallback) {
       setImageFailed(true);
       return;
     }
-    setImgSrc(resolved || raw);
+    setImgSrc(resolved || externalFallback || raw);
     setImageFailed(false);
     setTriedFallback(false);
     setTriedProxy(Boolean(resolved && resolved.includes('/api/proxy-image')));
     setRetryCount(0);
 
     // Gradual persistent cache loading
-    loadCachedImage(resolved || raw, raw, (cachedUrl) => {
+    loadCachedImage(resolved || raw, externalFallback || raw, (cachedUrl) => {
       if (isMounted && cachedUrl) {
         setImgSrc(cachedUrl);
       }
@@ -241,19 +249,28 @@ export default function AnimeCard({
 
   const handleImageError = () => {
     const raw = anime.imageUrl || anime.image_url || anime.fallbackImageUrl;
+    const externalFallback =
+      (anime.fallbackImageUrl && !anime.fallbackImageUrl.startsWith('/covers/'))
+        ? anime.fallbackImageUrl
+        : ((anime.image_url && !anime.image_url.startsWith('/covers/'))
+            ? anime.image_url
+            : ((anime.imageUrl && !anime.imageUrl.startsWith('/covers/'))
+                ? anime.imageUrl
+                : null));
 
     // 1. If local /covers/ or cached blob failed to load, fall back to external CDN URL first
-    if (imgSrc && (imgSrc.startsWith('/covers/') || imgSrc.startsWith('blob:')) && raw && raw !== imgSrc && !triedFallback) {
+    if (imgSrc && (imgSrc.startsWith('/covers/') || imgSrc.startsWith('blob:')) && externalFallback && externalFallback !== imgSrc && !triedFallback) {
       setTriedFallback(true);
-      setImgSrc(raw);
+      setImgSrc(externalFallback);
       return;
     }
 
-    if (!raw || raw.includes('missing_original')) {
+    const fallbackCandidate = externalFallback || raw;
+    if (!fallbackCandidate || fallbackCandidate.includes('missing_original') || fallbackCandidate.includes('placehold.co')) {
       setImageFailed(true);
       return;
     }
-    const proxyUrl = getImageProxyUrl(raw);
+    const proxyUrl = getImageProxyUrl(fallbackCandidate);
     if (!triedProxy && proxyUrl && imgSrc !== proxyUrl) {
       setTriedProxy(true);
       setImgSrc(proxyUrl);
@@ -330,6 +347,7 @@ export default function AnimeCard({
         if (currentUserId) {
           cacheResult = updateCachedUserRating(currentUserId, anime.id, newScore, anime);
         }
+        updateCachedAnimeItem(anime.id, { myScore: newScore });
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('anilex:rating-updated', {
@@ -343,6 +361,17 @@ export default function AnimeCard({
               }
             })
           );
+        }
+        const token = localStorage.getItem('anime_auth_token');
+        if (token) {
+          fetch(apiUrl(`/api/anime/${anime.id}/rate`), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ score: newScore, anime })
+          }).catch((err) => console.warn('Failed to save rating on server:', err));
         }
       }
     } catch (err) {
