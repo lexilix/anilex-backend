@@ -1814,6 +1814,11 @@ function stemRussianWord(word) {
 
 const ANIME_SYNONYMS = [
   {
+    patterns: [/агент.*врем/i, /агент.*врев/i, /link\s*click/i, /shiguang\s*dailiren/i],
+    canonical: ['Агенты времени', 'Link Click', 'Shiguang Dailiren'],
+    targetIds: [44074, 49413, 56752]
+  },
+  {
     patterns: [/звездн.*дит/i, /звёздн.*дит/i, /реб[её]нок.*идол/i, /oshi\s*no\s*ko/i, /my\s*star/i, /реб[её]нок.*айдол/i],
     canonical: ['Звёздное дитя', 'Ребёнок идола', 'Oshi no Ko'],
     targetIds: [5779, 5781]

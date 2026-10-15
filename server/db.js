@@ -475,14 +475,15 @@ function restoreAccountsFromBackup() {
         } catch (e) {}
       }
 
-      // Guarantee all standard core users exist (Just: 5, Katsu: 15, MrTech: 20, Venicek: 21, haitek: 22, lonely4ka: 23)
+      // Guarantee all standard core users exist (Just: 5, Katsu: 15, MrTech: 20, Venicek: 21, haitek: 22, lonely4ka: 23, Goose4ka: 25)
       const GOLDEN_USERS = [
         { id: 5, nickname: 'Just', email: 'just9jeeet@gmail.com' },
         { id: 15, nickname: 'Katsu', email: 'katsudemisek@gmail.com' },
         { id: 20, nickname: 'MrTech', email: 'mrtech@example.com' },
         { id: 21, nickname: 'Venicek', email: 'venicek@example.com' },
         { id: 22, nickname: 'haitek', email: 'cik5921@gmail.com' },
-        { id: 23, nickname: 'lonely4ka', email: 'xyesosinaaaaa@gmail.com' }
+        { id: 23, nickname: 'lonely4ka', email: 'xyesosinaaaaa@gmail.com' },
+        { id: 25, nickname: 'Goose4ka', email: 'divatiar123@gmail.com' }
       ];
       for (const gu of GOLDEN_USERS) {
         const found = db.prepare("SELECT id FROM users WHERE id = ? OR LOWER(nickname) = ? OR LOWER(email) = ?").get(gu.id, gu.nickname.toLowerCase(), gu.email.toLowerCase());
@@ -491,15 +492,16 @@ function restoreAccountsFromBackup() {
           try {
             db.prepare(`
               INSERT INTO users (id, email, nickname, password_hash, salt, avatar_url, banner_url, allow_password_set, is_blocked, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, CURRENT_TIMESTAMP)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
             `).run(
               gu.id,
               uObj ? uObj.email : gu.email,
               uObj ? uObj.nickname : gu.nickname,
               uObj?.password_hash || 'RESTORED_ACCOUNT',
               uObj?.salt || 'RESTORED_SALT',
-              uObj?.avatar_url || null,
-              uObj?.banner_url || null
+              uObj?.avatar_url || (gu.id === 25 ? '/api/uploads/user_25_avatar_1792097671383.gif' : null),
+              uObj?.banner_url || (gu.id === 25 ? '/api/uploads/user_25_banner_1792097671385.jpg' : null),
+              uObj?.allow_password_set !== undefined ? uObj.allow_password_set : 1
             );
           } catch (e) {
             console.error(`[Database] Failed to insert golden user ${gu.nickname} explicitly:`, e.message);

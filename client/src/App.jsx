@@ -446,9 +446,33 @@ export default function App() {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
+      .then(async (data) => {
         if (data && Array.isArray(data.items)) {
           if (currentUserId) {
+            const localRatings = getCachedUserRatings(currentUserId);
+            // If user rated anime while offline or if server was missing ratings, push them to server!
+            if (Array.isArray(localRatings) && localRatings.length > 0) {
+              const serverIds = new Set(data.items.map((it) => Number(it.id)));
+              const pending = localRatings.filter(
+                (it) => !serverIds.has(Number(it.id)) && it.myScore !== null && it.myScore !== undefined
+              );
+              if (pending.length > 0) {
+                console.log(`[Auto-Sync] Syncing ${pending.length} pending ratings for user ${currentUserId} to server...`);
+                for (const p of pending) {
+                  try {
+                    await fetch(apiUrl(`/api/anime/${p.id}/rate`), {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                      },
+                      body: JSON.stringify({ score: p.myScore, anime: p })
+                    });
+                    data.items.push(p);
+                  } catch (e) {}
+                }
+              }
+            }
             setCachedUserRatings(currentUserId, data.items);
           }
           setAnimeList((prev) => overlayUserRatings(prev, currentUserId));
