@@ -6,8 +6,8 @@ import initialCatalog from '../data/initialCatalog.json';
  * Supports instant loading from storage and change detection (image, description, count).
  */
 
-const CACHE_KEY_PREFIX = 'anilex_catalog_cache_';
-const PAGE_CACHE_PREFIX = 'anilex_page_cache_';
+const CACHE_KEY_PREFIX = 'anilex_catalog_cache_v2_';
+const PAGE_CACHE_PREFIX = 'anilex_page_cache_v2_';
 const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours TTL
 
 export function getCachedCatalog(key) {

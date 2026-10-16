@@ -784,19 +784,47 @@ export default function App() {
       if (cached && Array.isArray(cached.items) && cached.items.length > 0) {
         let items = cached.items.map((it) => applyCustomAnimeEdits(it));
         items = overlayUserRatings(items, user?.id);
-        if (activeSort === 'unrated') {
-          items = items.filter((it) => it.myScore === null || it.myScore === undefined);
+
+        // Strict filter validation for cached items to prevent stale or corrupted cache
+        if (activeGenres.length > 0) {
+          items = items.filter((it) => {
+            const itGenres = Array.isArray(it.genres) ? it.genres : [];
+            return activeGenres.every((g) => itGenres.includes(g));
+          });
         }
-        const page15 = items.slice(0, 15);
-        setAnimeList(page15);
-        setTotalCount(activeSort === 'unrated' ? page15.length : (cached.total || 3406));
-        setTotalPages(cached.totalPages || Math.max(1, Math.ceil((cached.total || 3406) / 15)));
-        setRecommendationCount(cached.recommendationGenresCount || 0);
-        setPage(targetPage);
-        setLoading(false);
-        setCatalogError(null);
-        // Page was loaded instantly from cache!
-        return;
+        if (activeType !== 'all') {
+          items = items.filter((it) => it.type === activeType);
+        }
+        if (activeYear && activeYear !== 'all') {
+          items = items.filter((it) => String(it.year) === String(activeYear));
+        }
+        if (filterStatus === 'my_rated') {
+          items = items.filter((it) => it.myScore !== null && it.myScore !== undefined);
+        } else if (filterStatus === 'my_unrated' || activeSort === 'unrated') {
+          items = items.filter((it) => it.myScore === null || it.myScore === undefined);
+        } else if (filterStatus === 'friends_rated') {
+          items = items.filter((it) => (it.ratingCount > 0) || (it.averageScore > 0) || (Array.isArray(it.friendsRatings) && it.friendsRatings.length > 0));
+        }
+        if (activeSort === 'my_score_desc') {
+          items.sort((a, b) => {
+            const aScore = a.myScore !== null && a.myScore !== undefined ? Number(a.myScore) : -1;
+            const bScore = b.myScore !== null && b.myScore !== undefined ? Number(b.myScore) : -1;
+            if (bScore !== aScore) return bScore - aScore;
+            return (Number(b.year) || 0) - (Number(a.year) || 0);
+          });
+        }
+
+        if (items.length > 0) {
+          const page15 = items.slice(0, 15);
+          setAnimeList(page15);
+          setTotalCount(activeSort === 'unrated' ? page15.length : (cached.total || items.length));
+          setTotalPages(cached.totalPages || Math.max(1, Math.ceil((cached.total || items.length) / 15)));
+          setRecommendationCount(cached.recommendationGenresCount || 0);
+          setPage(targetPage);
+          setLoading(false);
+          setCatalogError(null);
+          return;
+        }
       }
 
       // 2. Instant initialCatalog slice for default view (pages 1..4)
@@ -1014,7 +1042,7 @@ export default function App() {
           sanitized = deduplicateAnimeList(sanitized);
         }
 
-        // On main feed (page 1, not searching), ensure custom edited anime appear in the feed
+        // On main feed (page 1, not searching), ensure custom edited anime appear in the feed only if they match active filters
         if (!isSearching && targetPage === 1 && activeSort !== 'unrated') {
           const customItems = Object.values(allCustomEdits)
             .filter((item) => item && item.id && item.title && !deletedAnimeIds.has(Number(item.id)))
@@ -1028,16 +1056,37 @@ export default function App() {
             if (idx !== -1) {
               sanitized[idx] = { ...sanitized[idx], ...fullCustom };
             } else {
-              sanitized.unshift({
-                ...fullCustom,
-                aliasIds: [fullCustom.id],
-                myScore: null,
-                averageScore: null,
-                ratingCount: 0,
-                isFavorite: false,
-                isHidden: false,
-                commentsCount: 0
-              });
+              // ONLY unshift if this custom item strictly matches all active filters!
+              const matchesFilter = (() => {
+                if (activeGenres.length > 0) {
+                  const itGenres = Array.isArray(fullCustom.genres) ? fullCustom.genres : [];
+                  if (!activeGenres.every((g) => itGenres.includes(g))) return false;
+                }
+                if (activeType !== 'all' && fullCustom.type !== activeType) return false;
+                if (activeYear && activeYear !== 'all' && String(fullCustom.year) !== String(activeYear)) return false;
+                if (filterStatus === 'my_rated') {
+                  const s = fullCustom.myScore;
+                  if (s === null || s === undefined) return false;
+                }
+                if (filterStatus === 'my_unrated' || activeSort === 'unrated') {
+                  const s = fullCustom.myScore;
+                  if (s !== null && s !== undefined) return false;
+                }
+                return true;
+              })();
+
+              if (matchesFilter) {
+                sanitized.unshift({
+                  ...fullCustom,
+                  aliasIds: [fullCustom.id],
+                  myScore: null,
+                  averageScore: null,
+                  ratingCount: 0,
+                  isFavorite: false,
+                  isHidden: false,
+                  commentsCount: 0
+                });
+              }
             }
           }
           sanitized = deduplicateAnimeList(sanitized);
@@ -1103,8 +1152,43 @@ export default function App() {
           });
         }
 
+        // Overlay user ratings so myScore is fresh for client-side filtering and sorting
+        sanitized = overlayUserRatings(sanitized, user?.id);
+
+        if (!isSearching) {
+          // Re-verify active filters on sanitized list in case of custom edit or cache anomalies
+          if (activeGenres.length > 0) {
+            sanitized = sanitized.filter((it) => {
+              const itGenres = Array.isArray(it.genres) ? it.genres : [];
+              return activeGenres.every((g) => itGenres.includes(g));
+            });
+          }
+          if (activeType !== 'all') {
+            sanitized = sanitized.filter((it) => it.type === activeType);
+          }
+          if (activeYear && activeYear !== 'all') {
+            sanitized = sanitized.filter((it) => String(it.year) === String(activeYear));
+          }
+          if (filterStatus === 'my_rated') {
+            sanitized = sanitized.filter((it) => it.myScore !== null && it.myScore !== undefined);
+          } else if (filterStatus === 'my_unrated' || activeSort === 'unrated') {
+            sanitized = sanitized.filter((it) => it.myScore === null || it.myScore === undefined);
+          } else if (filterStatus === 'friends_rated') {
+            sanitized = sanitized.filter((it) => (it.ratingCount > 0) || (it.averageScore > 0) || (Array.isArray(it.friendsRatings) && it.friendsRatings.length > 0));
+          }
+
+          if (activeSort === 'my_score_desc') {
+            sanitized.sort((a, b) => {
+              const aScore = a.myScore !== null && a.myScore !== undefined ? Number(a.myScore) : -1;
+              const bScore = b.myScore !== null && b.myScore !== undefined ? Number(b.myScore) : -1;
+              if (bScore !== aScore) return bScore - aScore;
+              return (Number(b.year) || 0) - (Number(a.year) || 0);
+            });
+          }
+        }
+
         // Strictly take 15 items per page for catalog navigation
-        const displayPageItems = overlayUserRatings(isSearching ? sanitized : sanitized.slice(0, 15), user?.id);
+        const displayPageItems = isSearching ? sanitized : sanitized.slice(0, 15);
         const resolvedTotal = Math.max(displayPageItems.length, data.total || 0);
         const resolvedPages = data.totalPages || Math.max(1, Math.ceil(resolvedTotal / 15));
 

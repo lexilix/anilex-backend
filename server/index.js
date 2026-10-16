@@ -2061,12 +2061,18 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
     // Status filter or unrated sort (Photo 1)
     if (filterStatus === 'friends_rated') {
       whereClauses.push('(SELECT COUNT(*) FROM ratings WHERE anime_id = a.id) > 0');
-    } else if (filterStatus === 'my_rated' && currentUserId) {
-      whereClauses.push('(SELECT COUNT(*) FROM ratings WHERE anime_id = a.id AND user_id = ?) > 0');
-      params.push(currentUserId);
-    } else if ((filterStatus === 'my_unrated' || sort === 'unrated') && currentUserId) {
-      whereClauses.push('(SELECT COUNT(*) FROM ratings WHERE anime_id = a.id AND user_id = ?) = 0');
-      params.push(currentUserId);
+    } else if (filterStatus === 'my_rated') {
+      if (currentUserId) {
+        whereClauses.push('(SELECT COUNT(*) FROM ratings WHERE anime_id = a.id AND user_id = ?) > 0');
+        params.push(currentUserId);
+      } else {
+        whereClauses.push('1 = 0');
+      }
+    } else if (filterStatus === 'my_unrated' || sort === 'unrated') {
+      if (currentUserId) {
+        whereClauses.push('(SELECT COUNT(*) FROM ratings WHERE anime_id = a.id AND user_id = ?) = 0');
+        params.push(currentUserId);
+      }
     }
 
     // Exclude missing / 404 / placehold.co covers and promo commercial junk on general browse, but NEVER hide during search!
@@ -2200,10 +2206,8 @@ app.get('/api/anime', optionalAuthMiddleware, async (req, res) => {
         COUNT(r.id) as rating_count,
         (
           SELECT r.score FROM ratings r
-          WHERE (r.anime_id = a.id OR r.anime_id IN (
-            SELECT a2.id FROM anime a2 WHERE LOWER(TRIM(a2.title)) = LOWER(TRIM(a.title))
-          )) AND r.user_id = ?
-          ORDER BY r.updated_at DESC LIMIT 1
+          WHERE r.anime_id = a.id AND r.user_id = ?
+          LIMIT 1
         ) as my_score,
         (
           SELECT COUNT(id) FROM favorites
