@@ -159,6 +159,23 @@ const DEFAULT_FRIENDS = [
   { id: 15, nickname: 'Katsu', email: 'katsudemisek@gmail.com', avatarUrl: '/api/uploads/user_15_avatar.jpg', bannerUrl: '/api/uploads/user_15_banner.jpg', rated_count: 9, avg_score: 9.0 }
 ];
 
+const ensureFriendsList = (existingList) => {
+  const map = new Map();
+  DEFAULT_FRIENDS.forEach((u) => map.set(Number(u.id), { ...u }));
+  if (Array.isArray(existingList)) {
+    existingList.forEach((u) => {
+      if (!u) return;
+      const numId = Number(u.id);
+      if (map.has(numId)) {
+        map.set(numId, { ...map.get(numId), ...u });
+      } else {
+        map.set(numId, u);
+      }
+    });
+  }
+  return Array.from(map.values()).filter((u) => u.nickname?.toLowerCase() !== 'inspector');
+};
+
 export default function App() {
   // Theme state
   const [darkMode, setDarkMode] = useState(() => {
@@ -356,7 +373,7 @@ export default function App() {
       const saved = localStorage.getItem('anilex_cached_friends');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return ensureFriendsList(parsed);
       }
     } catch (e) {}
     return DEFAULT_FRIENDS;
@@ -562,10 +579,13 @@ export default function App() {
       }
       if (friendsRes && friendsRes.ok) {
         const data = await friendsRes.json();
-        if (Array.isArray(data.friends) && data.friends.length > 0) {
-          setFriends(data.friends);
-          try { localStorage.setItem('anilex_cached_friends', JSON.stringify(data.friends)); } catch (e) {}
-        }
+        const fullFriends = ensureFriendsList(data.friends || []);
+        setFriends(fullFriends);
+        try { localStorage.setItem('anilex_cached_friends', JSON.stringify(fullFriends)); } catch (e) {}
+      } else {
+        const saved = localStorage.getItem('anilex_cached_friends');
+        const parsed = saved ? JSON.parse(saved) : [];
+        setFriends(ensureFriendsList(parsed));
       }
     } catch (err) {
       console.warn('Metadata fetch notice (preserved offline cache):', err.message);

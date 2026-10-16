@@ -549,12 +549,29 @@ export default function DevConsolePage({
     { id: 15, nickname: 'Katsu', email: 'katsudemisek@gmail.com', avatarUrl: '/api/uploads/user_15_avatar.jpg', bannerUrl: '/api/uploads/user_15_banner.jpg', ratedCount: 9, avgScore: 9.0, isBlocked: false }
   ];
 
+  const ensureDevUsers = (existingList) => {
+    const map = new Map();
+    DEFAULT_DEV_USERS.forEach((u) => map.set(Number(u.id), { ...u }));
+    if (Array.isArray(existingList)) {
+      existingList.forEach((u) => {
+        if (!u) return;
+        const numId = Number(u.id);
+        if (map.has(numId)) {
+          map.set(numId, { ...map.get(numId), ...u });
+        } else {
+          map.set(numId, u);
+        }
+      });
+    }
+    return Array.from(map.values()).filter((u) => u.nickname?.toLowerCase() !== 'inspector');
+  };
+
   const [usersList, setUsersList] = useState(() => {
     try {
       const raw = localStorage.getItem('anilex_cached_dev_users');
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return ensureDevUsers(parsed);
       }
     } catch (e) {}
     return DEFAULT_DEV_USERS;
@@ -959,21 +976,7 @@ export default function DevConsolePage({
         }
       }
 
-      if (users.length === 0) {
-        const raw = localStorage.getItem('anilex_cached_dev_users');
-        if (raw) {
-          try { users = JSON.parse(raw); } catch (e) {}
-        }
-        if (!users || users.length === 0) {
-          users = DEFAULT_DEV_USERS;
-        }
-      }
-
-      // Guarantee Goose4ka is present
-      if (!users.some(u => Number(u.id) === 25 || u.nickname === 'Goose4ka')) {
-        const goose = DEFAULT_DEV_USERS.find(u => u.id === 25);
-        if (goose) users.push(goose);
-      }
+      users = ensureDevUsers(users);
 
       // Filter out 'inspector' and permanently deleted users, and apply custom edits
       let deletedUserIds = new Set();

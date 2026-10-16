@@ -217,12 +217,33 @@ export default function ProfilePage({
     { id: 15, nickname: 'Katsu', email: 'katsudemisek@gmail.com', avatarUrl: '/api/uploads/user_15_avatar.jpg', bannerUrl: '/api/uploads/user_15_banner.jpg', ratedCount: 9, avgScore: 9.0, friendshipStatus: 'accepted' }
   ];
 
+  const ensureClubUsers = (existingList, currentUserId = null) => {
+    const map = new Map();
+    DEFAULT_CLUB_USERS.forEach((u) => map.set(Number(u.id), { ...u }));
+    if (Array.isArray(existingList)) {
+      existingList.forEach((u) => {
+        if (!u) return;
+        const numId = Number(u.id);
+        if (map.has(numId)) {
+          map.set(numId, { ...map.get(numId), ...u });
+        } else {
+          map.set(numId, u);
+        }
+      });
+    }
+    let res = Array.from(map.values()).filter((u) => u.nickname?.toLowerCase() !== 'inspector');
+    if (currentUserId) {
+      res = res.filter((u) => Number(u.id) !== Number(currentUserId));
+    }
+    return res;
+  };
+
   const [friendsTab, setFriendsTab] = useState('my'); // 'my' | 'requests' | 'search'
   const [friendsList, setFriendsList] = useState(() => {
     try {
       const raw = localStorage.getItem('anilex_cached_friends_list');
       const parsed = raw ? JSON.parse(raw) : null;
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CLUB_USERS;
+      return ensureClubUsers(parsed);
     } catch (e) {
       return DEFAULT_CLUB_USERS;
     }
@@ -231,10 +252,9 @@ export default function ProfilePage({
     try {
       const raw = localStorage.getItem('anilex_cached_my_friends');
       const parsed = raw ? JSON.parse(raw) : null;
-      let list = Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CLUB_USERS;
-      return list.filter(u => Number(u.id) !== Number(user?.id));
+      return ensureClubUsers(parsed, user?.id);
     } catch (e) {
-      return DEFAULT_CLUB_USERS.filter(u => Number(u.id) !== Number(user?.id));
+      return ensureClubUsers(DEFAULT_CLUB_USERS, user?.id);
     }
   });
   const [incomingRequests, setIncomingRequests] = useState([]);
@@ -1036,15 +1056,21 @@ export default function ProfilePage({
       if (myFriendsRes && myFriendsRes.ok) {
         const data = await myFriendsRes.json();
         const list = (data.friends || []).map(u => applyCustomUserEdits(u)).filter(u => u.nickname?.toLowerCase() !== 'inspector');
-        if (list.length > 0) {
-          setMyFriends(list);
-          try { localStorage.setItem('anilex_cached_my_friends', JSON.stringify(list)); } catch (e) {}
-        }
+        const fullList = ensureClubUsers(list, user?.id);
+        setMyFriends(fullList);
+        try { localStorage.setItem('anilex_cached_my_friends', JSON.stringify(fullList)); } catch (e) {}
+      } else {
+        const cached = localStorage.getItem('anilex_cached_my_friends');
+        const parsed = cached ? JSON.parse(cached) : [];
+        setMyFriends(ensureClubUsers(parsed, user?.id));
       }
     } catch (err) {
       console.error('Error fetching friends data:', err);
+      const cached = localStorage.getItem('anilex_cached_my_friends');
+      const parsed = cached ? JSON.parse(cached) : [];
+      setMyFriends(ensureClubUsers(parsed, user?.id));
     }
-  }, []);
+  }, [user?.id]);
 
   // Search users in friends club
   const searchFriends = useCallback(async (query = '') => {
@@ -1056,33 +1082,32 @@ export default function ProfilePage({
       if (res && res.ok) {
         const data = await res.json();
         const list = (data.users || []).map(u => applyCustomUserEdits(u)).filter(u => u.nickname?.toLowerCase() !== 'inspector');
-        if (list.length > 0) {
-          setFriendsList(list);
-          if (!query.trim()) {
-            try { localStorage.setItem('anilex_cached_friends_list', JSON.stringify(list)); } catch (e) {}
-          }
-        } else if (!query.trim()) {
-          // If query is empty and list is somehow 0, do not wipe existing users!
-          const cached = localStorage.getItem('anilex_cached_friends_list');
-          if (cached) {
-            try { setFriendsList(JSON.parse(cached)); } catch (e) {}
-          }
+        const mergedAll = ensureClubUsers(list);
+        if (!query.trim()) {
+          setFriendsList(mergedAll);
+          try { localStorage.setItem('anilex_cached_friends_list', JSON.stringify(mergedAll)); } catch (e) {}
         } else {
-          setFriendsList([]);
+          const q = query.toLowerCase().trim();
+          const filtered = mergedAll.filter(u => (u.nickname || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q));
+          setFriendsList(filtered);
         }
       } else if (!query.trim()) {
         const cached = localStorage.getItem('anilex_cached_friends_list');
-        if (cached) {
-          try { setFriendsList(JSON.parse(cached)); } catch (e) {}
-        }
+        const parsed = cached ? JSON.parse(cached) : [];
+        setFriendsList(ensureClubUsers(parsed));
+      } else {
+        const q = query.toLowerCase().trim();
+        setFriendsList(ensureClubUsers([]).filter(u => (u.nickname || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q)));
       }
     } catch (err) {
       console.error('Error searching friends:', err);
       if (!query.trim()) {
         const cached = localStorage.getItem('anilex_cached_friends_list');
-        if (cached) {
-          try { setFriendsList(JSON.parse(cached)); } catch (e) {}
-        }
+        const parsed = cached ? JSON.parse(cached) : [];
+        setFriendsList(ensureClubUsers(parsed));
+      } else {
+        const q = query.toLowerCase().trim();
+        setFriendsList(ensureClubUsers([]).filter(u => (u.nickname || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q)));
       }
     } finally {
       setFriendsLoading(false);
