@@ -215,6 +215,108 @@ export function getAnyCachedCatalog() {
 }
 
 /**
+ * Instantly filters and sorts the full in-memory catalog (3453+ anime) in ~1-2ms.
+ * Ensures zero-latency UI response when clicking genres, years, types, or status filters.
+ */
+export function filterLocalCatalog(items, {
+  search = '',
+  sort = 'newest',
+  type = 'all',
+  year = 'all',
+  filterStatus = 'all',
+  genres = []
+} = {}) {
+  if (!Array.isArray(items)) return [];
+  let result = [...items];
+
+  // Exclude deleted or explicitly unpublished anime
+  let deletedAnimeIds = new Set();
+  try {
+    deletedAnimeIds = new Set(JSON.parse(localStorage.getItem('anilex_deleted_anime_ids') || '[]').map(Number));
+  } catch (e) {}
+
+  result = result.filter((item) => {
+    if (!item || !item.id) return false;
+    const numId = Number(item.id);
+    if (deletedAnimeIds.has(numId)) return false;
+    if (item.isPublished === false || item.is_published === 0) return false;
+    const t = (item.title || '').toLowerCase();
+    const orig = (item.originalTitle || item.original_title || '').toLowerCase();
+    if (t.includes('сникерс') || orig.includes('snickers')) return false;
+    if ([7155, 7156, 7157, 7215, 6106, 6107, 6109, 7169].includes(numId)) return false;
+    return true;
+  });
+
+  // 1. Search text filter
+  if (search && search.trim()) {
+    const s = search.trim().toLowerCase().replace(/ё/g, 'е');
+    result = result.filter((item) => {
+      const t = (item.title || '').toLowerCase().replace(/ё/g, 'е');
+      const ot = (item.originalTitle || item.original_title || '').toLowerCase().replace(/ё/g, 'е');
+      const desc = (item.description || '').toLowerCase().replace(/ё/g, 'е');
+      return t.includes(s) || ot.includes(s) || desc.includes(s);
+    });
+  }
+
+  // 2. Genres filter: every active genre MUST be present in item.genres
+  if (Array.isArray(genres) && genres.length > 0) {
+    result = result.filter((item) => {
+      const itGenres = Array.isArray(item.genres) ? item.genres : [];
+      return genres.every((g) => itGenres.includes(g));
+    });
+  }
+
+  // 3. Type filter
+  if (type && type !== 'all') {
+    result = result.filter((item) => item.type === type);
+  }
+
+  // 4. Year filter
+  if (year && year !== 'all') {
+    result = result.filter((item) => String(item.year) === String(year));
+  }
+
+  // 5. Status filter
+  if (filterStatus === 'my_rated') {
+    result = result.filter((item) => item.myScore !== null && item.myScore !== undefined);
+  } else if (filterStatus === 'my_unrated') {
+    result = result.filter((item) => item.myScore === null || item.myScore === undefined);
+  } else if (filterStatus === 'friends_rated') {
+    result = result.filter((item) => (Number(item.ratingCount) > 0) || (Number(item.averageScore) > 0) || (Array.isArray(item.friendsRatings) && item.friendsRatings.length > 0));
+  }
+
+  // 6. Sort
+  if (sort === 'my_score_desc') {
+    result.sort((a, b) => {
+      const aScore = a.myScore !== null && a.myScore !== undefined ? Number(a.myScore) : -1;
+      const bScore = b.myScore !== null && b.myScore !== undefined ? Number(b.myScore) : -1;
+      if (bScore !== aScore) return bScore - aScore;
+      return (Number(b.year) || 0) - (Number(a.year) || 0);
+    });
+  } else if (sort === 'rating') {
+    result.sort((a, b) => {
+      const aAvg = Number(a.averageScore) || 0;
+      const bAvg = Number(b.averageScore) || 0;
+      if (bAvg !== aAvg) return bAvg - aAvg;
+      return (Number(b.year) || 0) - (Number(a.year) || 0);
+    });
+  } else if (sort === 'unrated') {
+    result = result.filter((item) => item.myScore === null || item.myScore === undefined);
+    result.sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0));
+  } else {
+    // newest
+    result.sort((a, b) => {
+      const yA = Number(a.year) || 0;
+      const yB = Number(b.year) || 0;
+      if (yB !== yA) return yB - yA;
+      return (Number(b.id) || 0) - (Number(a.id) || 0);
+    });
+  }
+
+  return result;
+}
+
+/**
  * Helper for Russian word stemming to match grammatical forms (e.g. "безработный" -> "безработн" -> matches "безработного")
  */
 export function stemRussianWord(word) {

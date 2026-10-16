@@ -21,6 +21,7 @@ import {
   searchCachedAnime,
   searchExternalAnimeFallback,
   getAllCachedAnime,
+  filterLocalCatalog,
   hasCatalogChanged,
   updateCachedAnimeItem,
   upsertCachedAnimeItem,
@@ -827,30 +828,44 @@ export default function App() {
         }
       }
 
-      // 2. Instant initialCatalog slice for default view (pages 1..4)
-      const isDefaultView = !isSearching && activeSort === 'newest' && activeType === 'all' && activeYear === 'all' && filterStatus === 'all' && activeGenres.length === 0;
-      if (isDefaultView && Array.isArray(initialCatalog) && initialCatalog.length > 0) {
-        const startIdx = (targetPage - 1) * 15;
-        const slice15 = initialCatalog.slice(startIdx, startIdx + 15);
-        if (slice15.length > 0) {
-          const page15 = overlayUserRatings(slice15.map(applyCustomAnimeEdits), user?.id);
-          setAnimeList(page15);
-          setTotalCount(3406);
-          setTotalPages(Math.ceil(3406 / 15));
-          setPage(targetPage);
-          setLoading(false);
-          setCatalogError(null);
-        }
-      } else if (targetPage === 1 && !isSearching && animeList.length === 0) {
-        // Instant fallback to any cached catalog items so the screen is NEVER blank
-        const anyCached = getAnyCachedCatalog();
-        if (anyCached && Array.isArray(anyCached.items) && anyCached.items.length > 0) {
-          const page15 = overlayUserRatings(anyCached.items.slice(0, 15).map(applyCustomAnimeEdits), user?.id);
-          setAnimeList(page15);
-          setTotalCount(anyCached.total || page15.length);
-          setTotalPages(anyCached.totalPages || Math.max(1, Math.ceil((anyCached.total || page15.length) / 15)));
-          setLoading(false);
-          setCatalogError(null);
+      // 2. Instant zero-latency local catalog rendering (takes ~1-2ms)
+      // Ensures clicking any genre (Romance, Drama...), year, type, or status immediately
+      // displays the exact matching titles and count in memory without waiting for network!
+      if (!isSearching) {
+        try {
+          const allLocal = getAllCachedAnime();
+          const customEdits = getCustomAnimeEdits();
+          const mergedLocal = allLocal.map((it) => {
+            const custom = customEdits[Number(it.id)];
+            return custom ? applyCustomAnimeEdits({ ...it, ...custom }) : applyCustomAnimeEdits(it);
+          });
+          const withRatings = overlayUserRatings(mergedLocal, user?.id);
+          const locallyFiltered = filterLocalCatalog(withRatings, {
+            search: '',
+            sort: activeSort,
+            type: activeType,
+            year: activeYear,
+            filterStatus,
+            genres: activeGenres
+          });
+
+          if (locallyFiltered.length > 0) {
+            const startIdx = (targetPage - 1) * 15;
+            const slice15 = locallyFiltered.slice(startIdx, startIdx + 15);
+            setAnimeList(slice15);
+            setTotalCount(locallyFiltered.length);
+            setTotalPages(Math.max(1, Math.ceil(locallyFiltered.length / 15)));
+            setPage(targetPage);
+            setCatalogError(null);
+          } else if (activeGenres.length > 0 || activeType !== 'all' || activeYear !== 'all' || filterStatus !== 'all') {
+            setAnimeList([]);
+            setTotalCount(0);
+            setTotalPages(1);
+            setPage(targetPage);
+            setCatalogError(null);
+          }
+        } catch (localFilterErr) {
+          console.warn('Local filter notice:', localFilterErr);
         }
       }
 
@@ -1237,15 +1252,30 @@ export default function App() {
               }
             } catch (fallbackErr) {}
           }
-        } else if (animeList.length === 0) {
-          const anyFallback = getAnyCachedCatalog();
-          if (anyFallback && Array.isArray(anyFallback.items) && anyFallback.items.length > 0) {
-            const page15 = anyFallback.items.slice(0, 15).map(applyCustomAnimeEdits);
-            setAnimeList(overlayUserRatings(page15, user?.id));
-            setTotalCount(anyFallback.total || page15.length);
-            setTotalPages(anyFallback.totalPages || Math.max(1, Math.ceil((anyFallback.total || page15.length) / 15)));
+        } else {
+          try {
+            const allLocal = getAllCachedAnime();
+            const customEdits = getCustomAnimeEdits();
+            const mergedLocal = allLocal.map((it) => {
+              const custom = customEdits[Number(it.id)];
+              return custom ? applyCustomAnimeEdits({ ...it, ...custom }) : applyCustomAnimeEdits(it);
+            });
+            const withRatings = overlayUserRatings(mergedLocal, user?.id);
+            const locallyFiltered = filterLocalCatalog(withRatings, {
+              search: '',
+              sort: activeSort,
+              type: activeType,
+              year: activeYear,
+              filterStatus,
+              genres: activeGenres
+            });
+            const startIdx = (targetPage - 1) * 15;
+            const page15 = locallyFiltered.slice(startIdx, startIdx + 15);
+            setAnimeList(page15);
+            setTotalCount(locallyFiltered.length);
+            setTotalPages(Math.max(1, Math.ceil(locallyFiltered.length / 15)));
             setCatalogError(null);
-          } else {
+          } catch (e) {
             setCatalogError('failed');
           }
         }
