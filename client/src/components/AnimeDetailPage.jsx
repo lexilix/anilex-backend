@@ -9,8 +9,33 @@ import { applyCustomAnimeEdits, getCustomAnimeEdits } from '../utils/customEdits
 import { getAllCachedAnime, updateCachedAnimeItem } from '../utils/catalogCache';
 import { getCachedUserRatings, getCachedUserProfile, updateCachedUserRating } from '../utils/profileCache';
 import { isAnimeFavoritedLocally, toggleFavoriteAnime } from '../utils/favoritesStorage';
-import { isAnimeHiddenLocally, toggleHiddenAnime } from '../utils/hiddenStorage';
 import initialCatalog from '../data/initialCatalog.json';
+import clubRatingsSnapshot from '../data/clubRatingsSnapshot.json';
+
+function getCommunityOrClubScore(targetId, targetTitle) {
+  const numId = Number(targetId);
+  const cleanTitle = (targetTitle || '').trim().toLowerCase();
+  const matchedScores = [];
+
+  if (clubRatingsSnapshot) {
+    Object.values(clubRatingsSnapshot).forEach((userList) => {
+      if (!Array.isArray(userList)) return;
+      const match = userList.find((r) => {
+        if (numId && Number(r.id) === numId) return true;
+        if (cleanTitle && r.title && r.title.trim().toLowerCase() === cleanTitle) return true;
+        return false;
+      });
+      if (match && match.score !== undefined && match.score !== null) {
+        matchedScores.push(Number(match.score));
+      }
+    });
+  }
+
+  if (matchedScores.length === 0) return null;
+  const sum = matchedScores.reduce((acc, s) => acc + s, 0);
+  const avg = Math.round((sum / matchedScores.length) * 10) / 10;
+  return { averageScore: avg, count: matchedScores.length };
+}
 
 export default function AnimeDetailPage({
   animeId,
@@ -495,10 +520,25 @@ export default function AnimeDetailPage({
 
           let avg = it.averageScore;
           if (avg === null || avg === undefined || avg === 0) {
-            const catMatch = (Array.isArray(initialCatalog) ? initialCatalog : []).find(c => Number(c.id) === itId);
+            const catMatch = (Array.isArray(initialCatalog) ? initialCatalog : []).find(c => Number(c.id) === itId || (it.title && c.title && c.title.trim().toLowerCase() === it.title.trim().toLowerCase()));
             if (catMatch && catMatch.averageScore) {
               avg = catMatch.averageScore;
             }
+          }
+          if (avg === null || avg === undefined || avg === 0) {
+            const cachedMatch = getAllCachedAnime().find(c => Number(c.id) === itId || (it.title && c.title && c.title.trim().toLowerCase() === it.title.trim().toLowerCase()));
+            if (cachedMatch && cachedMatch.averageScore) {
+              avg = cachedMatch.averageScore;
+            }
+          }
+          if (avg === null || avg === undefined || avg === 0) {
+            const clubScore = getCommunityOrClubScore(itId, it.title);
+            if (clubScore && clubScore.averageScore) {
+              avg = clubScore.averageScore;
+            }
+          }
+          if ((avg === null || avg === undefined || avg === 0) && myScore !== null && myScore !== undefined) {
+            avg = myScore;
           }
 
           return {
@@ -1328,8 +1368,11 @@ export default function AnimeDetailPage({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
             {relatedAnime.map((item) => {
               const isCurrent = Number(item.id) === Number(anime?.id);
-              const displayAvgScore = isCurrent ? (anime?.averageScore ?? item.averageScore) : item.averageScore;
+              const baseAvg = isCurrent ? (anime?.averageScore ?? item.averageScore) : item.averageScore;
               const displayMyScore = isCurrent ? (anime?.myScore ?? item.myScore) : item.myScore;
+              const displayAvgScore = (baseAvg !== null && baseAvg !== undefined && baseAvg !== 0)
+                ? baseAvg
+                : (displayMyScore !== null && displayMyScore !== undefined ? displayMyScore : null);
 
               return (
                 <div

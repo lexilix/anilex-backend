@@ -947,23 +947,25 @@ export default function DevConsolePage({
   // FETCH USERS LIST
   // ----------------------------------------------------
   const fetchUsersForDev = useCallback(async () => {
-    setUsersLoading(true);
     try {
       const token = localStorage.getItem('anime_auth_token');
       let users = [];
 
-      // 1. Try /api/dev/users
+      // 1. Try /api/dev/users with 5s timeout
       const res = await fetch(apiUrl('/api/dev/users'), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal: AbortSignal.timeout(5000)
       }).catch(() => null);
 
       if (res && res.ok) {
         const data = await res.json();
         users = data.users || [];
       } else {
-        // Fallback to /api/friends
-        const fallbackRes = await fetch(apiUrl('/api/friends'));
-        if (fallbackRes.ok) {
+        // Fallback to /api/friends with 5s timeout
+        const fallbackRes = await fetch(apiUrl('/api/friends'), {
+          signal: AbortSignal.timeout(5000)
+        }).catch(() => null);
+        if (fallbackRes && fallbackRes.ok) {
           const fbData = await fallbackRes.json();
           users = (fbData.friends || []).map((u) => ({
             id: u.id,
@@ -991,8 +993,10 @@ export default function DevConsolePage({
         .filter((u) => u.nickname?.toLowerCase() !== 'inspector' && !deletedUserIds.has(Number(u.id)))
         .map((u) => applyCustomUserEdits(u));
 
-      setUsersList(users);
-      try { localStorage.setItem('anilex_cached_dev_users', JSON.stringify(users)); } catch (e) {}
+      if (users.length > 0) {
+        setUsersList(users);
+        try { localStorage.setItem('anilex_cached_dev_users', JSON.stringify(users)); } catch (e) {}
+      }
 
       if (!selectedUserId && users.length > 0) {
         setSelectedUserId(users[0].id);
@@ -1015,49 +1019,62 @@ export default function DevConsolePage({
   // ----------------------------------------------------
   const fetchRatingsForUser = useCallback(async (userId) => {
     if (!userId) return;
-    setRatingsLoading(true);
+
+    // 0. Synchronous instant preseed from local cache and club snapshot
+    const cached = getCachedUserRatings(userId);
+    let initialList = [];
+    if (cached && cached.length > 0) {
+      initialList = cached.map((r) => ({
+        id: r.id,
+        title: r.title,
+        originalTitle: r.originalTitle || r.title,
+        imageUrl: r.imageUrl,
+        type: r.type || 'Сериал',
+        year: r.year,
+        genres: r.genres || [],
+        score: r.score !== undefined ? r.score : (r.myScore || 10),
+        isPinned: Boolean(r.isPinned),
+        isTop5: Boolean(r.isTop5)
+      }));
+      setUserRatings(initialList);
+    }
+
+    setRatingsLoading(initialList.length === 0);
     try {
       const token = localStorage.getItem('anime_auth_token');
       let ratings = [];
 
-      // 1. Try /api/dev/users/:id/ratings
+      // 1. Try /api/dev/users/:id/ratings with 5s timeout
       const res = await fetch(apiUrl(`/api/dev/users/${userId}/ratings`), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal: AbortSignal.timeout(5000)
       }).catch(() => null);
 
       if (res && res.ok) {
         const data = await res.json();
         ratings = data.ratings || [];
       } else {
-        // 2. Fallback to /api/users/:id/profile (admin Just has full access)
+        // 2. Fallback to /api/users/:id/profile with 5s timeout
         const profRes = await fetch(apiUrl(`/api/users/${userId}/profile`), {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: AbortSignal.timeout(5000)
         }).catch(() => null);
 
         if (profRes && profRes.ok) {
           const profData = await profRes.json();
-          ratings = profData.ratings || [];
-        } else {
-          // 3. Client cache fallback
-          const cached = getCachedUserRatings(userId);
-          if (cached && cached.length > 0) {
-            ratings = cached.map((r) => ({
-              id: r.id,
-              title: r.title,
-              originalTitle: r.originalTitle,
-              imageUrl: r.imageUrl,
-              type: r.type,
-              year: r.year,
-              genres: r.genres || [],
-              score: r.myScore || r.score || 10,
-              isPinned: false,
-              isTop5: false
-            }));
+          if (Array.isArray(profData.ratings) && profData.ratings.length > 0) {
+            ratings = profData.ratings;
           }
         }
       }
 
-      setUserRatings(ratings);
+      if (Array.isArray(ratings) && ratings.length > 0) {
+        setUserRatings(ratings);
+        setCachedUserRatings(userId, ratings);
+      } else if (initialList.length > 0) {
+        // Guarantee ratings never drop to 0 if server timed out or returned empty
+        setUserRatings(initialList);
+      }
     } catch (err) {
       console.error('Error fetching user ratings for dev:', err);
     } finally {
@@ -3045,7 +3062,7 @@ export default function DevConsolePage({
             </button>
           </div>
 
-          {usersLoading ? (
+          {usersLoading && usersList.length === 0 ? (
             <div className="py-20 text-center text-xs text-neutral-400">
               Загрузка пользователей...
             </div>

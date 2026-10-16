@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { ArrowLeft, User, Mail, Lock, Check, AlertCircle, Camera, Image, Trash2 } from 'lucide-react';
 import { apiUrl } from '../api';
-import { invalidateMediaCache } from '../utils/userMediaCache';
+import { invalidateMediaCache, cacheMediaDataUrl } from '../utils/userMediaCache';
 import { saveCustomUserEdit } from '../utils/customEditsStorage';
+import { setCachedUserProfile } from '../utils/profileCache';
 
 export default function ProfileEditPage({
   user,
@@ -38,21 +39,62 @@ export default function ProfileEditPage({
     );
   }
 
-  // Handle local image file read to base64 data URL
-  const handleFileChange = (e, setUrl) => {
+  // Compress image to fast-loading WebP/JPEG using client-side canvas
+  const compressImageFile = (file, maxWidth, maxHeight, quality = 0.85) => {
+    return new Promise((resolve) => {
+      if (file.type === 'image/gif' || file.type === 'image/svg+xml') {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = document.createElement('img');
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Handle local image file read with automated canvas compression
+  const handleFileChange = async (e, setUrl, type = 'avatar') => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
 
-    if (file.size > 15 * 1024 * 1024) {
-      setError('Файл слишком большой. Выберите изображение до 15 МБ.');
+    if (file.size > 20 * 1024 * 1024) {
+      setError('Файл слишком большой. Выберите изображение до 20 МБ.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setUrl(reader.result);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const maxWidth = type === 'banner' ? 1280 : 400;
+      const maxHeight = type === 'banner' ? 500 : 400;
+      const optimizedDataUrl = await compressImageFile(file, maxWidth, maxHeight, 0.85);
+      setUrl(optimizedDataUrl);
+    } catch (err) {
+      const reader = new FileReader();
+      reader.onload = () => setUrl(reader.result);
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -83,6 +125,32 @@ export default function ProfileEditPage({
         finalBanner = top5Frag;
       }
 
+      // Optimistic updated user object
+      const updatedUser = {
+        ...user,
+        nickname: nickname.trim(),
+        email: email.trim(),
+        avatarUrl: avatarUrl || null,
+        bannerUrl: finalBanner
+      };
+
+      // 1. Immediately persist locally (0ms) so it's NEVER lost
+      if (user?.id) {
+        saveCustomUserEdit(user.id, {
+          nickname: updatedUser.nickname,
+          email: updatedUser.email,
+          avatarUrl: updatedUser.avatarUrl,
+          bannerUrl: updatedUser.bannerUrl
+        });
+        setCachedUserProfile(updatedUser);
+        if (avatarUrl && avatarUrl.startsWith('data:')) {
+          cacheMediaDataUrl(updatedUser.avatarUrl, avatarUrl);
+        }
+        if (finalBanner && finalBanner.startsWith('data:')) {
+          cacheMediaDataUrl(updatedUser.bannerUrl, finalBanner);
+        }
+      }
+
       const body = {
         nickname: nickname.trim(),
         email: email.trim(),
@@ -95,42 +163,42 @@ export default function ProfileEditPage({
         body.newPassword = newPassword.trim();
       }
 
-      const res = await fetch(apiUrl('/api/auth/profile'), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(body)
-      });
+      let res = null;
+      let data = null;
+      try {
+        res = await fetch(apiUrl('/api/auth/profile'), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(10000)
+        });
+        if (res) data = await res.json();
+      } catch (netErr) {
+        console.warn('Network sync delayed/offline, changes saved locally:', netErr);
+      }
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Ошибка сохранения');
+      const activeUser = (data && data.user) ? data.user : updatedUser;
+      const activeToken = (data && data.token) ? data.token : token;
+
+      if (user?.avatarUrl && user.avatarUrl !== activeUser.avatarUrl) {
+        invalidateMediaCache(user.avatarUrl);
+      }
+      if (user?.bannerUrl && user.bannerUrl !== activeUser.bannerUrl) {
+        invalidateMediaCache(user.bannerUrl);
+      }
+
+      if (onUserUpdated) {
+        onUserUpdated(activeUser, activeToken);
       }
 
       setSuccess('Профиль успешно обновлен!');
       setCurrentPassword('');
       setNewPassword('');
-      if (user?.avatarUrl && user.avatarUrl !== data.user?.avatarUrl) {
-        invalidateMediaCache(user.avatarUrl);
-      }
-      if (user?.bannerUrl && user.bannerUrl !== data.user?.bannerUrl) {
-        invalidateMediaCache(user.bannerUrl);
-      }
-      if (data?.user?.id) {
-        saveCustomUserEdit(data.user.id, {
-          nickname: data.user.nickname,
-          email: data.user.email,
-          avatarUrl: data.user.avatarUrl,
-          bannerUrl: data.user.bannerUrl
-        });
-      }
-      if (onUserUpdated) {
-        onUserUpdated(data.user, data.token);
-      }
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Ошибка сохранения профиля');
     } finally {
       setLoading(false);
     }
@@ -225,7 +293,7 @@ export default function ProfileEditPage({
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(e) => handleFileChange(e, setBannerUrl)}
+              onChange={(e) => handleFileChange(e, setBannerUrl, 'banner')}
             />
           </div>
 
@@ -284,7 +352,7 @@ export default function ProfileEditPage({
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(e) => handleFileChange(e, setAvatarUrl)}
+              onChange={(e) => handleFileChange(e, setAvatarUrl, 'avatar')}
             />
           </div>
         </div>

@@ -37,17 +37,36 @@ export function clearCachedUserProfile() {
   }
 }
 
+import clubRatingsSnapshot from '../data/clubRatingsSnapshot.json';
+
 export function getCachedUserRatings(userId) {
   try {
     const key = `${RATINGS_PREFIX}${userId || 'guest'}`;
     const raw = localStorage.getItem(key);
-    if (!raw) return [];
-    let list = JSON.parse(raw);
-    if (!Array.isArray(list)) return [];
-    return list;
-  } catch (e) {
-    return [];
+    if (raw) {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list) && list.length > 0) return list;
+    }
+  } catch (e) {}
+
+  // Fallback to embedded club snapshot for core members
+  if (userId && clubRatingsSnapshot && Array.isArray(clubRatingsSnapshot[String(userId)])) {
+    return clubRatingsSnapshot[String(userId)].map((r) => ({
+      id: r.id,
+      title: r.title,
+      originalTitle: r.originalTitle || r.title,
+      imageUrl: r.imageUrl,
+      type: r.type || 'Сериал',
+      year: r.year,
+      genres: r.genres || [],
+      description: r.description || '',
+      myScore: r.score !== undefined ? r.score : r.myScore,
+      score: r.score !== undefined ? r.score : r.myScore,
+      isPinned: Boolean(r.isPinned)
+    }));
   }
+
+  return [];
 }
 
 export function setCachedUserRatings(userId, ratings) {

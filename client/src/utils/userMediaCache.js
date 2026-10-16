@@ -139,7 +139,12 @@ export async function getCachedMediaUrl(rawUrl) {
       }
 
       if (!res || !res.ok) {
-        // Fallback to original URL on network/HTTP error
+        return cleanUrl;
+      }
+
+      const contentType = res.headers ? (res.headers.get('content-type') || '') : '';
+      if (contentType.includes('text/html')) {
+        // SPA rewrite fallback, do not treat HTML as an image
         return cleanUrl;
       }
 
@@ -169,6 +174,21 @@ export function getSyncCachedMediaUrl(rawUrl) {
   if (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) return rawUrl;
   const [cleanUrl] = rawUrl.split('#');
   return memoryBlobUrlCache.get(cleanUrl) || null;
+}
+
+/**
+ * Pre-cache a data URL directly into IndexedDB and RAM (e.g. after uploading a new avatar or banner)
+ */
+export async function cacheMediaDataUrl(rawUrl, dataUrl) {
+  if (!rawUrl || !dataUrl) return;
+  const [cleanUrl] = rawUrl.split('#');
+  try {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    await saveToIndexedDB(cleanUrl, blob);
+    const objectUrl = URL.createObjectURL(blob);
+    memoryBlobUrlCache.set(cleanUrl, objectUrl);
+  } catch (e) {}
 }
 
 /**

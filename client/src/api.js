@@ -50,9 +50,11 @@ export const getImageUrl = (url, animeId) => {
   if (url.startsWith('data:') || url.startsWith('blob:')) {
     return url;
   }
-  if (url.startsWith('/covers/') || url.startsWith('/api/uploads') || url.startsWith('/uploads')) {
-    // Hosted directly on the fast Firebase Hosting global CDN for instant 0ms delivery
+  if (url.startsWith('/covers/')) {
     return url;
+  }
+  if (url.startsWith('/api/uploads/') || url.startsWith('/uploads/')) {
+    return apiUrl(url);
   }
   if (url.startsWith('/') && !url.startsWith('//')) {
     return url;
