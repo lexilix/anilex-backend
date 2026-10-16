@@ -151,7 +151,7 @@ const DEFAULT_GENRES = [
 
 const DEFAULT_FRIENDS = [
   { id: 5, nickname: 'Just', email: 'just9jeeet@gmail.com', avatarUrl: '/api/uploads/user_5_avatar.jpg', bannerUrl: '/api/uploads/user_5_banner.gif', rated_count: 211, avg_score: 8.5 },
-  { id: 25, nickname: 'Goose4ka', email: 'divatiar123@gmail.com', avatarUrl: '/api/uploads/user_25_avatar_1792097671383.gif', bannerUrl: '/api/uploads/user_25_banner_1792097671385.jpg', rated_count: 202, avg_score: 6.3 },
+  { id: 25, nickname: 'Goose4ka', email: 'divatiar123@gmail.com', avatarUrl: '/api/uploads/user_25_avatar.png', bannerUrl: '/api/uploads/user_25_banner.jpg#top5=3339,3341,7184,60058,3127', rated_count: 202, avg_score: 6.3 },
   { id: 21, nickname: 'Venicek', email: 'venicek@example.com', avatarUrl: '/api/uploads/user_21_avatar.gif', bannerUrl: '/api/uploads/user_21_banner.gif', rated_count: 86, avg_score: 9.3 },
   { id: 20, nickname: 'MrTech', email: 'mrtech@example.com', avatarUrl: null, bannerUrl: null, rated_count: 46, avg_score: 9.2 },
   { id: 22, nickname: 'haitek', email: 'cik5921@gmail.com', avatarUrl: '/api/uploads/user_22_avatar.gif', bannerUrl: '/api/uploads/user_22_banner.gif', rated_count: 46, avg_score: 8.6 },

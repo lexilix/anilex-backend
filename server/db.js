@@ -499,8 +499,8 @@ function restoreAccountsFromBackup() {
               uObj ? uObj.nickname : gu.nickname,
               uObj?.password_hash || 'RESTORED_ACCOUNT',
               uObj?.salt || 'RESTORED_SALT',
-              uObj?.avatar_url || (gu.id === 25 ? '/api/uploads/user_25_avatar_1792097671383.gif' : null),
-              uObj?.banner_url || (gu.id === 25 ? '/api/uploads/user_25_banner_1792097671385.jpg' : null),
+              uObj?.avatar_url || (gu.id === 25 ? '/api/uploads/user_25_avatar.png' : null),
+              uObj?.banner_url || (gu.id === 25 ? '/api/uploads/user_25_banner.jpg#top5=3339,3341,7184,60058,3127' : null),
               uObj?.allow_password_set !== undefined ? uObj.allow_password_set : 1
             );
           } catch (e) {

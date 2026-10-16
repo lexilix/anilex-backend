@@ -1345,14 +1345,10 @@ app.get('/api/users/:id/profile', optionalAuthMiddleware, (req, res) => {
       } else if (relation && relation.status === 'pending') {
         friendshipStatus = relation.from_user_id === currentUserId ? 'pending_sent' : 'pending_received';
         requestId = relation.id;
-      } else if (isTargetClubUser) {
+      } else if (isTargetClubUser && [5, 15, 20, 21, 22, 23, 25].includes(currentUserId)) {
         isFriend = true;
         friendshipStatus = 'accepted';
       }
-    } else if (isTargetClubUser) {
-      // Allow public profile viewing for club members
-      isFriend = true;
-      friendshipStatus = 'accepted';
     }
 
     // Compute stats

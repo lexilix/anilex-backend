@@ -10,6 +10,7 @@ import { executeImportWorkflow } from '../utils/importer';
 import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 import { applyCustomUserEdits } from '../utils/customEditsStorage';
 import CachedUserImage from './CachedUserImage';
+import clubRatingsSnapshot from '../data/clubRatingsSnapshot.json';
 
 function LevelIcon({ iconName, className = 'w-5 h-5' }) {
   switch (iconName) {
@@ -209,7 +210,7 @@ export default function ProfilePage({
   // Friends state
   const DEFAULT_CLUB_USERS = [
     { id: 5, nickname: 'Just', email: 'just9jeeet@gmail.com', avatarUrl: '/api/uploads/user_5_avatar.jpg', bannerUrl: '/api/uploads/user_5_banner.gif', ratedCount: 211, avgScore: 8.5, friendshipStatus: 'accepted' },
-    { id: 25, nickname: 'Goose4ka', email: 'divatiar123@gmail.com', avatarUrl: '/api/uploads/user_25_avatar_1792097671383.gif', bannerUrl: '/api/uploads/user_25_banner_1792097671385.jpg', ratedCount: 202, avgScore: 6.3, friendshipStatus: 'accepted' },
+    { id: 25, nickname: 'Goose4ka', email: 'divatiar123@gmail.com', avatarUrl: '/api/uploads/user_25_avatar.png', bannerUrl: '/api/uploads/user_25_banner.jpg#top5=3339,3341,7184,60058,3127', ratedCount: 202, avgScore: 6.3, friendshipStatus: 'accepted' },
     { id: 21, nickname: 'Venicek', email: 'venicek@example.com', avatarUrl: '/api/uploads/user_21_avatar.gif', bannerUrl: '/api/uploads/user_21_banner.gif', ratedCount: 86, avgScore: 9.3, friendshipStatus: 'accepted' },
     { id: 20, nickname: 'MrTech', email: 'mrtech@example.com', avatarUrl: null, bannerUrl: null, ratedCount: 46, avgScore: 9.2, friendshipStatus: 'accepted' },
     { id: 22, nickname: 'haitek', email: 'cik5921@gmail.com', avatarUrl: '/api/uploads/user_22_avatar.gif', bannerUrl: '/api/uploads/user_22_banner.gif', ratedCount: 46, avgScore: 8.6, friendshipStatus: 'accepted' },
@@ -1421,11 +1422,26 @@ export default function ProfilePage({
   // Load friend public profile
   const handleOpenFriend = async (friendId, fallbackUser = null) => {
     try {
+      const numFriendId = Number(friendId);
+      const snapshotRatings = clubRatingsSnapshot[numFriendId] || getCachedUserRatings(numFriendId) || [];
+      if (snapshotRatings.length > 0) {
+        setFriendRatings(snapshotRatings);
+      }
+
       if (fallbackUser) {
         let initUser = applyCustomUserEdits(fallbackUser);
         if (!initUser || !initUser.nickname) initUser = { ...fallbackUser };
-        initUser.isFriend = true;
-        initUser.friendshipStatus = 'accepted';
+        const isClubFriend = [5, 15, 20, 21, 22, 23, 25].includes(numFriendId) && [5, 15, 20, 21, 22, 23, 25].includes(Number(user?.id));
+        if (isClubFriend || initUser.isFriend || user?.id === 5) {
+          initUser.isFriend = true;
+          initUser.friendshipStatus = 'accepted';
+        }
+        if (numFriendId === 25) {
+          initUser.ratedCount = 202;
+          initUser.avgScore = 6.3;
+          initUser.avatarUrl = '/api/uploads/user_25_avatar.png';
+          initUser.bannerUrl = initUser.bannerUrl || '/api/uploads/user_25_banner.jpg#top5=3339,3341,7184,60058,3127';
+        }
         setSelectedFriend(initUser);
       }
 
@@ -1444,10 +1460,23 @@ export default function ProfilePage({
           userObj.avatarUrl = data.user.avatarUrl || userObj.avatarUrl;
           userObj.bannerUrl = data.user.bannerUrl || userObj.bannerUrl;
         }
-        userObj.isFriend = true;
-        userObj.friendshipStatus = 'accepted';
+        if (numFriendId === 25) {
+          userObj.ratedCount = 202;
+          userObj.avgScore = 6.3;
+          userObj.avatarUrl = '/api/uploads/user_25_avatar.png';
+          userObj.bannerUrl = userObj.bannerUrl || '/api/uploads/user_25_banner.jpg#top5=3339,3341,7184,60058,3127';
+        }
+
+        const isClubFriend = [5, 15, 20, 21, 22, 23, 25].includes(numFriendId) && [5, 15, 20, 21, 22, 23, 25].includes(Number(user?.id));
+        if (isClubFriend || data.user?.isFriend || user?.id === 5) {
+          userObj.isFriend = true;
+          userObj.friendshipStatus = 'accepted';
+        }
         setSelectedFriend(userObj);
-        let ratings = data.ratings || [];
+
+        let ratings = Array.isArray(data.ratings) && data.ratings.length > 0
+          ? data.ratings
+          : (snapshotRatings.length > 0 ? snapshotRatings : (clubRatingsSnapshot[numFriendId] || []));
 
         // Guarantee Lemon Girls 10/10 for Venicek
         if (data.user?.nickname === 'Venicek' || data.user?.id === 21 || friendId === 21) {
@@ -1516,6 +1545,9 @@ export default function ProfilePage({
         }
 
         // Known default fallbacks
+        if ((data.user?.nickname === 'Goose4ka' || friendId === 25 || data.user?.id === 25) && friendTop5.length === 0) {
+          friendTop5 = [3339, 3341, 7184, 60058, 3127];
+        }
         if ((data.user?.nickname === 'Katsu' || friendId === 15 || data.user?.id === 15) && friendTop5.length === 0) {
           friendTop5 = [6080, 3495, 2143, 1807];
         }
@@ -1542,16 +1574,21 @@ export default function ProfilePage({
         setFriendScoreFilter('all');
         setFriendGenreFilter('all');
       } else {
-        const cachedRatings = getCachedUserRatings(friendId);
-        if (Array.isArray(cachedRatings) && cachedRatings.length > 0) {
-          setFriendRatings(cachedRatings);
+        const fallbackRatings = snapshotRatings.length > 0 ? snapshotRatings : (clubRatingsSnapshot[numFriendId] || getCachedUserRatings(numFriendId) || []);
+        if (fallbackRatings.length > 0) {
+          setFriendRatings(fallbackRatings);
+          const top5Fallback = numFriendId === 25 ? [3339, 3341, 7184, 60058, 3127] : (numFriendId === 15 ? [6080, 3495, 2143, 1807] : []);
+          setFriendTop5Ids(top5Fallback);
         }
       }
     } catch (err) {
       console.warn('Notice loading friend profile (using offline cache):', err.message);
-      const cachedRatings = getCachedUserRatings(friendId);
-      if (Array.isArray(cachedRatings) && cachedRatings.length > 0) {
-        setFriendRatings(cachedRatings);
+      const numFriendId = Number(friendId);
+      const fallbackRatings = clubRatingsSnapshot[numFriendId] || getCachedUserRatings(numFriendId) || [];
+      if (fallbackRatings.length > 0) {
+        setFriendRatings(fallbackRatings);
+        const top5Fallback = numFriendId === 25 ? [3339, 3341, 7184, 60058, 3127] : (numFriendId === 15 ? [6080, 3495, 2143, 1807] : []);
+        setFriendTop5Ids(top5Fallback);
       }
     }
   };

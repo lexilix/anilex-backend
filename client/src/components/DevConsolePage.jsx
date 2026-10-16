@@ -541,7 +541,7 @@ export default function DevConsolePage({
   // ----------------------------------------------------
   const DEFAULT_DEV_USERS = [
     { id: 5, nickname: 'Just', email: 'just9jeeet@gmail.com', avatarUrl: '/api/uploads/user_5_avatar.jpg', bannerUrl: '/api/uploads/user_5_banner.gif', ratedCount: 211, avgScore: 8.5, isBlocked: false },
-    { id: 25, nickname: 'Goose4ka', email: 'divatiar123@gmail.com', avatarUrl: '/api/uploads/user_25_avatar_1792097671383.gif', bannerUrl: '/api/uploads/user_25_banner_1792097671385.jpg', ratedCount: 202, avgScore: 6.3, isBlocked: false },
+    { id: 25, nickname: 'Goose4ka', email: 'divatiar123@gmail.com', avatarUrl: '/api/uploads/user_25_avatar.png', bannerUrl: '/api/uploads/user_25_banner.jpg#top5=3339,3341,7184,60058,3127', ratedCount: 202, avgScore: 6.3, isBlocked: false },
     { id: 21, nickname: 'Venicek', email: 'venicek@example.com', avatarUrl: '/api/uploads/user_21_avatar.gif', bannerUrl: '/api/uploads/user_21_banner.gif', ratedCount: 86, avgScore: 9.3, isBlocked: false },
     { id: 20, nickname: 'MrTech', email: 'mrtech@example.com', avatarUrl: null, bannerUrl: null, ratedCount: 46, avgScore: 9.2, isBlocked: false },
     { id: 22, nickname: 'haitek', email: 'cik5921@gmail.com', avatarUrl: '/api/uploads/user_22_avatar.gif', bannerUrl: '/api/uploads/user_22_banner.gif', ratedCount: 46, avgScore: 8.6, isBlocked: false },
