@@ -516,7 +516,8 @@ export default function App() {
     if (!token) return;
     const currentUserId = user?.id || getCachedUserProfile()?.id;
     fetch(apiUrl('/api/user/rated-anime'), {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(3000)
     })
       .then((res) => (res.ok ? res.json() : null))
       .then(async (data) => {
@@ -538,7 +539,8 @@ export default function App() {
                       'Content-Type': 'application/json',
                       Authorization: `Bearer ${token}`
                     },
-                    body: JSON.stringify({ ratings: pending })
+                    body: JSON.stringify({ ratings: pending }),
+                    signal: AbortSignal.timeout(3000)
                   });
                   if (syncRes.ok) {
                     data.items.push(...pending);
@@ -560,9 +562,9 @@ export default function App() {
   const fetchMetadata = useCallback(async () => {
     try {
       const [genresRes, typesRes, friendsRes] = await Promise.all([
-        fetch(apiUrl('/api/genres')).catch(() => null),
-        fetch(apiUrl('/api/types')).catch(() => null),
-        fetch(apiUrl('/api/friends')).catch(() => null)
+        fetch(apiUrl('/api/genres'), { signal: AbortSignal.timeout(3000) }).catch(() => null),
+        fetch(apiUrl('/api/types'), { signal: AbortSignal.timeout(3000) }).catch(() => null),
+        fetch(apiUrl('/api/friends'), { signal: AbortSignal.timeout(3000) }).catch(() => null)
       ]);
 
       if (genresRes && genresRes.ok) {
@@ -570,6 +572,14 @@ export default function App() {
         if (Array.isArray(data.genres) && data.genres.length > 0) {
           setGenres(data.genres);
           try { localStorage.setItem('anilex_cached_genres', JSON.stringify(data.genres)); } catch (e) {}
+        }
+      } else {
+        const saved = localStorage.getItem('anilex_cached_genres');
+        const parsed = saved ? JSON.parse(saved) : null;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setGenres(parsed);
+        } else {
+          setGenres(DEFAULT_GENRES);
         }
       }
       if (typesRes && typesRes.ok) {
@@ -895,6 +905,38 @@ export default function App() {
         } else {
           setLoading(true);
         }
+      } else if (!isSearching) {
+        // Instant optimistic 0ms local catalog display for any filter / sort / page change!
+        try {
+          const allLocal = getAllCachedAnime();
+          const customEdits = getCustomAnimeEdits();
+          const mergedLocal = allLocal.map((it) => {
+            const custom = customEdits[Number(it.id)];
+            return custom ? applyCustomAnimeEdits({ ...it, ...custom }) : applyCustomAnimeEdits(it);
+          });
+          const withRatings = overlayUserRatings(mergedLocal, user?.id);
+          const locallyFiltered = filterLocalCatalog(withRatings, {
+            search: '',
+            sort: activeSort,
+            type: activeType,
+            year: activeYear,
+            filterStatus,
+            genres: activeGenres
+          });
+          const startIdx = (targetPage - 1) * 15;
+          const page15 = locallyFiltered.slice(startIdx, startIdx + 15);
+          if (page15.length > 0) {
+            setAnimeList(page15);
+            setTotalCount(locallyFiltered.length);
+            setTotalPages(Math.max(1, Math.ceil(locallyFiltered.length / 15)));
+            setCatalogError(null);
+            setLoading(false);
+          } else if (animeList.length === 0) {
+            setLoading(true);
+          }
+        } catch (e) {
+          if (animeList.length === 0) setLoading(true);
+        }
       } else if (animeList.length === 0) {
         setLoading(true);
       }
@@ -917,7 +959,7 @@ export default function App() {
         }
 
         const controller = new AbortController();
-        const searchTimeoutMs = isSearching ? 5000 : 20000; // strictly 5s timeout for search
+        const searchTimeoutMs = 2500; // Fast 2.5s timeout: if Render is sleeping/down, user already has 0ms offline results
         const timeoutId = setTimeout(() => controller.abort(), searchTimeoutMs);
 
         const res = await fetch(apiUrl(`/api/anime?${params.toString()}`), {

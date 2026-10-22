@@ -113,7 +113,7 @@ export async function apiFetch(endpoint, options = {}, retries = 1) {
     headers: {
       ...(options.headers || {})
     },
-    signal: options.signal || AbortSignal.timeout(15000)
+    signal: options.signal || AbortSignal.timeout(6000)
   };
 
   try {

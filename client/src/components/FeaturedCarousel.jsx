@@ -5,6 +5,7 @@ import { getHiddenAnimeIds } from '../utils/hiddenStorage';
 import { deduplicateAnimeList } from '../utils/animeDeduplicator';
 import { getCachedAnime } from '../utils/catalogCache';
 import { prefetchAnimeImages, resolveImageSrc } from '../utils/imageCache';
+import { getCachedUserRatings } from '../utils/profileCache';
 
 function getCachedFeatured(tab) {
   try {
@@ -78,28 +79,41 @@ export default function FeaturedCarousel({
     }
 
     if (activeTab === 'my') {
-      if (!user || !token) {
+      if (!user) {
         setItems([]);
         setLoading(false);
         return;
       }
 
+      // Preload immediately from user's cached ratings
+      const localRated = getCachedUserRatings(user?.id);
+      if (Array.isArray(localRated) && localRated.length > 0) {
+        const sortedMy = [...localRated].sort((a, b) => (Number(b.myScore) || 0) - (Number(a.myScore) || 0)).slice(0, 15);
+        setItems(sortedMy);
+        setLoading(false);
+      }
+
+      if (!token) return;
+
       fetch(apiUrl('/api/user/rated-anime?sort=my_score_desc&limit=15'), {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(2500)
       })
         .then(res => res.json())
         .then(data => {
           if (isMounted) {
             const hiddenIds = getHiddenAnimeIds(user?.id);
             const filtered = deduplicateAnimeList((data.items || []).filter(it => !hiddenIds.has(it.id)));
-            setItems(filtered);
-            setCachedFeatured('my', filtered);
-            prefetchAnimeImages(filtered);
+            if (filtered.length > 0) {
+              setItems(filtered);
+              setCachedFeatured('my', filtered);
+              prefetchAnimeImages(filtered);
+            }
             setLoading(false);
           }
         })
         .catch(err => {
-          console.warn('Error fetching my rated anime for carousel:', err);
+          console.warn('Carousel my ratings fetch notice (using cache):', err.message);
           if (isMounted) setLoading(false);
         });
 
@@ -110,7 +124,10 @@ export default function FeaturedCarousel({
 
     const loadFeatured = (attempt = 0) => {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      fetch(apiUrl(`/api/anime/featured?tab=${activeTab}&limit=15`), { headers })
+      fetch(apiUrl(`/api/anime/featured?tab=${activeTab}&limit=15`), {
+        headers,
+        signal: AbortSignal.timeout(2500)
+      })
         .then(res => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.json();
@@ -133,22 +150,15 @@ export default function FeaturedCarousel({
           }
         })
         .catch(err => {
-          console.warn(`Featured anime fetch attempt ${attempt + 1} failed:`, err.message);
           if (isMounted) {
-            if (attempt < 2) {
-              retryTimer = setTimeout(() => {
-                if (isMounted) loadFeatured(attempt + 1);
-              }, 1200 * (attempt + 1));
-            } else {
-              setLoading(false);
-              setItems(prev => {
-                if (prev.length > 0) return prev;
-                const cachedFallback = getCachedFeatured(activeTab);
-                if (cachedFallback && cachedFallback.length > 0) return cachedFallback;
-                if (activeTab === 'top') return getFallbackTopAnime();
-                return [];
-              });
-            }
+            setLoading(false);
+            setItems(prev => {
+              if (prev.length > 0) return prev;
+              const cachedFallback = getCachedFeatured(activeTab);
+              if (cachedFallback && cachedFallback.length > 0) return cachedFallback;
+              if (activeTab === 'top') return getFallbackTopAnime();
+              return [];
+            });
           }
         });
     };

@@ -259,10 +259,17 @@ export default function AnimeDetailPage({
       const token = localStorage.getItem('anime_auth_token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       let items = [];
-      if (res.ok) {
-        const data = await res.json();
-        items = data.items || [];
-      } else {
+      try {
+        const res = await fetch(apiUrl(`/api/anime/${animeId}/related`), {
+          headers,
+          signal: AbortSignal.timeout(3000)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          items = data.items || [];
+        }
+      } catch (fetchErr) {}
+      if (items.length === 0) {
         const numId = Number(animeId);
         const catItem = (Array.isArray(initialCatalog) ? initialCatalog : []).find(
           (a) =>

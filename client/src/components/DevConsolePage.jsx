@@ -725,7 +725,8 @@ export default function DevConsolePage({
       }
 
       const res = await fetch(apiUrl(`/api/anime?${params.toString()}`), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal: AbortSignal.timeout(3500)
       });
 
       if (res.ok) {
@@ -779,9 +780,41 @@ export default function DevConsolePage({
 
         setAnimeList(filtered);
         setAnimeTotal(Math.max(filtered.length, (data.total || filtered.length) - (rawItems.length - filtered.length)));
+      } else {
+        throw new Error('Failed to load anime from server');
       }
     } catch (err) {
-      console.error('Error fetching anime for dev:', err);
+      console.warn('Dev console anime fetch notice (using cached catalog):', err.message);
+      try {
+        const allCached = getAllCachedAnime();
+        const customEdits = getCustomAnimeEdits();
+        let deletedAnimeIds = new Set();
+        try {
+          deletedAnimeIds = new Set(JSON.parse(localStorage.getItem('anilex_deleted_anime_ids') || '[]').map(Number));
+        } catch (e) {}
+
+        let filtered = allCached
+          .filter((it) => !deletedAnimeIds.has(Number(it.id)))
+          .map((it) => {
+            const custom = customEdits[Number(it.id)];
+            return custom ? applyCustomAnimeEdits({ ...it, ...custom }) : applyCustomAnimeEdits(it);
+          });
+
+        if (searchQuery.trim()) {
+          filtered = searchCachedAnime(searchQuery.trim())
+            .filter((it) => !deletedAnimeIds.has(Number(it.id)))
+            .map((it) => applyCustomAnimeEdits(it));
+        }
+
+        if (pubFilter === 'published') {
+          filtered = filtered.filter((it) => it.isPublished !== false && it.is_published !== 0);
+        } else if (pubFilter === 'hidden') {
+          filtered = filtered.filter((it) => it.isPublished === false || it.is_published === 0);
+        }
+
+        setAnimeList(filtered.slice(0, 20));
+        setAnimeTotal(filtered.length);
+      } catch (fallbackErr) {}
     } finally {
       setAnimeLoading(false);
     }

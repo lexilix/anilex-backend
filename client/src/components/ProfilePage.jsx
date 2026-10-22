@@ -2026,7 +2026,7 @@ export default function ProfilePage({
           </div>
 
           {/* List of Rated Anime */}
-          {loading ? (
+          {loading && allRatedAnime.length === 0 ? (
             <div className="py-20 text-center text-neutral-400 text-xs">
               Загрузка оцененных тайтлов...
             </div>
