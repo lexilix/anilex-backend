@@ -1,10 +1,21 @@
 // Centralized API configuration with Multi-Host Failover and Server Offline Resilience
 
 const PRODUCTION_SERVER = 'https://anilex-backend.onrender.com';
-const PRIMARY_SERVER = (
-  import.meta.env.VITE_API_URL ||
-  PRODUCTION_SERVER
-).replace(/\/+$/, '');
+
+function detectDefaultBase() {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.')) {
+      return window.location.port === '3001' ? '' : 'http://localhost:3001';
+    }
+  }
+  return PRODUCTION_SERVER;
+}
+
+const PRIMARY_SERVER = detectDefaultBase().replace(/\/+$/, '');
 
 // Clean up any stale mirror from localStorage
 if (typeof window !== 'undefined') {
